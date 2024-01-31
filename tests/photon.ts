@@ -2,12 +2,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program, web3 } from "@coral-xyz/anchor";
 import { Photon } from "../target/types/photon";
 import { Onefunc } from "../target/types/onefunc";
-import {
-  createMint,
-  createAccount,
-  TOKEN_PROGRAM_ID,
-  mintTo,
-} from "@solana/spl-token";
 import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
   addAllowedProtocolAddress,
@@ -44,11 +38,7 @@ describe("photon", () => {
 
   const owner = anchor.web3.Keypair.generate();
   const executor = anchor.web3.Keypair.generate();
-  const feeCollector = anchor.web3.Keypair.generate();
 
-  let nglMint;
-  let executorNglVault;
-  let feeCollectorVault;
   let config;
   let govProtocolInfo;
   let counter;
@@ -68,33 +58,7 @@ describe("photon", () => {
       anchor.web3.LAMPORTS_PER_SOL,
     );
     await program.provider.connection.confirmTransaction(tx);
-    nglMint = await createMint(
-      program.provider.connection,
-      owner,
-      owner.publicKey,
-      null,
-      9,
-    );
-    executorNglVault = await createAccount(
-      program.provider.connection,
-      executor,
-      nglMint,
-      executor.publicKey,
-    );
-    feeCollectorVault = await createAccount(
-      program.provider.connection,
-      owner,
-      nglMint,
-      feeCollector.publicKey,
-    );
-    await mintTo(
-      program.provider.connection,
-      owner,
-      nglMint,
-      executorNglVault,
-      owner.publicKey,
-      100000000,
-    );
+
     config = web3.PublicKey.findProgramAddressSync(
       [ROOT, utf8.encode("CONFIG")],
       program.programId,
@@ -162,11 +126,7 @@ describe("photon", () => {
         executor: executor.publicKey,
         protocolInfo,
         opInfo,
-        nglMint,
-        executorNglVault,
-        feeCollectorVault,
         config,
-        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
       })
       .signers([executor])
@@ -227,10 +187,7 @@ describe("photon", () => {
       .initialize(new anchor.BN(EOB_CHAIN_ID))
       .accounts({
         owner: owner.publicKey,
-        nglMint,
-        feeCollectorVault,
         config,
-        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
       })
       .signers([owner])
@@ -283,17 +240,6 @@ describe("photon", () => {
       GOV_PROTOCOL_ID,
       program.programId,
       0x970b6109,
-      params,
-      ONE_FUNC_ID,
-    );
-  });
-
-  it("setProtocolFee", async () => {
-    let params = setConsensusTargetRate(ONE_FUNC_ID, 0);
-    await executeProposal(
-      GOV_PROTOCOL_ID,
-      program.programId,
-      0xafe50cc2,
       params,
       ONE_FUNC_ID,
     );

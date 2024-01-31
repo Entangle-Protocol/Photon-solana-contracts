@@ -5,10 +5,8 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
-        "@coral-xyz/spl-token": "^0.29.0",
         "@entangle_protocol/oracle-sdk": "^1.4.10-testnet-v4",
         "@nomiclabs/hardhat-ethers": "2.0.6",
-        "@solana/spl-token": "^0.3.11",
         "ethers": "5.7.2"
     },
     "devDependencies": {

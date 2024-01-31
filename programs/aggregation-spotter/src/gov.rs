@@ -20,7 +20,6 @@ pub fn handle_gov_operation(
                 &[
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Uint(256),      // consensusTargetRate
-                    ParamType::Uint(256),      // protocolFee
                     ParamType::Array(Box::new(ParamType::Address)),
                 ],
                 &calldata,
@@ -38,11 +37,7 @@ pub fn handle_gov_operation(
                 .clone()
                 .into_uint()
                 .ok_or(CustomError::InvalidGovMsg)?;
-            let protocol_fee = decoded[2]
-                .clone()
-                .into_uint()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            let keepers: Vec<ethabi::Address> = decoded[3]
+            let keepers: Vec<ethabi::Address> = decoded[2]
                 .clone()
                 .into_array()
                 .ok_or(CustomError::InvalidGovMsg)?
@@ -51,7 +46,6 @@ pub fn handle_gov_operation(
                 .collect();
             ctx.accounts.protocol_info.is_init = true;
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
-            ctx.accounts.protocol_info.protocol_fee = protocol_fee.as_u64();
             for (i, k) in keepers.into_iter().enumerate() {
                 ctx.accounts.protocol_info.keepers[i] = k.into();
             }
@@ -362,30 +356,6 @@ pub fn handle_gov_operation(
                 .into_uint()
                 .ok_or(CustomError::InvalidGovMsg)?;
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
-        }
-        // setProtocolFee(bytes)
-        0xafe50cc2 => {
-            let decoded = ethabi::decode(
-                &[
-                    ParamType::FixedBytes(32), // protocolId
-                    ParamType::Uint(256),      // fee
-                ],
-                &calldata,
-            )
-            .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
-            let fee = decoded[1]
-                .clone()
-                .into_uint()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            ctx.accounts.protocol_info.protocol_fee = fee.as_u64();
         }
         _ => {
             return Err(CustomError::InvalidGovMethod.into());

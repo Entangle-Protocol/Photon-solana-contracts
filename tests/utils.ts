@@ -103,11 +103,10 @@ export function addAllowedProtocol(
 ): Buffer {
   return hexToBytes(
     ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "uint", "uint", "address[]"],
+      ["bytes32", "uint", "address[]"],
       [
         protocolId,
         consensusTargetRate,
-        1000,
         keepersRaw.map((x) => Buffer.from(x).toString("hex")),
       ],
     ),

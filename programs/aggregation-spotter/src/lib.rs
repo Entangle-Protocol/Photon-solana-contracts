@@ -2,7 +2,6 @@ mod gov;
 mod signature;
 mod util;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
 use signature::{KeeperSignature, OperationData};
 use util::{gov_protocol_id, EthAddress, OpStatus};
 
@@ -18,7 +17,6 @@ pub mod photon {
     pub const MAX_PROPOSERS: usize = 20;
 
     use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
-    use anchor_spl::token::Transfer;
 
     use self::{gov::handle_gov_operation, signature::ecrecover};
 
@@ -27,8 +25,6 @@ pub mod photon {
     pub fn initialize(ctx: Context<Initialize>, eob_chain_id: u64) -> Result<()> {
         ctx.accounts.config.owner = ctx.accounts.owner.key();
         ctx.accounts.config.admin = ctx.accounts.owner.key();
-        ctx.accounts.config.fee_collector_vault = ctx.accounts.fee_collector_vault.key();
-        ctx.accounts.config.ngl_mint = ctx.accounts.ngl_mint.key();
         ctx.accounts.config.eob_chain_id = eob_chain_id;
         ctx.accounts.config.nonce = 0;
         Ok(())
@@ -82,16 +78,6 @@ pub mod photon {
                 && op_data.src_op_tx_id.len() == 32,
             CustomError::InvalidOpData
         );
-        if ctx.accounts.protocol_info.protocol_fee > 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.executor_ngl_vault.to_account_info(),
-                to: ctx.accounts.fee_collector_vault.to_account_info(),
-                authority: ctx.accounts.executor.clone().to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.clone();
-            let cpi_ctx = CpiContext::new(cpi_program.to_account_info(), cpi_accounts);
-            token::transfer(cpi_ctx, ctx.accounts.protocol_info.protocol_fee)?;
-        }
         ctx.accounts.op_info.op_data = op_data;
         ctx.accounts.op_info.status = OpStatus::Init;
         emit!(ProposalCreated {
@@ -262,17 +248,10 @@ pub struct Initialize<'info> {
     #[account(signer, mut)]
     owner: Signer<'info>,
 
-    /// NGL token mint
-    ngl_mint: Box<Account<'info, Mint>>,
-
-    /// Fee collector
-    fee_collector_vault: Box<Account<'info, TokenAccount>>,
     /// Initial config
     #[account(init_if_needed, payer = owner, space = Config::LEN, seeds = [ROOT.as_ref(), b"CONFIG"], bump)]
     config: Box<Account<'info, Config>>,
 
-    /// Token program
-    token_program: Program<'info, Token>,
     /// System program
     system_program: Program<'info, System>,
 }
@@ -330,30 +309,10 @@ pub struct LoadOperation<'info> {
     )]
     op_info: Box<Account<'info, OpInfo>>,
 
-    /// NGL token mint
-    #[account(constraint = config.ngl_mint == ngl_mint.key())]
-    ngl_mint: Box<Account<'info, Mint>>,
-
-    /// NGL token wallet to take fee from
-    #[account(
-        token::mint = ngl_mint,
-        token::authority = executor
-    )]
-    executor_ngl_vault: Box<Account<'info, TokenAccount>>,
-
-    /// Fee collector
-    #[account(
-        token::mint = ngl_mint,
-        constraint = fee_collector_vault.key() == config.fee_collector_vault @ CustomError::InvalidFeeCollector
-    )]
-    fee_collector_vault: Box<Account<'info, TokenAccount>>,
-
     /// Initial config
     #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
     config: Box<Account<'info, Config>>,
 
-    /// Token program
-    token_program: Program<'info, Token>,
     /// System program
     system_program: Program<'info, System>,
 }
@@ -478,8 +437,6 @@ pub struct Propose<'info> {
 pub struct Config {
     owner: Pubkey,
     admin: Pubkey,
-    fee_collector_vault: Pubkey,
-    ngl_mint: Pubkey,
     eob_chain_id: u64,
     nonce: u64,
 }
@@ -492,12 +449,11 @@ impl Config {
 #[derive(Default)]
 pub struct ProtocolInfo {
     is_init: bool,
-    protocol_fee: u64,
     consensus_target_rate: u64,
     protocol_address: Pubkey,
-    keepers: Box<[EthAddress; MAX_KEEPERS]>,
-    executors: Box<[Pubkey; MAX_EXECUTORS]>,
-    proposers: Box<[Pubkey; MAX_PROPOSERS]>,
+    keepers: Box<[EthAddress; 20]>, // cannot use const with anchor
+    executors: Box<[Pubkey; 20]>,
+    proposers: Box<[Pubkey; 20]>,
 }
 
 impl ProtocolInfo {
@@ -583,8 +539,6 @@ pub enum CustomError {
     InvalidNonce,
     #[msg("InvalidEndpoint")]
     InvalidEndpoint,
-    #[msg("InvalidFeeCollector")]
-    InvalidFeeCollector,
     #[msg("OpStateInvalid")]
     OpStateInvalid,
     #[msg("CachedOpHashMismatch")]
