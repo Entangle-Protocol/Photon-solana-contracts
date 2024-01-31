@@ -24,9 +24,9 @@ pub const fn gov_protocol_id() -> Bytes32 {
 pub enum OpStatus {
     #[default]
     None,
-    Pending,
+    Init,
+    Signed,
     Executed,
-    Canceled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

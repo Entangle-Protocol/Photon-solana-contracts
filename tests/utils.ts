@@ -94,16 +94,67 @@ export function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-}  
-
-export function addProtocolPayload(
-  protocolId: Buffer,
-  protocolAddr: anchor.web3.PublicKey,
-  keepersRaw: number[][],
-): Buffer {
-  return hexToBytes(ethers.utils.defaultAbiCoder.encode(
-    ["bytes32", "uint", "uint", "address[]"],
-    [protocolId, 6000, 0, keepersRaw.map((x) => Buffer.from(x).toString('hex'))],
-  ));
 }
 
+export function addAllowedProtocol(
+  protocolId: Buffer,
+  keepersRaw: number[][],
+  consensusTargetRate: number,
+): Buffer {
+  return hexToBytes(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "uint", "uint", "address[]"],
+      [
+        protocolId,
+        consensusTargetRate,
+        1000,
+        keepersRaw.map((x) => Buffer.from(x).toString("hex")),
+      ],
+    ),
+  );
+}
+
+export function addAllowedProtocolAddress(
+  protocolId: Buffer,
+  protocolAddr: anchor.web3.PublicKey,
+): Buffer {
+  return hexToBytes(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "bytes"],
+      [protocolId, protocolAddr.toBuffer()],
+    ),
+  );
+}
+
+export function addExecutor(
+  protocolId: Buffer,
+  executor: anchor.web3.PublicKey,
+): Buffer {
+  return hexToBytes(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "bytes"],
+      [protocolId, executor.toBuffer()],
+    ),
+  );
+}
+
+export function addKeepers(protocolId: Buffer, keepersRaw: number[][]): Buffer {
+  return hexToBytes(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "address[]"],
+      [protocolId, keepersRaw.map((x) => Buffer.from(x).toString("hex"))],
+    ),
+  );
+}
+
+export function setConsensusTargetRate(
+  protocolId: Buffer,
+  targetRate: number,
+): Buffer {
+  return hexToBytes(
+    ethers.utils.defaultAbiCoder.encode(
+      ["bytes32", "uint256"],
+      [protocolId, targetRate],
+    ),
+  );
+}

@@ -1,9 +1,10 @@
-use std::iter::once;
-
 use anchor_lang::prelude::*;
 use ethabi::ParamType;
 
-use crate::{signature::OperationData, util::EthAddress, CustomError, ExecuteGovOperation};
+use crate::{
+    signature::OperationData, util::EthAddress, CustomError, ExecuteGovOperation, MAX_EXECUTORS,
+    MAX_KEEPERS, MAX_PROPOSERS,
+};
 
 pub fn handle_gov_operation(
     ctx: Context<ExecuteGovOperation>,
@@ -121,11 +122,26 @@ pub fn handle_gov_operation(
                 protocol_id == target_protocol,
                 CustomError::TargetProtocolMismatch
             );
-            let _proposer_address = decoded[1]
-                .clone()
-                .into_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            // TODO: proposer
+            let proposer = Pubkey::new_from_array(
+                decoded[1]
+                    .clone()
+                    .into_bytes()
+                    .ok_or(CustomError::InvalidGovMsg)?
+                    .try_into()
+                    .map_err(|_| CustomError::InvalidGovMsg)?,
+            );
+            let mut proposers: Vec<_> = ctx.accounts.protocol_info.proposers();
+            if !proposers.contains(&proposer) && proposer != Pubkey::default() {
+                if proposers.len() < MAX_PROPOSERS {
+                    proposers.push(proposer);
+                    ctx.accounts.protocol_info.proposers = Default::default();
+                    for (i, k) in proposers.into_iter().enumerate() {
+                        ctx.accounts.protocol_info.proposers[i] = k;
+                    }
+                } else {
+                    return Err(CustomError::MaxExecutorsExceeded.into());
+                }
+            }
         }
         // removeAllowedProposerAddress(bytes)
         0xb8e5f3f4 => {
@@ -145,11 +161,25 @@ pub fn handle_gov_operation(
                 protocol_id == target_protocol,
                 CustomError::TargetProtocolMismatch
             );
-            let _proposer_address = decoded[1]
-                .clone()
-                .into_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            // TODO: proposer
+            let proposer = Pubkey::new_from_array(
+                decoded[1]
+                    .clone()
+                    .into_bytes()
+                    .ok_or(CustomError::InvalidGovMsg)?
+                    .try_into()
+                    .map_err(|_| CustomError::InvalidGovMsg)?,
+            );
+            let proposers: Vec<_> = ctx
+                .accounts
+                .protocol_info
+                .proposers()
+                .into_iter()
+                .filter(|x| x != &proposer)
+                .collect();
+            ctx.accounts.protocol_info.proposers = Default::default();
+            for (i, k) in proposers.into_iter().enumerate() {
+                ctx.accounts.protocol_info.proposers[i] = k;
+            }
         }
         // addExecutor(bytes)
         0xe0aafb68 => {
@@ -177,17 +207,17 @@ pub fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let executors: Vec<Pubkey> = ctx
-                .accounts
-                .protocol_info
-                .executors()
-                .into_iter()
-                .filter(|x| x != &executor)
-                .chain(once(executor))
-                .collect();
-            ctx.accounts.protocol_info.executors = Default::default();
-            for (i, e) in executors.into_iter().enumerate() {
-                ctx.accounts.protocol_info.executors[i] = e;
+            let mut executors: Vec<_> = ctx.accounts.protocol_info.executors();
+            if !executors.contains(&executor) && executor != Pubkey::default() {
+                if executors.len() < MAX_EXECUTORS {
+                    executors.push(executor);
+                    ctx.accounts.protocol_info.executors = Default::default();
+                    for (i, k) in executors.into_iter().enumerate() {
+                        ctx.accounts.protocol_info.executors[i] = k;
+                    }
+                } else {
+                    return Err(CustomError::MaxExecutorsExceeded.into());
+                }
             }
         }
         // removeExecutor(bytes)
@@ -216,7 +246,7 @@ pub fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let executors: Vec<Pubkey> = ctx
+            let executors: Vec<_> = ctx
                 .accounts
                 .protocol_info
                 .executors()
@@ -224,8 +254,8 @@ pub fn handle_gov_operation(
                 .filter(|x| x != &executor)
                 .collect();
             ctx.accounts.protocol_info.executors = Default::default();
-            for (i, e) in executors.into_iter().enumerate() {
-                ctx.accounts.protocol_info.executors[i] = e;
+            for (i, k) in executors.into_iter().enumerate() {
+                ctx.accounts.protocol_info.executors[i] = k;
             }
         }
         // addKeeper(bytes)
@@ -246,29 +276,25 @@ pub fn handle_gov_operation(
                 protocol_id == target_protocol,
                 CustomError::TargetProtocolMismatch
             );
-            let keepers: std::result::Result<Vec<EthAddress>, CustomError> = decoded[1]
+            let keepers: Vec<EthAddress> = decoded[1]
                 .clone()
                 .into_array()
                 .ok_or(CustomError::InvalidGovMsg)?
                 .into_iter()
-                .map(|x| {
-                    x.into_address()
-                        .map(|x| x.to_fixed_bytes())
-                        .ok_or(CustomError::InvalidGovMsg)
-                })
+                .filter_map(|x| x.into_address().map(|x| x.to_fixed_bytes()))
+                .filter(|x| x != &EthAddress::default())
                 .collect();
-            let new_keepers = keepers?;
-            let mut keepers: Vec<EthAddress> = ctx
-                .accounts
-                .protocol_info
-                .keepers()
-                .into_iter()
-                .chain(new_keepers)
-                .collect();
-            keepers.dedup();
-            ctx.accounts.protocol_info.keepers = Default::default();
-            for (i, k) in keepers.into_iter().enumerate() {
-                ctx.accounts.protocol_info.keepers[i] = k;
+            require!(!keepers.is_empty(), CustomError::NoKeepersAllowed);
+            let mut total_keepers = ctx.accounts.protocol_info.keepers();
+            total_keepers.extend_from_slice(&keepers);
+            total_keepers.dedup();
+            if total_keepers.len() <= MAX_KEEPERS {
+                ctx.accounts.protocol_info.keepers = Default::default();
+                for (i, k) in total_keepers.into_iter().enumerate() {
+                    ctx.accounts.protocol_info.keepers[i] = k;
+                }
+            } else {
+                return Err(CustomError::MaxKeepersExceeded.into());
             }
         }
         // removeKeeper(bytes)
@@ -301,7 +327,7 @@ pub fn handle_gov_operation(
                 })
                 .collect();
             let to_remove = keepers?;
-            let keepers: Vec<EthAddress> = ctx
+            let total_keepers: Vec<_> = ctx
                 .accounts
                 .protocol_info
                 .keepers()
@@ -309,7 +335,7 @@ pub fn handle_gov_operation(
                 .filter(|x| !to_remove.contains(x))
                 .collect();
             ctx.accounts.protocol_info.keepers = Default::default();
-            for (i, k) in keepers.into_iter().enumerate() {
+            for (i, k) in total_keepers.into_iter().enumerate() {
                 ctx.accounts.protocol_info.keepers[i] = k;
             }
         }
@@ -361,7 +387,9 @@ pub fn handle_gov_operation(
                 .ok_or(CustomError::InvalidGovMsg)?;
             ctx.accounts.protocol_info.protocol_fee = fee.as_u64();
         }
-        _ => unimplemented!(),
+        _ => {
+            return Err(CustomError::InvalidGovMethod.into());
+        }
     }
     Ok(())
 }
