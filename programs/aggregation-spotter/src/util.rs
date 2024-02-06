@@ -15,6 +15,15 @@ pub fn u128_to_bytes32(x: u128) -> [u8; 32] {
     buf
 }
 
+pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {
+    let preimage = format!("{}:{}", namespace, name);
+    let mut sighash = [0u8; 8];
+    sighash.copy_from_slice(
+        &anchor_lang::solana_program::hash::hash(preimage.as_bytes()).to_bytes()[..8],
+    );
+    sighash
+}
+
 pub const fn gov_protocol_id() -> Bytes32 {
     *b"aggregation-gov_________________"
 }
@@ -27,13 +36,4 @@ pub enum OpStatus {
     Init,
     Signed,
     Executed,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct PhotonMsg {
-    pub protocol_id: Bytes32,
-    pub src_chain_id: u128,
-    pub src_block_number: u64,
-    pub src_op_tx_id: Bytes32,
-    pub params_hash: Bytes32,
 }

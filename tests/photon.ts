@@ -14,14 +14,15 @@ import {
   addKeepers,
   setConsensusTargetRate,
 } from "./utils";
-import { Wallet } from "ethers";
+import { Wallet, ethers } from "ethers";
+import { expect } from "chai";
 
 const TEST_REMOVE_FUNCS = true;
 const ROOT = utf8.encode("root-0");
 const EOB_CHAIN_ID = 33133;
 const SOLANA_CHAIN_ID = 111111111;
 const CONSENSUS_TARGET_RATE = 10000;
-const KEEPERS = 16;
+const KEEPERS = 3;
 const KEEPERS_PER_CALL = 4;
 const GOV_PROTOCOL_ID = Buffer.from(
   utf8.encode("aggregation-gov_________________"),
@@ -43,6 +44,7 @@ describe("photon", () => {
   let govProtocolInfo;
   let counter;
   let callAuthority;
+  let callAuthorityBump;
   let keepers: Wallet[];
   let keepersRaw = [];
   let nonce = 0;
@@ -72,10 +74,10 @@ describe("photon", () => {
       console.log("Keeper", i, keepers[i].address);
       keepersRaw.push(hexToBytes(keepers[i].address));
     }
-    callAuthority = web3.PublicKey.findProgramAddressSync(
+    [callAuthority, callAuthorityBump] = web3.PublicKey.findProgramAddressSync(
       [ROOT, utf8.encode("CALL_AUTHORITY"), ONE_FUNC_ID],
       program.programId,
-    )[0];
+    );
     counter = web3.PublicKey.findProgramAddressSync(
       [utf8.encode("COUNTER")],
       onefunc.programId,
@@ -85,13 +87,20 @@ describe("photon", () => {
   async function executeProposal(
     protocolId: Buffer,
     protocolAddr: anchor.web3.PublicKey,
-    functionSelector: number,
+    functionSelector: number | string | Buffer,
     params: Buffer,
     targetProtocol: Buffer,
     remainingAccounts?: anchor.web3.AccountMeta[],
   ) {
-    let functionSelectorBuf = Buffer.alloc(4);
-    functionSelectorBuf.writeUInt32BE(functionSelector);
+    let functionSelectorBuf;
+    if (typeof functionSelector == "number") {
+      functionSelectorBuf = Buffer.alloc(4);
+      functionSelectorBuf.writeUInt32BE(functionSelector);
+    } else if (typeof functionSelector == "string") {
+      functionSelectorBuf = utf8.encode(functionSelector);
+    } else {
+      functionSelectorBuf = functionSelector;
+    }
     let op = {
       protocolId,
       srcChainId: new anchor.BN(EOB_CHAIN_ID),
@@ -102,7 +111,7 @@ describe("photon", () => {
       nonce: new anchor.BN(nonce),
       destChainId: new anchor.BN(SOLANA_CHAIN_ID),
       protocolAddr,
-      functionSelector: Array.from(functionSelectorBuf),
+      functionSelector: Buffer.from(functionSelectorBuf),
       params,
     };
     let op_hash = opHashFull(op);
@@ -163,11 +172,12 @@ describe("photon", () => {
         .rpc();
     } else {
       await program.methods
-        .executeOperation(op_hash)
+        .executeOperation(op_hash, callAuthorityBump)
         .accounts({
           executor: executor.publicKey,
           opInfo,
           protocolInfo,
+          callAuthority,
         })
         .signers([executor])
         .remainingAccounts(remainingAccounts)
@@ -373,22 +383,21 @@ describe("photon", () => {
   });
 
   it("executeOperation", async () => {
-    let instr = await onefunc.methods
-      .increment()
-      .accounts({ callAuthority, counter })
-      .instruction();
-    let params = instr.data;
-    let keys = instr.keys;
-    keys[0].isSigner = false;
+    let params = hexToBytes(
+      ethers.utils.defaultAbiCoder.encode(["uint256"], [3]),
+    );
+    let keys = [{ isSigner: false, isWritable: true, pubkey: counter }];
     await executeProposal(
       ONE_FUNC_ID,
       onefunc.programId,
-      0,
+      "increment",
       params,
       null,
       [
         { pubkey: onefunc.programId, isSigner: false, isWritable: false },
       ].concat(keys),
     );
+    const state = await onefunc.account.counter.fetch(counter);
+    expect(state.count.toNumber()).eq(3);
   });
 });

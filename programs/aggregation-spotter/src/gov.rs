@@ -11,7 +11,11 @@ pub fn handle_gov_operation(
     op_data: OperationData,
     target_protocol: Vec<u8>,
 ) -> Result<()> {
-    let selector = u32::from_be_bytes(op_data.function_selector);
+    require!(
+        op_data.function_selector.len() == 4,
+        CustomError::InvalidMethodSelector
+    );
+    let selector = u32::from_be_bytes(op_data.function_selector.try_into().unwrap());
     let calldata = &op_data.params;
     match selector {
         // addAllowedProtocol(bytes)
@@ -358,7 +362,7 @@ pub fn handle_gov_operation(
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
         }
         _ => {
-            return Err(CustomError::InvalidGovMethod.into());
+            return Err(CustomError::InvalidMethodSelector.into());
         }
     }
     Ok(())

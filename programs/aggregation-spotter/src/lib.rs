@@ -1,4 +1,5 @@
 mod gov;
+pub mod interface;
 mod signature;
 mod util;
 use anchor_lang::prelude::*;
@@ -17,6 +18,8 @@ pub mod photon {
     pub const MAX_PROPOSERS: usize = 20;
 
     use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
+
+    use crate::{interface::PhotonMsg, util::sighash};
 
     use self::{gov::handle_gov_operation, signature::ecrecover};
 
@@ -67,11 +70,11 @@ pub mod photon {
             op_data.protocol_addr,
             CustomError::ProtocolAddressMismatch
         );
-        /*require_eq!(
+        require_eq!(
             ctx.accounts.config.nonce,
             op_data.nonce,
             CustomError::InvalidNonce
-        );*/
+        );
         require!(
             op_data.protocol_id != [0; 32]
                 && op_data.protocol_id.len() == 32
@@ -80,6 +83,7 @@ pub mod photon {
         );
         ctx.accounts.op_info.op_data = op_data;
         ctx.accounts.op_info.status = OpStatus::Init;
+        ctx.accounts.config.nonce += 1;
         emit!(ProposalCreated {
             op_hash,
             executor: ctx.accounts.executor.key()
@@ -131,62 +135,65 @@ pub mod photon {
         Ok(consensus_reached)
     }
 
-    pub fn execute_operation(ctx: Context<ExecuteOperation>, op_hash: Vec<u8>) -> Result<()> {
+    pub fn execute_operation<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, ExecuteOperation<'info>>,
+        op_hash: Vec<u8>,
+        call_authority_bump: u8,
+    ) -> Result<()> {
         let _ = op_hash;
         let op_data = &ctx.accounts.op_info.op_data;
         require!(
             op_data.protocol_id != gov_protocol_id() && op_data.protocol_addr != photon::ID,
             CustomError::InvalidEndpoint
         );
-        let (call_authority, bump) = Pubkey::find_program_address(
-            &[ROOT, b"CALL_AUTHORITY", &op_data.protocol_id],
-            &photon::ID,
-        );
+        // The first account in remaining_accounts should be protocol address, which is added first in account list
+        let mut accounts: Vec<_> = ctx.remaining_accounts.get(0).into_iter().cloned().collect();
         require!(
-            ctx.remaining_accounts
-                .into_iter()
-                .next()
+            accounts
+                .get(0)
                 .filter(|x| x.key() == op_data.protocol_addr)
                 .is_some(),
             CustomError::ProtocolAddressNotProvided
         );
-        require!(
-            ctx.remaining_accounts
-                .into_iter()
-                .find(|x| x.key() == call_authority)
-                .is_some(),
-            CustomError::CallAuthorityNotProvided
-        );
-        let remaining_accounts: Vec<_> = ctx
-            .remaining_accounts
-            .into_iter()
-            .cloned()
-            .map(|mut x| {
-                if x.key() == call_authority {
-                    x.is_signer = true;
-                }
-                x
-            })
-            .collect();
-        let metas: Vec<_> = remaining_accounts
+        // The second in account list is executor
+        accounts.push(ctx.accounts.executor.to_account_info().clone());
+        // The third in account list is call authority
+        let mut call_authority = ctx.accounts.call_authority.to_account_info().clone();
+        call_authority.is_signer = true;
+        accounts.push(call_authority);
+        // And then the other accounts for protocol instruction
+        if ctx.remaining_accounts.len() > 1 {
+            accounts.extend_from_slice(&ctx.remaining_accounts[1..]);
+        }
+        let metas: Vec<_> = accounts
             .iter()
             .filter(|x| x.key() != op_data.protocol_addr)
-            .map(|x| {
-                x.to_account_metas(if x.key() == call_authority {
-                    Some(true)
-                } else {
-                    None
-                })
-                .into_iter()
-                .next()
-                .unwrap()
-            })
+            .map(|x| x.to_account_metas(None).get(0).unwrap().clone())
             .collect();
-        let instr = Instruction::new_with_bytes(op_data.protocol_addr, &op_data.params, metas);
+        let payload = PhotonMsg {
+            protocol_id: op_data.protocol_id.clone(),
+            src_chain_id: op_data.src_chain_id,
+            src_block_number: op_data.src_block_number,
+            src_op_tx_id: op_data.src_op_tx_id.clone(),
+            params: op_data.params.clone(),
+        };
+        let method = String::from_utf8(op_data.function_selector.clone())
+            .map_err(|_| CustomError::InvalidMethodSelector)?;
+        let data = [
+            &sighash("global", &method)[..],
+            &payload.try_to_vec().unwrap()[..],
+        ]
+        .concat();
+        let instr = Instruction::new_with_bytes(op_data.protocol_addr, &data, metas);
         let err = invoke_signed(
             &instr,
-            &remaining_accounts,
-            &[&[ROOT, b"CALL_AUTHORITY", &op_data.protocol_id, &[bump]]],
+            &accounts,
+            &[&[
+                ROOT,
+                b"CALL_AUTHORITY",
+                &op_data.protocol_id,
+                &[call_authority_bump],
+            ]],
         )
         .map_err(|e| format!("{}", e))
         .err();
@@ -227,9 +234,13 @@ pub mod photon {
         nonce: u128,
         dst_chain_id: u128,
         protocol_address: Vec<u8>,
-        function_selector: u32,
+        function_selector: Vec<u8>,
         params: Vec<u8>,
     ) -> Result<()> {
+        require!(
+            function_selector.len() <= 32,
+            CustomError::InvalidMethodSelector
+        );
         emit!(ProposeEvent {
             protocol_id,
             nonce,
@@ -346,7 +357,7 @@ pub struct SignOperation<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(op_hash: Vec<u8>)]
+#[instruction(op_hash: Vec<u8>, call_authority_bump: u8)]
 pub struct ExecuteOperation<'info> {
     /// Executor account
     #[account(
@@ -371,6 +382,14 @@ pub struct ExecuteOperation<'info> {
         bump
     )]
     protocol_info: Box<Account<'info, ProtocolInfo>>,
+
+    /// Per-protocol call authority
+    /// CHECK: only used as authority account
+    #[account(
+        seeds = [ROOT, b"CALL_AUTHORITY", &op_info.op_data.protocol_id],
+        bump = call_authority_bump
+    )]
+    call_authority: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -521,7 +540,7 @@ pub struct ProposeEvent {
     nonce: u128,
     dst_chain_id: u128,
     protocol_address: Vec<u8>,
-    function_selector: u32,
+    function_selector: Vec<u8>,
     params: Vec<u8>,
 }
 
@@ -557,12 +576,10 @@ pub enum CustomError {
     InvalidProtoMsg,
     #[msg("InvalidGovMsg")]
     InvalidGovMsg,
-    #[msg("InvalidGovMethod")]
-    InvalidGovMethod,
+    #[msg("InvalidMethodSelector")]
+    InvalidMethodSelector,
     #[msg("InvalidOpData")]
     InvalidOpData,
-    #[msg("CallAuthorityNotProvided")]
-    CallAuthorityNotProvided,
     #[msg("ProtocolAddressNotProvided")]
     ProtocolAddressNotProvided,
     #[msg("NoKeepersAllowed")]

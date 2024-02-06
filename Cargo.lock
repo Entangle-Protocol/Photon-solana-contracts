@@ -1212,6 +1212,8 @@ name = "onefunc"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "entangle-aggregation-spotter-sol",
+ "ethabi",
 ]
 
 [[package]]

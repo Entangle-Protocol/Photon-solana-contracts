@@ -23,7 +23,7 @@ pub struct OperationData {
     pub nonce: u64,
     pub dest_chain_id: u128,
     pub protocol_addr: Pubkey,
-    pub function_selector: [u8; 4],
+    pub function_selector: Vec<u8>,
     pub params: Vec<u8>,
 }
 

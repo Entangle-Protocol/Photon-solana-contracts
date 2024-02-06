@@ -1,5 +1,4 @@
 import { OperationLib } from "@entangle_protocol/oracle-sdk/dist/typechain-types/contracts/AggregationSpotter";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { Wallet, ethers } from "ethers";
 import * as anchor from "@coral-xyz/anchor";
@@ -12,7 +11,7 @@ interface AnchorOpData {
   nonce: anchor.BN;
   destChainId: anchor.BN;
   protocolAddr: anchor.web3.PublicKey;
-  functionSelector: number[];
+  functionSelector: Buffer;
   params: Buffer;
 }
 
@@ -26,7 +25,7 @@ function opHash(opData: OperationLib.OperationDataStruct) {
       "uint256",
       "uint256",
       "bytes",
-      "bytes4",
+      "bytes",
       "bytes",
     ],
     [
