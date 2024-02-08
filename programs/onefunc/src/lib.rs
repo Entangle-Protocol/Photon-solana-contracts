@@ -14,6 +14,7 @@ pub mod onefunc {
         Ok(())
     }
 
+    /// Example call by method name
     pub fn increment(
         ctx: Context<Increment>,
         _protocol_id: Vec<u8>,
@@ -31,6 +32,36 @@ pub mod onefunc {
             .unwrap()
             .as_u64();
         ctx.accounts.counter.count += to_increment;
+        Ok(())
+    }
+
+    /// Example call by method id
+    pub fn photon_msg(
+        ctx: Context<Increment>,
+        _protocol_id: Vec<u8>,
+        _src_chain_id: u128,
+        _src_block_number: u64,
+        _src_op_tx_id: Vec<u8>,
+        function_selecor: Vec<u8>,
+        params: Vec<u8>,
+    ) -> Result<()> {
+        let selector: [u8; 4] = function_selecor
+            .try_into()
+            .map_err(|_| CustomError::InvalidSelector)?;
+        match selector {
+            [1, 2, 3, 4] => {
+                let to_increment = ethabi::decode(&[ParamType::Uint(256)], &params)
+                    .map_err(|_| CustomError::InvalidParams)?
+                    .get(0)
+                    .unwrap()
+                    .clone()
+                    .into_uint()
+                    .unwrap()
+                    .as_u64();
+                ctx.accounts.counter.count += to_increment;
+            }
+            _ => return Err(CustomError::InvalidSelector.into()),
+        }
         Ok(())
     }
 }
@@ -87,4 +118,6 @@ pub struct Counter {
 pub enum CustomError {
     #[msg("InvalidParams")]
     InvalidParams,
+    #[msg("InvalidSelector")]
+    InvalidSelector,
 }

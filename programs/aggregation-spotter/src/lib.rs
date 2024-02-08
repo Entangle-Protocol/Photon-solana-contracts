@@ -19,7 +19,10 @@ pub mod photon {
 
     use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
 
-    use crate::{interface::PhotonMsg, util::sighash};
+    use crate::{
+        interface::{PhotonMsg, PhotonMsgWithSelector},
+        util::sighash,
+    };
 
     use self::{gov::handle_gov_operation, signature::ecrecover};
 
@@ -170,20 +173,32 @@ pub mod photon {
             .filter(|x| x.key() != op_data.protocol_addr)
             .map(|x| x.to_account_metas(None).get(0).unwrap().clone())
             .collect();
-        let payload = PhotonMsg {
-            protocol_id: op_data.protocol_id.clone(),
-            src_chain_id: op_data.src_chain_id,
-            src_block_number: op_data.src_block_number,
-            src_op_tx_id: op_data.src_op_tx_id.clone(),
-            params: op_data.params.clone(),
-        };
-        let method = String::from_utf8(op_data.function_selector.clone())
-            .map_err(|_| CustomError::InvalidMethodSelector)?;
-        let data = [
-            &sighash("global", &method)[..],
-            &payload.try_to_vec().unwrap()[..],
-        ]
-        .concat();
+        let (method, payload) =
+            if op_data.function_selector.len() == 5 && op_data.function_selector[4] == 0 {
+                let payload = PhotonMsgWithSelector {
+                    protocol_id: op_data.protocol_id.clone(),
+                    src_chain_id: op_data.src_chain_id,
+                    src_block_number: op_data.src_block_number,
+                    src_op_tx_id: op_data.src_op_tx_id.clone(),
+                    function_selector: op_data.function_selector[..4].to_vec(),
+                    params: op_data.params.clone(),
+                };
+                ("photon_msg".to_owned(), payload.try_to_vec().unwrap())
+            } else {
+                let payload = PhotonMsg {
+                    protocol_id: op_data.protocol_id.clone(),
+                    src_chain_id: op_data.src_chain_id,
+                    src_block_number: op_data.src_block_number,
+                    src_op_tx_id: op_data.src_op_tx_id.clone(),
+                    params: op_data.params.clone(),
+                };
+                (
+                    String::from_utf8(op_data.function_selector.clone())
+                        .map_err(|_| CustomError::InvalidMethodSelector)?,
+                    payload.try_to_vec().unwrap(),
+                )
+            };
+        let data = [&sighash("global", &method)[..], &payload[..]].concat();
         let instr = Instruction::new_with_bytes(op_data.protocol_addr, &data, metas);
         let err = invoke_signed(
             &instr,

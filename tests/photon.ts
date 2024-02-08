@@ -382,7 +382,7 @@ describe("photon", () => {
     }
   });
 
-  it("executeOperation", async () => {
+  it("executeOperation by name", async () => {
     let params = hexToBytes(
       ethers.utils.defaultAbiCoder.encode(["uint256"], [3]),
     );
@@ -399,5 +399,24 @@ describe("photon", () => {
     );
     const state = await onefunc.account.counter.fetch(counter);
     expect(state.count.toNumber()).eq(3);
+  });
+
+  it("executeOperation by id", async () => {
+    let params = hexToBytes(
+      ethers.utils.defaultAbiCoder.encode(["uint256"], [2]),
+    );
+    let keys = [{ isSigner: false, isWritable: true, pubkey: counter }];
+    await executeProposal(
+      ONE_FUNC_ID,
+      onefunc.programId,
+      Buffer.from([1, 2, 3, 4, 0]), // [method_id, 0] to call by id
+      params,
+      null,
+      [
+        { pubkey: onefunc.programId, isSigner: false, isWritable: false },
+      ].concat(keys),
+    );
+    const state = await onefunc.account.counter.fetch(counter);
+    expect(state.count.toNumber()).eq(5);
   });
 });
