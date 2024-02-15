@@ -6,7 +6,7 @@
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
         "@entangle_protocol/oracle-sdk": "^1.4.10-testnet-v4",
-        "@nomiclabs/hardhat-ethers": "2.0.6",
+        "@solana-developers/node-helpers": "^1.2.2",
         "ethers": "5.7.2"
     },
     "devDependencies": {

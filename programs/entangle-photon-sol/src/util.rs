@@ -37,3 +37,16 @@ pub enum OpStatus {
     Signed,
     Executed,
 }
+
+#[macro_export]
+macro_rules! require_ok {
+    ($res:expr, $err:expr) => {
+        match $res {
+            Ok(x) => x,
+            Err(e) => {
+                require_eq!("", format!("Error: {:?}", e), $err);
+                unreachable!();
+            }
+        }
+    };
+}

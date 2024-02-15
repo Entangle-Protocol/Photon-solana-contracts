@@ -5,8 +5,8 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-photon = "9pGziQeWKwruehVXiF9ZHToiVs9iv7ajXeFFaPiaLkpD"
-onefunc = "6cBwMuV2hTAVAXYSqYXULuXitknhzJYu3QXjuH9mKaLg"
+photon = "3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ"
+onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
 [registry]
 url = "https://api.apr.dev"

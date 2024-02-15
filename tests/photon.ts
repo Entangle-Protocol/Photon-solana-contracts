@@ -194,19 +194,8 @@ describe("photon", () => {
       .signers([owner])
       .rpc();
     await program.methods
-      .initialize(new anchor.BN(EOB_CHAIN_ID))
-      .accounts({
-        owner: owner.publicKey,
-        config,
-        systemProgram: web3.SystemProgram.programId,
-      })
-      .signers([owner])
-      .rpc();
-  });
-
-  it("InitGovProtocol", async () => {
-    await program.methods
-      .initGovProtocol(
+      .initialize(
+        new anchor.BN(EOB_CHAIN_ID),
         new anchor.BN(CONSENSUS_TARGET_RATE),
         [keepersRaw[0]],
         [executor.publicKey],
@@ -222,7 +211,7 @@ describe("photon", () => {
     const chunkSize = KEEPERS_PER_CALL;
     for (let i = 1; i < keepersRaw.length; i += chunkSize) {
       const chunk = keepersRaw.slice(i, i + chunkSize);
-      let params = addKeepers(GOV_PROTOCOL_ID, chunk);
+      const params = addKeepers(GOV_PROTOCOL_ID, chunk);
       await executeProposal(
         GOV_PROTOCOL_ID,
         program.programId,

@@ -28,7 +28,7 @@ pub struct OperationData {
 }
 
 impl OperationData {
-    pub fn op_data_evm(&self) -> Vec<u8> {
+    fn op_data_evm(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend_from_slice(&self.protocol_id);
         buf.extend_from_slice(&u128_to_bytes32(self.src_chain_id));
@@ -52,25 +52,25 @@ impl OperationData {
     }
 }
 
-pub fn hash_with_message(data: &[u8]) -> Vec<u8> {
+fn hash_with_message(data: &[u8]) -> Vec<u8> {
     let mut buf = [0x00_u8; 32 + MSG.len()];
     buf[..MSG.len()].copy_from_slice(MSG.as_bytes());
     buf[MSG.len()..].copy_from_slice(data);
     Keccak256::digest(buf).to_vec()
 }
 
-pub fn ecrecover(op_hash: &[u8], sig: &KeeperSignature) -> Result<EthAddress> {
+fn derive_eth_address(public_key: &[u8]) -> Result<EthAddress> {
+    let hash = Keccak256::digest(&public_key[1..]);
+    let mut bytes = [0u8; 20];
+    bytes.copy_from_slice(&hash[12..]);
+    Ok(bytes)
+}
+
+pub(crate) fn ecrecover(op_hash: &[u8], sig: &KeeperSignature) -> Result<EthAddress> {
     let signature = [&sig.r[..], &sig.s[..]].concat();
     let v = sig.v % 27;
     require_eq!(signature.len(), 64);
     let pk =
         secp256k1_recover(op_hash, v, &signature).map_err(|_| CustomError::InvalidSignature)?;
     derive_eth_address(&[&[0x04], &pk.0[..]].concat())
-}
-
-pub fn derive_eth_address(public_key: &[u8]) -> Result<EthAddress> {
-    let hash = Keccak256::digest(&public_key[1..]);
-    let mut bytes = [0u8; 20];
-    bytes.copy_from_slice(&hash[12..]);
-    Ok(bytes)
 }

@@ -762,7 +762,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
-name = "entangle-aggregation-spotter-sol"
+name = "entangle-photon-sol"
 version = "0.1.0"
 dependencies = [
  "ahash 0.8.5",
@@ -1212,7 +1212,6 @@ name = "onefunc"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "entangle-aggregation-spotter-sol",
  "ethabi",
 ]
 

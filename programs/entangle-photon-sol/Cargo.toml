@@ -1,12 +1,12 @@
 [package]
-name = "entangle-aggregation-spotter-sol"
+name = "entangle-photon-sol"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "aggregation_spotter"
+name = "entangle_photon_sol"
 
 [features]
 no-entrypoint = []

@@ -6,7 +6,7 @@ use anchor_lang::prelude::*;
 use signature::{KeeperSignature, OperationData};
 use util::{gov_protocol_id, EthAddress, OpStatus};
 
-declare_id!("9pGziQeWKwruehVXiF9ZHToiVs9iv7ajXeFFaPiaLkpD");
+declare_id!("3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ");
 
 #[program]
 pub mod photon {
@@ -16,32 +16,23 @@ pub mod photon {
     pub const MAX_KEEPERS: usize = 20;
     pub const MAX_EXECUTORS: usize = 20;
     pub const MAX_PROPOSERS: usize = 20;
-
-    use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
-
+    use self::{gov::handle_gov_operation, signature::ecrecover};
+    use super::*;
     use crate::{
         interface::{PhotonMsg, PhotonMsgWithSelector},
         util::sighash,
     };
+    use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
 
-    use self::{gov::handle_gov_operation, signature::ecrecover};
-
-    use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>, eob_chain_id: u64) -> Result<()> {
-        ctx.accounts.config.owner = ctx.accounts.owner.key();
-        ctx.accounts.config.admin = ctx.accounts.owner.key();
-        ctx.accounts.config.eob_chain_id = eob_chain_id;
-        ctx.accounts.config.nonce = 0;
-        Ok(())
-    }
-
-    pub fn init_gov_protocol(
-        ctx: Context<InitGovProtocol>,
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        eob_chain_id: u64,
         consensus_target_rate: u64,
         gov_keepers: Vec<EthAddress>,
         gov_executors: Vec<Pubkey>,
     ) -> Result<()> {
+        ctx.accounts.config.admin = ctx.accounts.admin.key();
+        ctx.accounts.config.eob_chain_id = eob_chain_id;
         ctx.accounts.protocol_info.is_init = true;
         ctx.accounts.protocol_info.protocol_address = photon::ID;
         ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate;
@@ -73,11 +64,6 @@ pub mod photon {
             op_data.protocol_addr,
             CustomError::ProtocolAddressMismatch
         );
-        require_eq!(
-            ctx.accounts.config.nonce,
-            op_data.nonce,
-            CustomError::InvalidNonce
-        );
         require!(
             op_data.protocol_id != [0; 32]
                 && op_data.protocol_id.len() == 32
@@ -86,7 +72,6 @@ pub mod photon {
         );
         ctx.accounts.op_info.op_data = op_data;
         ctx.accounts.op_info.status = OpStatus::Init;
-        ctx.accounts.config.nonce += 1;
         emit!(ProposalCreated {
             op_hash,
             executor: ctx.accounts.executor.key()
@@ -171,7 +156,12 @@ pub mod photon {
         let metas: Vec<_> = accounts
             .iter()
             .filter(|x| x.key() != op_data.protocol_addr)
-            .map(|x| x.to_account_metas(None).get(0).unwrap().clone())
+            .map(|x| {
+                x.to_account_metas(None)
+                    .get(0)
+                    .expect("always at least one")
+                    .clone()
+            })
             .collect();
         let (method, payload) =
             if op_data.function_selector.len() == 5 && op_data.function_selector[4] == 0 {
@@ -183,7 +173,10 @@ pub mod photon {
                     function_selector: op_data.function_selector[..4].to_vec(),
                     params: op_data.params.clone(),
                 };
-                ("photon_msg".to_owned(), payload.try_to_vec().unwrap())
+                (
+                    "photon_msg".to_owned(),
+                    payload.try_to_vec().expect("fixed struct serialization"),
+                )
             } else {
                 let payload = PhotonMsg {
                     protocol_id: op_data.protocol_id.clone(),
@@ -195,7 +188,7 @@ pub mod photon {
                 (
                     String::from_utf8(op_data.function_selector.clone())
                         .map_err(|_| CustomError::InvalidMethodSelector)?,
-                    payload.try_to_vec().unwrap(),
+                    payload.try_to_vec().expect("fixed struct serialization"),
                 )
             };
         let data = [&sighash("global", &method)[..], &payload[..]].concat();
@@ -244,9 +237,8 @@ pub mod photon {
     }
 
     pub fn propose(
-        _ctx: Context<Propose>,
+        ctx: Context<Propose>,
         protocol_id: Vec<u8>,
-        nonce: u128,
         dst_chain_id: u128,
         protocol_address: Vec<u8>,
         function_selector: Vec<u8>,
@@ -256,6 +248,8 @@ pub mod photon {
             function_selector.len() <= 32,
             CustomError::InvalidMethodSelector
         );
+        let nonce = ctx.accounts.config.nonce;
+        ctx.accounts.config.nonce += 1;
         emit!(ProposeEvent {
             protocol_id,
             nonce,
@@ -270,22 +264,8 @@ pub mod photon {
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    /// Owner account
-    #[account(signer, mut)]
-    owner: Signer<'info>,
-
-    /// Initial config
-    #[account(init_if_needed, payer = owner, space = Config::LEN, seeds = [ROOT.as_ref(), b"CONFIG"], bump)]
-    config: Box<Account<'info, Config>>,
-
-    /// System program
-    system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct InitGovProtocol<'info> {
     /// Admin account
-    #[account(signer, mut, constraint = admin.key() == config.admin @ CustomError::IsNotAdmin)]
+    #[account(signer, mut, constraint = (admin.key() == config.admin || config.admin == Pubkey::default()) @ CustomError::IsNotAdmin)]
     admin: Signer<'info>,
 
     /// Protocol info
@@ -298,8 +278,8 @@ pub struct InitGovProtocol<'info> {
     )]
     protocol_info: Box<Account<'info, ProtocolInfo>>,
 
-    /// Initial config
-    #[account(seeds = [ROOT, b"CONFIG"], bump)]
+    /// System config
+    #[account(init_if_needed, payer = admin, space = Config::LEN, seeds = [ROOT, b"CONFIG"], bump)]
     config: Box<Account<'info, Config>>,
 
     /// System program
@@ -335,7 +315,7 @@ pub struct LoadOperation<'info> {
     )]
     op_info: Box<Account<'info, OpInfo>>,
 
-    /// Initial config
+    /// System config
     #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
     config: Box<Account<'info, Config>>,
 
@@ -458,6 +438,10 @@ pub struct Propose<'info> {
     )]
     proposer: Signer<'info>,
 
+    /// System config
+    #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
+    config: Box<Account<'info, Config>>,
+
     /// Target protocol info
     #[account(
         seeds = [ROOT, b"PROTOCOL", &protocol_id],
@@ -469,14 +453,13 @@ pub struct Propose<'info> {
 #[account]
 #[derive(Default)]
 pub struct Config {
-    owner: Pubkey,
     admin: Pubkey,
     eob_chain_id: u64,
     nonce: u64,
 }
 
 impl Config {
-    pub const LEN: usize = 8 + 32 * 4 + 8 * 2;
+    pub const LEN: usize = 8 + 32 + 8 * 2;
 }
 
 #[account]
@@ -492,7 +475,7 @@ pub struct ProtocolInfo {
 
 impl ProtocolInfo {
     pub const LEN: usize =
-        8 + 1 + 8 * 2 + 32 + (20 * MAX_KEEPERS) + (32 * MAX_EXECUTORS) + (32 * MAX_PROPOSERS);
+        8 + 1 + 8 + 32 + (20 * MAX_KEEPERS) + (32 * MAX_EXECUTORS) + (32 * MAX_PROPOSERS);
 
     pub fn keepers(&self) -> Vec<EthAddress> {
         self.keepers
@@ -526,7 +509,11 @@ pub struct OpInfo {
 
 impl OpInfo {
     pub fn len(op_data: &OperationData) -> usize {
-        8 + 1 + 20 * 16 + borsh::to_vec(op_data).unwrap().len()
+        8 + 1
+            + 20 * 16
+            + borsh::to_vec(op_data)
+                .expect("fixed struct serialization")
+                .len()
     }
 }
 
@@ -552,7 +539,7 @@ pub struct ProposalExecuted {
 #[event]
 pub struct ProposeEvent {
     protocol_id: Vec<u8>,
-    nonce: u128,
+    nonce: u64,
     dst_chain_id: u128,
     protocol_address: Vec<u8>,
     function_selector: Vec<u8>,
@@ -569,8 +556,6 @@ pub enum CustomError {
     InvalidSignature,
     #[msg("OpIsNotForThisChain")]
     OpIsNotForThisChain,
-    #[msg("InvalidNonce")]
-    InvalidNonce,
     #[msg("InvalidEndpoint")]
     InvalidEndpoint,
     #[msg("OpStateInvalid")]
@@ -595,6 +580,8 @@ pub enum CustomError {
     InvalidMethodSelector,
     #[msg("InvalidOpData")]
     InvalidOpData,
+    #[msg("InvalidAddress")]
+    InvalidAddress,
     #[msg("ProtocolAddressNotProvided")]
     ProtocolAddressNotProvided,
     #[msg("NoKeepersAllowed")]

@@ -2,33 +2,34 @@ use anchor_lang::prelude::*;
 use ethabi::ParamType;
 
 use crate::{
-    signature::OperationData, util::EthAddress, CustomError, ExecuteGovOperation, MAX_EXECUTORS,
-    MAX_KEEPERS, MAX_PROPOSERS,
+    require_ok, signature::OperationData, util::EthAddress, CustomError, ExecuteGovOperation,
+    MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS,
 };
 
-pub fn handle_gov_operation(
+pub(super) fn handle_gov_operation(
     ctx: Context<ExecuteGovOperation>,
     op_data: OperationData,
     target_protocol: Vec<u8>,
 ) -> Result<()> {
-    require!(
-        op_data.function_selector.len() == 4,
+    let selector = u32::from_be_bytes(require_ok!(
+        op_data.function_selector.try_into(),
         CustomError::InvalidMethodSelector
-    );
-    let selector = u32::from_be_bytes(op_data.function_selector.try_into().unwrap());
+    ));
     let calldata = &op_data.params;
     match selector {
         // addAllowedProtocol(bytes)
         0x45a004b9 => {
-            let decoded = ethabi::decode(
-                &[
-                    ParamType::FixedBytes(32), // protocolId
-                    ParamType::Uint(256),      // consensusTargetRate
-                    ParamType::Array(Box::new(ParamType::Address)),
-                ],
-                &calldata,
-            )
-            .map_err(|_| CustomError::InvalidProtoMsg)?;
+            let decoded = require_ok!(
+                ethabi::decode(
+                    &[
+                        ParamType::FixedBytes(32), // protocolId
+                        ParamType::Uint(256),      // consensusTargetRate
+                        ParamType::Array(Box::new(ParamType::Address)),
+                    ],
+                    &calldata,
+                ),
+                CustomError::InvalidProtoMsg
+            );
             let protocol_id = decoded[0]
                 .clone()
                 .into_fixed_bytes()
@@ -46,7 +47,7 @@ pub fn handle_gov_operation(
                 .into_array()
                 .ok_or(CustomError::InvalidGovMsg)?
                 .into_iter()
-                .map(|x| x.into_address().unwrap())
+                .map(|x| x.into_address().expect("always address"))
                 .collect();
             ctx.accounts.protocol_info.is_init = true;
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
@@ -56,14 +57,16 @@ pub fn handle_gov_operation(
         }
         // addAllowedProtocolAddress(bytes)
         0xd296a0ff => {
-            let decoded = ethabi::decode(
-                &[
-                    ParamType::FixedBytes(32), // protocolId
-                    ParamType::Bytes,          // protocolAddr
-                ],
-                &calldata,
-            )
-            .map_err(|_| CustomError::InvalidProtoMsg)?;
+            let decoded = require_ok!(
+                ethabi::decode(
+                    &[
+                        ParamType::FixedBytes(32), // protocolId
+                        ParamType::Bytes,          // protocolAddr
+                    ],
+                    &calldata,
+                ),
+                CustomError::InvalidProtoMsg
+            );
             let protocol_id = decoded[0]
                 .clone()
                 .into_fixed_bytes()

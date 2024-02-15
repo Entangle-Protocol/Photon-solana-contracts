@@ -1,11 +1,11 @@
 import json
-photon_address = "9pGziQeWKwruehVXiF9ZHToiVs9iv7ajXeFFaPiaLkpD"
-onefunc_address = "6cBwMuV2hTAVAXYSqYXULuXitknhzJYu3QXjuH9mKaLg"
+photon_address = "3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ"
+onefunc_address = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
 def fix(path, address):
     metadata = json.loads(open(path, "r").read())
     metadata["metadata"] = {}
-    metadata["metadata"]["address"] = photon_address
+    metadata["metadata"]["address"] = address
     open(path, "w").write(json.dumps(metadata))
 
 fix("./target/idl/photon.json", photon_address)
