@@ -126,7 +126,6 @@ pub mod photon {
     pub fn execute_operation<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, ExecuteOperation<'info>>,
         op_hash: Vec<u8>,
-        call_authority_bump: u8,
     ) -> Result<()> {
         let _ = op_hash;
         let op_data = &ctx.accounts.op_info.op_data;
@@ -200,7 +199,7 @@ pub mod photon {
                 ROOT,
                 b"CALL_AUTHORITY",
                 &op_data.protocol_id,
-                &[call_authority_bump],
+                &[ctx.bumps.call_authority],
             ]],
         )
         .map_err(|e| format!("{}", e))
@@ -352,7 +351,7 @@ pub struct SignOperation<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(op_hash: Vec<u8>, call_authority_bump: u8)]
+#[instruction(op_hash: Vec<u8>)]
 pub struct ExecuteOperation<'info> {
     /// Executor account
     #[account(
@@ -382,7 +381,7 @@ pub struct ExecuteOperation<'info> {
     /// CHECK: only used as authority account
     #[account(
         seeds = [ROOT, b"CALL_AUTHORITY", &op_info.op_data.protocol_id],
-        bump = call_authority_bump
+        bump
     )]
     call_authority: AccountInfo<'info>,
 }
