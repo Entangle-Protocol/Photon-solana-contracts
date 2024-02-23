@@ -1,13 +1,17 @@
+extern crate photon;
+
 use anchor_lang::prelude::*;
+use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon};
 
 declare_id!("EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ");
 
 #[program]
 pub mod onefunc {
-    use anchor_lang::context::Context;
     use ethabi::ParamType;
 
     use super::*;
+
+    pub static PROTOCOL_ID: &[u8] = b"onefunc_________________________";
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.counter.call_authority = ctx.accounts.call_authority.key();
@@ -63,6 +67,35 @@ pub mod onefunc {
             _ => return Err(CustomError::InvalidSelector.into()),
         }
         Ok(())
+    }
+
+    /// Example, call propose within the entangle multichain environment
+    pub fn propose_to_other_chain(ctx: Context<ProposeToOtherChain>) -> Result<()> {
+        let protocol_id: Vec<u8> = PROTOCOL_ID.to_vec();
+        let dst_chain_id = 33133_u128;
+        let protocol_address: Vec<u8> = vec![1, 54, 22, 87, 84, 85, 00, 00, 71];
+        let function_selector: Vec<u8> = b"ask1234mkl;1mklasdfasm;lkasdmf__".to_vec();
+        let params: Vec<u8> = b"an arbitrary data".to_vec();
+
+        let cpi_program = ctx.accounts.photon_program.to_account_info();
+        let cpi_accounts = Propose {
+            proposer: ctx.accounts.proposer.to_account_info(),
+            config: ctx.accounts.config.to_account_info(),
+            protocol_info: ctx.accounts.protocol_info.to_account_info(),
+        };
+        let bump = [ctx.bumps.proposer];
+        let proposer_seeds = [ROOT, b"PROPOSER", &bump[..]];
+        let bindings = &[&proposer_seeds[..]][..];
+        let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, bindings);
+
+        photon::cpi::propose(
+            ctx,
+            protocol_id,
+            dst_chain_id,
+            protocol_address,
+            function_selector,
+            params,
+        )
     }
 }
 
@@ -120,4 +153,35 @@ pub enum CustomError {
     InvalidParams,
     #[msg("InvalidSelector")]
     InvalidSelector,
+}
+
+#[derive(Accounts)]
+pub struct ProposeToOtherChain<'info> {
+    /// Owner account
+    #[account(signer, mut)]
+    owner: Signer<'info>,
+
+    /// The address of the photon aggregation spotter program to make a proposal
+    photon_program: Program<'info, Photon>,
+
+    /// System config to be used by entangle aggregation spotter program
+    /// seeds = ["root-0", "CONFIG"]
+    /// seeds::program = photon_program
+    /// CHECK: Due to be validated within the aggregation spotter program
+    #[account(mut)]
+    config: UncheckedAccount<'info>,
+
+    /// Protocol info to be used by entangle aggregation spotter program
+    /// seeds = ["root-0", "PROTOCOL", "aggregation-gov_________________"]
+    /// seeds::program = photon_program
+    /// CHECK: Due to be validated within the aggregation spotter program
+    protocol_info: UncheckedAccount<'info>,
+
+    /// Proposer account that was registered by the entangle spotter program previously
+    /// CHECK: Due to be validated within the aggregation spotter program as a signer and a registered proposer
+    #[account(init_if_needed, payer = owner, space = 0, seeds = [ROOT, b"PROPOSER"], bump)]
+    proposer: UncheckedAccount<'info>,
+
+    /// System program be able to create the proposer account if it's not created
+    system_program: Program<'info, System>,
 }

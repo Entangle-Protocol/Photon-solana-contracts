@@ -243,6 +243,7 @@ pub mod photon {
         function_selector: Vec<u8>,
         params: Vec<u8>,
     ) -> Result<()> {
+        // TODO: check if all requirements are satisfied
         require!(
             function_selector.len() <= 32,
             CustomError::InvalidMethodSelector
@@ -537,12 +538,12 @@ pub struct ProposalExecuted {
 
 #[event]
 pub struct ProposeEvent {
-    protocol_id: Vec<u8>,
-    nonce: u64,
-    dst_chain_id: u128,
-    protocol_address: Vec<u8>,
-    function_selector: Vec<u8>,
-    params: Vec<u8>,
+    pub protocol_id: Vec<u8>,
+    pub nonce: u64,
+    pub dst_chain_id: u128,
+    pub protocol_address: Vec<u8>,
+    pub function_selector: Vec<u8>,
+    pub params: Vec<u8>,
 }
 
 #[error_code]
