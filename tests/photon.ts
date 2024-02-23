@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { BorshCoder, EventParser, Program, web3} from "@coral-xyz/anchor";
+import { BorshCoder, EventParser, Program, web3 } from "@coral-xyz/anchor";
 import { Photon } from "../target/types/photon";
 import { Onefunc } from "../target/types/onefunc";
 import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -17,7 +17,7 @@ import {
   sleep,
 } from "./utils";
 import { Wallet, ethers } from "ethers";
-import { assert, expect } from "chai";
+import { expect } from "chai";
 
 const TEST_REMOVE_FUNCS = true;
 const ROOT = utf8.encode("root-0");
@@ -87,12 +87,14 @@ describe("photon", () => {
       onefunc.programId,
     )[0];
     onefuncProtocol = web3.PublicKey.findProgramAddressSync(
-        [ROOT, utf8.encode("PROTOCOL"), ONE_FUNC_ID],
-        program.programId,
+      [ROOT, utf8.encode("PROTOCOL"), ONE_FUNC_ID],
+      program.programId,
     )[0];
 
     proposer = web3.PublicKey.findProgramAddressSync(
-        [ROOT, utf8.encode("PROPOSER")], onefunc.programId)[0];
+      [ROOT, utf8.encode("PROPOSER")],
+      onefunc.programId,
+    )[0];
   });
 
   async function executeProposal(
@@ -184,7 +186,7 @@ describe("photon", () => {
         .rpc();
     } else {
       await program.methods
-        .executeOperation(op_hash, callAuthorityBump)
+        .executeOperation(op_hash)
         .accounts({
           executor: executor.publicKey,
           opInfo,
@@ -384,7 +386,7 @@ describe("photon", () => {
     }
   });
 
-  it.skip("executeOperation by name", async () => {
+  it("executeOperation by name", async () => {
     let params = hexToBytes(
       ethers.utils.defaultAbiCoder.encode(["uint256"], [3]),
     );
@@ -403,7 +405,7 @@ describe("photon", () => {
     expect(state.count.toNumber()).eq(3);
   });
 
-  it.skip("executeOperation by id", async () => {
+  it("executeOperation by id", async () => {
     let params = hexToBytes(
       ethers.utils.defaultAbiCoder.encode(["uint256"], [2]),
     );
@@ -422,33 +424,41 @@ describe("photon", () => {
     expect(state.count.toNumber()).eq(5);
   });
 
-  it ("propose", async () => {
-    let signature = await onefunc.methods.proposeToOtherChain()
-        .accounts({  owner: owner.publicKey, proposer,
-                             photonProgram: program.programId, config, protocolInfo: onefuncProtocol })
-        .signers(owner)
-        .rpc();
+  it("propose", async () => {
+    let signature = await onefunc.methods
+      .proposeToOtherChain()
+      .accounts({
+        owner: owner.publicKey,
+        proposer,
+        photonProgram: program.programId,
+        config,
+        protocolInfo: onefuncProtocol,
+      })
+      .signers([owner])
+      .rpc();
     let [tx, counter] = [null, 0];
     while (tx == null) {
-      await sleep(10)
-      tx = await anchor.getProvider().connection
-          .getParsedTransaction(signature, { commitment: "confirmed" });
-      assert((counter += 1) <= 30, "Propose transaction has not been found in time")
+      await sleep(10);
+      tx = await anchor
+        .getProvider()
+        .connection.getParsedTransaction(signature, {
+          commitment: "confirmed",
+        });
+      expect(counter += 1).lte(30, "Propose transaction has not been found in time");
     }
-    const eventParser = new EventParser(program.programId, new BorshCoder(program.idl));
+    const eventParser = new EventParser(
+      program.programId,
+      new BorshCoder(program.idl),
+    );
     const events = Array.from(eventParser.parseLogs(tx.meta.logMessages));
-    assert(events.length == 1, "Expected exact one ProposeEvent")
+    expect(events.length).eq(1, "Expected exact one ProposeEvent")
     let event = events[0];
-    assert(event.name == "ProposeEvent");
-    assert(ONE_FUNC_ID.compare(event.data.protocolId) == 0, "Unexpected protocolId");
-    assert(EOB_CHAIN_ID == event.data.dstChainId.toNumber(), "Unexpected dst_chain_id");
-    assert(Buffer.from(new Uint8Array([1, 54, 22, 87, 84, 85, 0, 0, 71]))
-        .compare(event.data.protocolAddress) == 0, "Unexpected protocolAddress");
-    assert(Buffer.from(utf8.encode("ask1234mkl;1mklasdfasm;lkasdmf__"))
-        .compare(event.data.functionSelector) == 0, "Unexpected params");
-    assert(Buffer.from(utf8.encode("an arbitrary data"))
-        .compare(event.data.params) == 0, "Unexpected params");
-    //assert(new anchor.BN(0) == event.data.nonce.toNumber(), "Unexpected nonce");
+    expect(event.name).eq("ProposeEvent");
+    expect((event.data.protocolId as Buffer).compare(ONE_FUNC_ID)).eq(0, "Unexpected protocolId");
+    expect(EOB_CHAIN_ID).eq((event.data.dstChainId as anchor.BN).toNumber(), "Unexpected dst_chain_id");
+    expect((event.data.protocolAddress as Buffer).compare(Buffer.alloc(20, 1))).eq(0, "Unexpected protocolAddress");
+    expect((event.data.functionSelector as Buffer).compare(utf8.encode("ask1234mkl;1mklasdfasm;lkasdmf__"))).eq(0, "Unexpected params");
+    expect((event.data.params as Buffer).compare(utf8.encode("an arbitrary data"))).eq(0, "Unexpected data");
+    expect((event.data.nonce as anchor.BN).toNumber()).eq(0, "Unexpected nonce");
   });
-
 });

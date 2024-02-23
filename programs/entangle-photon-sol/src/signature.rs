@@ -36,7 +36,7 @@ impl OperationData {
         buf.extend_from_slice(&self.src_op_tx_id);
         buf.extend_from_slice(&u64_to_bytes32(self.nonce));
         buf.extend_from_slice(&u128_to_bytes32(self.dest_chain_id));
-        buf.extend_from_slice(&self.protocol_addr.as_ref());
+        buf.extend_from_slice(self.protocol_addr.as_ref());
         buf.extend_from_slice(&self.function_selector);
         buf.extend_from_slice(&self.params);
         buf

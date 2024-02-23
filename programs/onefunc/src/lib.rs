@@ -1,5 +1,3 @@
-extern crate photon;
-
 use anchor_lang::prelude::*;
 use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon};
 
@@ -29,7 +27,7 @@ pub mod onefunc {
     ) -> Result<()> {
         let to_increment = ethabi::decode(&[ParamType::Uint(256)], &params)
             .map_err(|_| CustomError::InvalidParams)?
-            .get(0)
+            .first()
             .unwrap()
             .clone()
             .into_uint()
@@ -56,7 +54,7 @@ pub mod onefunc {
             [1, 2, 3, 4] => {
                 let to_increment = ethabi::decode(&[ParamType::Uint(256)], &params)
                     .map_err(|_| CustomError::InvalidParams)?
-                    .get(0)
+                    .first()
                     .unwrap()
                     .clone()
                     .into_uint()
@@ -73,7 +71,7 @@ pub mod onefunc {
     pub fn propose_to_other_chain(ctx: Context<ProposeToOtherChain>) -> Result<()> {
         let protocol_id: Vec<u8> = PROTOCOL_ID.to_vec();
         let dst_chain_id = 33133_u128;
-        let protocol_address: Vec<u8> = vec![1, 54, 22, 87, 84, 85, 00, 00, 71];
+        let protocol_address: Vec<u8> = vec![1; 20];
         let function_selector: Vec<u8> = b"ask1234mkl;1mklasdfasm;lkasdmf__".to_vec();
         let params: Vec<u8> = b"an arbitrary data".to_vec();
 

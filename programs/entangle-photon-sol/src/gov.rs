@@ -26,7 +26,7 @@ pub(super) fn handle_gov_operation(
                         ParamType::Uint(256),      // consensusTargetRate
                         ParamType::Array(Box::new(ParamType::Address)),
                     ],
-                    &calldata,
+                    calldata,
                 ),
                 CustomError::InvalidProtoMsg
             );
@@ -63,7 +63,7 @@ pub(super) fn handle_gov_operation(
                         ParamType::FixedBytes(32), // protocolId
                         ParamType::Bytes,          // protocolAddr
                     ],
-                    &calldata,
+                    calldata,
                 ),
                 CustomError::InvalidProtoMsg
             );
@@ -92,7 +92,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Bytes,          // protocolAddr
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -112,7 +112,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Bytes,          // proposerAddr
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -151,7 +151,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Bytes,          // proposerAddr
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -189,7 +189,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Bytes,          // executor
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -228,7 +228,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Bytes,          // executor
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -266,7 +266,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32),                      // protocolId
                     ParamType::Array(Box::new(ParamType::Address)), // keepers
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -305,7 +305,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32),                      // protocolId
                     ParamType::Array(Box::new(ParamType::Address)), // keepers
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]
@@ -347,7 +347,7 @@ pub(super) fn handle_gov_operation(
                     ParamType::FixedBytes(32), // protocolId
                     ParamType::Uint(256),      // target rate
                 ],
-                &calldata,
+                calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
             let protocol_id = decoded[0]

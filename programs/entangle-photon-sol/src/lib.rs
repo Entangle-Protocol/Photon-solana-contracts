@@ -123,8 +123,8 @@ pub mod photon {
         Ok(consensus_reached)
     }
 
-    pub fn execute_operation<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, ExecuteOperation<'info>>,
+    pub fn execute_operation<'info>(
+        ctx: Context<'_, '_, '_, 'info, ExecuteOperation<'info>>,
         op_hash: Vec<u8>,
     ) -> Result<()> {
         let _ = op_hash;
@@ -134,10 +134,15 @@ pub mod photon {
             CustomError::InvalidEndpoint
         );
         // The first account in remaining_accounts should be protocol address, which is added first in account list
-        let mut accounts: Vec<_> = ctx.remaining_accounts.get(0).into_iter().cloned().collect();
+        let mut accounts: Vec<_> = ctx
+            .remaining_accounts
+            .first()
+            .into_iter()
+            .cloned()
+            .collect();
         require!(
             accounts
-                .get(0)
+                .first()
                 .filter(|x| x.key() == op_data.protocol_addr)
                 .is_some(),
             CustomError::ProtocolAddressNotProvided
@@ -157,7 +162,7 @@ pub mod photon {
             .filter(|x| x.key() != op_data.protocol_addr)
             .map(|x| {
                 x.to_account_metas(None)
-                    .get(0)
+                    .first()
                     .expect("always at least one")
                     .clone()
             })
