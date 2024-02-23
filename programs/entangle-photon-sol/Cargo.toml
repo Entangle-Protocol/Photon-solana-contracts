@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "entangle_photon_sol"
+name = "photon"
 
 [features]
 no-entrypoint = []
@@ -16,7 +16,7 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version = "0.29.0", features = ["init-if-needed"] }
+anchor-lang = { version = "0.29", features = ["init-if-needed"] }
 ahash = "=0.8.5"
 sha3 = { version = "0.10.8", default-features = false }
 ethabi = { version = "18.0.0", features = ["std"] }
