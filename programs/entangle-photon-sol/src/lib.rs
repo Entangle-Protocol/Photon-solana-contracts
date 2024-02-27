@@ -541,6 +541,7 @@ pub struct ProposalExecuted {
     executor: Pubkey,
 }
 
+#[derive(Debug)]
 #[event]
 pub struct ProposeEvent {
     pub protocol_id: Vec<u8>,

@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "programs/*"
+    "programs/*",
+    "solana-keeper-module"
 ]
 resolver = "1"
 
