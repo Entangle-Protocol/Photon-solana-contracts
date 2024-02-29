@@ -1,11 +1,13 @@
-use anchor_lang;
+use log::error;
 use regex::Regex;
 use solana_client::rpc_response::{Response, RpcLogsResponse};
+
+use super::error::ListenError;
 
 pub(super) fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
     logs: Response<RpcLogsResponse>,
     program_id_str: &str,
-) -> anyhow::Result<Vec<T>> {
+) -> Result<Vec<T>, ListenError> {
     let logs = &logs.value.logs[..];
     let logs: Vec<&str> = logs.iter().by_ref().map(String::as_str).collect();
     parse_logs_impl(logs.as_slice(), program_id_str)
@@ -14,7 +16,7 @@ pub(super) fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDes
 fn parse_logs_impl<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
     logs: &[&str],
     program_id_str: &str,
-) -> anyhow::Result<Vec<T>> {
+) -> Result<Vec<T>, ListenError> {
     let mut events: Vec<T> = Vec::new();
     let mut do_pop = false;
     if !logs.is_empty() {
@@ -29,10 +31,10 @@ fn parse_logs_impl<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
                 }
                 execution.update(log)?;
                 if program_id_str == execution.program()? {
-                    handle_program_log(program_id_str, log).unwrap_or_else(|e| {
-                        println!("Unable to parse log: {e}");
-                        std::process::exit(1);
-                    })
+                    handle_program_log(program_id_str, log).map_err(|e| {
+                        error!("Failed to parse log: {}", e);
+                        ListenError::SolanaParseLogs
+                    })?
                 } else {
                     let (_, pop) = handle_irrelevant_log(program_id_str, log);
                     (None, pop)
@@ -53,8 +55,7 @@ const PROGRAM_DATA: &str = "Program data: ";
 fn handle_program_log<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
     self_program_str: &str,
     l: &str,
-) -> anyhow::Result<(Option<T>, bool), String> {
-    // Log emitted from the current program.
+) -> Result<(Option<T>, bool), ListenError> {
     if let Some(log) = l
         .strip_prefix(PROGRAM_LOG)
         .or_else(|| l.strip_prefix(PROGRAM_DATA))
@@ -77,28 +78,36 @@ fn handle_program_log<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
         };
         let mut event = None;
         if disc == T::discriminator() {
-            let e: T = anchor_lang::AnchorDeserialize::deserialize(&mut slice)
-                .map_err(|e| e.to_string())?;
+            let e: T = anchor_lang::AnchorDeserialize::deserialize(&mut slice).map_err(|err| {
+                error!("Failed to deserialize event: {}", err);
+                ListenError::SolanaParseLogs
+            })?;
             event = Some(e);
         }
         Ok((event, false))
-    }
-    // System log.
-    else {
+    } else {
         let (_program, did_pop) = handle_irrelevant_log(self_program_str, l);
         Ok((None, did_pop))
     }
 }
 
 fn handle_irrelevant_log(this_program_str: &str, log: &str) -> (Option<String>, bool) {
-    let re =
-        Regex::new(r"^Program (.*) invoke$").expect("Program invoke re should be constructed well");
+    let re = Regex::new(r"^Program (.*) invoke$")
+        .expect("Expected invoke regexp to be constructed well");
     if log.starts_with(&format!("Program {this_program_str} log:")) {
         (Some(this_program_str.to_string()), false)
     } else if let Some(c) = re.captures(log) {
-        (c.get(1).unwrap().as_str().to_string().into(), false) // Any string will do.
+        (
+            c.get(1)
+                .expect("Expected the captured program to be available")
+                .as_str()
+                .to_string()
+                .into(),
+            false,
+        )
     } else {
-        let re = Regex::new(r"^Program (.*) success$").expect("Expected re be constructed well");
+        let re =
+            Regex::new(r"^Program (.*) success$").expect("Expected regexp to be constructed well");
         (None, re.is_match(log))
     }
 }
@@ -108,9 +117,10 @@ struct Execution {
 }
 
 impl Execution {
-    fn program(&self) -> anyhow::Result<String> {
+    fn program(&self) -> Result<String, ListenError> {
         if self.stack.is_empty() {
-            return Err(anyhow::Error::msg("Stack is empty".to_string()));
+            error!("Failed to get program from the empty stack");
+            return Err(ListenError::SolanaParseLogs);
         }
         Ok(self.stack[self.stack.len() - 1].clone())
     }
@@ -119,27 +129,27 @@ impl Execution {
         self.stack.push(new_program);
     }
 
-    fn pop(&mut self) -> anyhow::Result<()> {
+    fn pop(&mut self) -> Result<(), ListenError> {
         if self.stack.is_empty() {
-            return Err(anyhow::Error::msg("Stack is empty".to_string()));
+            error!("Failed to get program from the empty stack");
+            return Err(ListenError::SolanaParseLogs);
         }
         self.stack.pop().expect("Stack should not be empty");
         Ok(())
     }
 
-    fn update(&mut self, log: &str) -> anyhow::Result<String> {
-        let re = Regex::new(r"^Program (.*) invoke.*$").unwrap();
+    fn update(&mut self, log: &str) -> Result<String, ListenError> {
+        let re =
+            Regex::new(r"^Program (.*) invoke.*$").expect("Expected regexp to be constructed well");
         let Some(c) = re.captures(log) else {
             return self.program();
         };
-
         let program = c
             .get(1)
-            .ok_or_else(|| anyhow::anyhow!("Failed to get program"))?
+            .expect("Expected captured program address to be available")
             .as_str()
             .to_string();
         self.push(program);
-
         self.program()
     }
 }

@@ -1,13 +1,13 @@
-mod app;
 mod cli;
+mod listener_app;
 mod logging;
-mod solana_listener;
 
 extern crate photon;
+
+use std::env;
 
 #[tokio::main]
 async fn main() {
     logging::init_logging();
-    let app = app::App::new();
-    let _ = app.execute().await;
+    cli::Cli::execute(env::args()).await;
 }
