@@ -1,7 +1,9 @@
-mod gov;
 pub mod interface;
-mod signature;
-mod util;
+pub mod signature;
+pub mod util;
+
+mod gov;
+
 use anchor_lang::prelude::*;
 use signature::{KeeperSignature, OperationData};
 use util::{gov_protocol_id, EthAddress, OpStatus};
@@ -54,20 +56,14 @@ pub mod photon {
     ) -> Result<()> {
         let op_hash = op_data.op_hash_with_message();
         require!(op_hash == op_hash_cached, CustomError::CachedOpHashMismatch);
-        require_eq!(
-            op_data.dest_chain_id,
-            SOLANA_CHAIN_ID,
-            CustomError::OpIsNotForThisChain
-        );
+        require_eq!(op_data.dest_chain_id, SOLANA_CHAIN_ID, CustomError::OpIsNotForThisChain);
         require_eq!(
             ctx.accounts.protocol_info.protocol_address,
             op_data.protocol_addr,
             CustomError::ProtocolAddressMismatch
         );
         require!(
-            op_data.protocol_id != [0; 32]
-                && op_data.protocol_id.len() == 32
-                && op_data.src_op_tx_id.len() == 32,
+            op_data.protocol_id != [0; 32] && op_data.protocol_id.len() == 32,
             CustomError::InvalidOpData
         );
         ctx.accounts.op_info.op_data = op_data;
@@ -134,17 +130,9 @@ pub mod photon {
             CustomError::InvalidEndpoint
         );
         // The first account in remaining_accounts should be protocol address, which is added first in account list
-        let mut accounts: Vec<_> = ctx
-            .remaining_accounts
-            .first()
-            .into_iter()
-            .cloned()
-            .collect();
+        let mut accounts: Vec<_> = ctx.remaining_accounts.first().into_iter().cloned().collect();
         require!(
-            accounts
-                .first()
-                .filter(|x| x.key() == op_data.protocol_addr)
-                .is_some(),
+            accounts.first().filter(|x| x.key() == op_data.protocol_addr).is_some(),
             CustomError::ProtocolAddressNotProvided
         );
         // The second in account list is executor
@@ -160,12 +148,7 @@ pub mod photon {
         let metas: Vec<_> = accounts
             .iter()
             .filter(|x| x.key() != op_data.protocol_addr)
-            .map(|x| {
-                x.to_account_metas(None)
-                    .first()
-                    .expect("always at least one")
-                    .clone()
-            })
+            .map(|x| x.to_account_metas(None).first().expect("always at least one").clone())
             .collect();
         let (method, payload) =
             if op_data.function_selector.len() == 5 && op_data.function_selector[4] == 0 {
@@ -177,10 +160,7 @@ pub mod photon {
                     function_selector: op_data.function_selector[..4].to_vec(),
                     params: op_data.params.clone(),
                 };
-                (
-                    "photon_msg".to_owned(),
-                    payload.try_to_vec().expect("fixed struct serialization"),
-                )
+                ("photon_msg".to_owned(), payload.try_to_vec().expect("fixed struct serialization"))
             } else {
                 let payload = PhotonMsg {
                     protocol_id: op_data.protocol_id.clone(),
@@ -229,9 +209,8 @@ pub mod photon {
             CustomError::InvalidEndpoint
         );
         let executor = ctx.accounts.executor.key();
-        let err = handle_gov_operation(ctx, op_data, target_protocol)
-            .map_err(|e| format!("{}", e))
-            .err();
+        let err =
+            handle_gov_operation(ctx, op_data, target_protocol).map_err(|e| format!("{}", e)).err();
         emit!(ProposalExecuted {
             op_hash,
             err,
@@ -249,10 +228,7 @@ pub mod photon {
         params: Vec<u8>,
     ) -> Result<()> {
         // TODO: check if all requirements are satisfied
-        require!(
-            function_selector.len() <= 32,
-            CustomError::InvalidMethodSelector
-        );
+        require!(function_selector.len() <= 32, CustomError::InvalidMethodSelector);
         let nonce = ctx.accounts.config.nonce;
         ctx.accounts.config.nonce += 1;
         emit!(ProposeEvent {
@@ -483,24 +459,15 @@ impl ProtocolInfo {
         8 + 1 + 8 + 32 + (20 * MAX_KEEPERS) + (32 * MAX_EXECUTORS) + (32 * MAX_PROPOSERS);
 
     pub fn keepers(&self) -> Vec<EthAddress> {
-        self.keepers
-            .into_iter()
-            .take_while(|k| k != &EthAddress::default())
-            .collect()
+        self.keepers.into_iter().take_while(|k| k != &EthAddress::default()).collect()
     }
 
     pub fn executors(&self) -> Vec<Pubkey> {
-        self.executors
-            .into_iter()
-            .take_while(|k| k != &Pubkey::default())
-            .collect()
+        self.executors.into_iter().take_while(|k| k != &Pubkey::default()).collect()
     }
 
     pub fn proposers(&self) -> Vec<Pubkey> {
-        self.proposers
-            .into_iter()
-            .take_while(|k| k != &Pubkey::default())
-            .collect()
+        self.proposers.into_iter().take_while(|k| k != &Pubkey::default()).collect()
     }
 }
 
@@ -514,11 +481,7 @@ pub struct OpInfo {
 
 impl OpInfo {
     pub fn len(op_data: &OperationData) -> usize {
-        8 + 1
-            + 20 * 16
-            + borsh::to_vec(op_data)
-                .expect("fixed struct serialization")
-                .len()
+        8 + 1 + 20 * 16 + borsh::to_vec(op_data).expect("fixed struct serialization").len()
     }
 }
 

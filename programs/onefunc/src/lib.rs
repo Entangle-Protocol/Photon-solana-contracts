@@ -1,18 +1,27 @@
 use anchor_lang::prelude::*;
+use ethabi::ParamType;
 use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon};
 
 declare_id!("EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ");
 
 #[program]
 pub mod onefunc {
-    use ethabi::ParamType;
-
     use super::*;
 
     pub static PROTOCOL_ID: &[u8] = b"onefunc_________________________";
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.counter.call_authority = ctx.accounts.call_authority.key();
+        Ok(())
+    }
+
+    pub fn init_owned_counter(ctx: Context<InitOwnedCounter>) -> Result<()> {
+        msg!(
+            "init owned counter, owner: {}, counter_pda: {}",
+            ctx.accounts.counter_owner.key(),
+            ctx.accounts.owned_counter.key()
+        );
+        ctx.accounts.owned_counter.call_authority = ctx.accounts.call_authority.key();
         Ok(())
     }
 
@@ -25,45 +34,24 @@ pub mod onefunc {
         _src_op_tx_id: Vec<u8>,
         params: Vec<u8>,
     ) -> Result<()> {
-        let to_increment = ethabi::decode(&[ParamType::Uint(256)], &params)
-            .map_err(|_| CustomError::InvalidParams)?
-            .first()
-            .unwrap()
-            .clone()
-            .into_uint()
-            .unwrap()
-            .as_u64();
-        ctx.accounts.counter.count += to_increment;
+        let inc_item = decode_increment_item(params);
+        ctx.accounts.counter.count += inc_item;
         Ok(())
     }
 
-    /// Example call by method id
-    pub fn photon_msg(
-        ctx: Context<Increment>,
+    pub fn increment_owned_counter(
+        ctx: Context<IncrementOwnedCounter>,
         _protocol_id: Vec<u8>,
         _src_chain_id: u128,
         _src_block_number: u64,
         _src_op_tx_id: Vec<u8>,
-        function_selecor: Vec<u8>,
         params: Vec<u8>,
     ) -> Result<()> {
-        let selector: [u8; 4] = function_selecor
-            .try_into()
-            .map_err(|_| CustomError::InvalidSelector)?;
-        match selector {
-            [1, 2, 3, 4] => {
-                let to_increment = ethabi::decode(&[ParamType::Uint(256)], &params)
-                    .map_err(|_| CustomError::InvalidParams)?
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .into_uint()
-                    .unwrap()
-                    .as_u64();
-                ctx.accounts.counter.count += to_increment;
-            }
-            _ => return Err(CustomError::InvalidSelector.into()),
-        }
+        let inc_item = decode_increment_item(params);
+        let counter = ctx.accounts.counter.count;
+        ctx.accounts.counter.count += inc_item;
+        msg!("counter owner: {}", ctx.accounts.counter_owner.key);
+        msg!("counter = {} + {} = {}", counter, inc_item, ctx.accounts.counter.count);
         Ok(())
     }
 
@@ -103,8 +91,8 @@ pub struct Initialize<'info> {
     #[account(signer, mut)]
     owner: Signer<'info>,
 
-    /// Aggregation Spotter call authority address for the protocol
-    /// CHECK: not loaded
+    /// Endpoint call authority address for the protocol
+    /// CHECK: if not loaded
     call_authority: AccountInfo<'info>,
 
     /// Counter
@@ -122,18 +110,72 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct InitOwnedCounter<'info> {
+    /// Executor account
+    #[account(signer, mut)]
+    executor: Signer<'info>,
+
+    /// Endpoint call authority address for the protocol
+    #[account(signer)]
+    call_authority: Signer<'info>,
+
+    /// Account that owns and determines which counter to be incremented
+    #[account(signer)]
+    counter_owner: Signer<'info>,
+
+    /// Specific counter that is owned by counter_owner
+    #[account(
+        init,
+        space = 8 + 8 + 32,
+        payer = executor,
+        seeds = [b"COUNTER", counter_owner.key().as_ref()],
+        bump,
+    )]
+    owned_counter: Box<Account<'info, Counter>>,
+
+    /// System program
+    system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct Increment<'info> {
     /// Protocol executor
     #[account(signer, mut)]
     executor: Signer<'info>,
+
     /// Owner account
     #[account(signer, constraint = call_authority.key() == counter.call_authority)]
     call_authority: Signer<'info>,
+
     /// Counter
     #[account(
         mut,
         seeds = [b"COUNTER"],
         bump
+    )]
+    counter: Box<Account<'info, Counter>>,
+}
+
+#[derive(Accounts)]
+pub struct IncrementOwnedCounter<'info> {
+    /// Protocol executor
+    #[account(signer, mut)]
+    executor: Signer<'info>,
+
+    /// entangle authority account
+    #[account(signer)]
+    call_authority: Signer<'info>,
+
+    /// account that owns and determines which counter to be incremented
+    #[account(signer)]
+    counter_owner: Signer<'info>,
+
+    /// Counter
+    #[account(
+        mut,
+        seeds = [b"COUNTER", counter_owner.key().as_ref()],
+        bump,
+        constraint = call_authority.key() == counter.call_authority
     )]
     counter: Box<Account<'info, Counter>>,
 }
@@ -182,4 +224,15 @@ pub struct ProposeToOtherChain<'info> {
 
     /// System program be able to create the proposer account if it's not created
     system_program: Program<'info, System>,
+}
+
+fn decode_increment_item(params: Vec<u8>) -> u64 {
+    ethabi::decode(&[ParamType::Uint(256)], &params)
+        .expect("Expected params to be decoded as ethabi tokens")
+        .first()
+        .expect("Expected params to consist of at least one token")
+        .clone()
+        .into_uint()
+        .expect("Expected params first token to be uint")
+        .as_u64()
 }

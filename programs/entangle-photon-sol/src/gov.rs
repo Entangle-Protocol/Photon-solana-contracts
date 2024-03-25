@@ -30,18 +30,11 @@ pub(super) fn handle_gov_operation(
                 ),
                 CustomError::InvalidProtoMsg
             );
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
-            let consensus_target_rate = decoded[1]
-                .clone()
-                .into_uint()
-                .ok_or(CustomError::InvalidGovMsg)?;
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+            let consensus_target_rate =
+                decoded[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
             let keepers: Vec<ethabi::Address> = decoded[2]
                 .clone()
                 .into_array()
@@ -67,22 +60,13 @@ pub(super) fn handle_gov_operation(
                 ),
                 CustomError::InvalidProtoMsg
             );
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
-            let protocol_address = decoded[1]
-                .clone()
-                .into_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+            let protocol_address =
+                decoded[1].clone().into_bytes().ok_or(CustomError::InvalidGovMsg)?;
             ctx.accounts.protocol_info.protocol_address = Pubkey::new_from_array(
-                protocol_address
-                    .try_into()
-                    .map_err(|_| CustomError::InvalidGovMsg)?,
+                protocol_address.try_into().map_err(|_| CustomError::InvalidGovMsg)?,
             )
         }
         // removeAllowedProtocolAddress(bytes)
@@ -95,14 +79,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             ctx.accounts.protocol_info.protocol_address = Pubkey::default();
         }
         // addAllowedProposerAddress(bytes)
@@ -115,14 +94,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let proposer = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -154,14 +128,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let proposer = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -192,14 +161,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let executor = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -231,14 +195,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let executor = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -269,14 +228,9 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let keepers: Vec<EthAddress> = decoded[1]
                 .clone()
                 .into_array()
@@ -308,23 +262,16 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             let keepers: std::result::Result<Vec<EthAddress>, CustomError> = decoded[1]
                 .clone()
                 .into_array()
                 .ok_or(CustomError::InvalidGovMsg)?
                 .into_iter()
                 .map(|x| {
-                    x.into_address()
-                        .map(|x| x.to_fixed_bytes())
-                        .ok_or(CustomError::InvalidGovMsg)
+                    x.into_address().map(|x| x.to_fixed_bytes()).ok_or(CustomError::InvalidGovMsg)
                 })
                 .collect();
             let to_remove = keepers?;
@@ -350,18 +297,11 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id = decoded[0]
-                .clone()
-                .into_fixed_bytes()
-                .ok_or(CustomError::InvalidGovMsg)?;
-            require!(
-                protocol_id == target_protocol,
-                CustomError::TargetProtocolMismatch
-            );
-            let consensus_target_rate = decoded[1]
-                .clone()
-                .into_uint()
-                .ok_or(CustomError::InvalidGovMsg)?;
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
+            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+            let consensus_target_rate =
+                decoded[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
         }
         _ => {
