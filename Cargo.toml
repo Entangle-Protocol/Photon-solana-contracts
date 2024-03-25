@@ -1,7 +1,10 @@
 [workspace]
 members = [
+    "transmitter-protocol-extensions/onefunc-extension",
     "programs/*",
-    "solana-keeper-module"
+    "transmitter-module",
+    "transmitter-test-publisher",
+    "transmitter-common"
 ]
 resolver = "1"
 

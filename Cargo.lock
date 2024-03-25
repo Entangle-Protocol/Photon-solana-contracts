@@ -1072,7 +1072,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7328b20597b53c2454f0b1919720c25c7339051c02b72b7e05409e00b14132be"
 dependencies = [
  "async-trait",
- "convert_case 0.6.0",
+ "convert_case",
  "json5",
  "lazy_static",
  "nom",
@@ -1149,12 +1149,6 @@ name = "constant_time_eq"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
-
-[[package]]
-name = "convert_case"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "convert_case"
@@ -1379,19 +1373,6 @@ checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "derive_more"
-version = "0.99.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
-dependencies = [
- "convert_case 0.4.0",
- "proc-macro2",
- "quote",
- "rustc_version",
  "syn 1.0.109",
 ]
 
@@ -2302,6 +2283,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
+name = "libloading"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
+dependencies = [
+ "cfg-if",
+ "windows-targets 0.52.3",
+]
+
+[[package]]
 name = "libsecp256k1"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2311,10 +2302,29 @@ dependencies = [
  "base64 0.12.3",
  "digest 0.9.0",
  "hmac-drbg",
- "libsecp256k1-core",
- "libsecp256k1-gen-ecmult",
- "libsecp256k1-gen-genmult",
+ "libsecp256k1-core 0.2.2",
+ "libsecp256k1-gen-ecmult 0.2.1",
+ "libsecp256k1-gen-genmult 0.2.1",
  "rand 0.7.3",
+ "serde",
+ "sha2 0.9.9",
+ "typenum",
+]
+
+[[package]]
+name = "libsecp256k1"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95b09eff1b35ed3b33b877ced3a691fc7a481919c7e29c53c906226fcf55e2a1"
+dependencies = [
+ "arrayref",
+ "base64 0.13.1",
+ "digest 0.9.0",
+ "hmac-drbg",
+ "libsecp256k1-core 0.3.0",
+ "libsecp256k1-gen-ecmult 0.3.0",
+ "libsecp256k1-gen-genmult 0.3.0",
+ "rand 0.8.5",
  "serde",
  "sha2 0.9.9",
  "typenum",
@@ -2332,12 +2342,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "libsecp256k1-core"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5be9b9bb642d8522a44d533eab56c16c738301965504753b03ad1de3425d5451"
+dependencies = [
+ "crunchy",
+ "digest 0.9.0",
+ "subtle",
+]
+
+[[package]]
 name = "libsecp256k1-gen-ecmult"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccab96b584d38fac86a83f07e659f0deafd0253dc096dab5a36d53efe653c5c3"
 dependencies = [
- "libsecp256k1-core",
+ "libsecp256k1-core 0.2.2",
+]
+
+[[package]]
+name = "libsecp256k1-gen-ecmult"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3038c808c55c87e8a172643a7d87187fc6c4174468159cb3090659d55bcb4809"
+dependencies = [
+ "libsecp256k1-core 0.3.0",
 ]
 
 [[package]]
@@ -2346,7 +2376,16 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67abfe149395e3aa1c48a2beb32b068e2334402df8181f818d3aee2b304c4f5d"
 dependencies = [
- "libsecp256k1-core",
+ "libsecp256k1-core 0.2.2",
+]
+
+[[package]]
+name = "libsecp256k1-gen-genmult"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3db8d6ba2cec9eacc40e6e8ccc98931840301f1006e95647ceb2dd5c3aa06f7c"
+dependencies = [
+ "libsecp256k1-core 0.3.0",
 ]
 
 [[package]]
@@ -2693,6 +2732,18 @@ dependencies = [
  "anchor-lang",
  "entangle-photon-sol",
  "ethabi",
+]
+
+[[package]]
+name = "onefunc-extension"
+version = "0.1.0"
+dependencies = [
+ "env_logger 0.11.2",
+ "lazy_static",
+ "log",
+ "onefunc",
+ "solana-sdk",
+ "transmitter-common",
 ]
 
 [[package]]
@@ -3996,7 +4047,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "libc",
- "libsecp256k1",
+ "libsecp256k1 0.6.0",
  "light-poseidon",
  "log",
  "memoffset 0.9.0",
@@ -4216,7 +4267,7 @@ dependencies = [
  "itertools",
  "js-sys",
  "lazy_static",
- "libsecp256k1",
+ "libsecp256k1 0.6.0",
  "log",
  "memmap2",
  "num-derive 0.3.3",
@@ -4441,28 +4492,6 @@ dependencies = [
  "subtle",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "solana_keeper_module"
-version = "0.1.0"
-dependencies = [
- "amqprs",
- "anchor-lang",
- "async-trait",
- "clap 4.5.1",
- "config",
- "derive_more",
- "entangle-photon-sol",
- "env_logger 0.11.2",
- "futures-util",
- "log",
- "regex",
- "serde",
- "serde_json",
- "solana-client",
- "solana-sdk",
- "tokio",
 ]
 
 [[package]]
@@ -4832,6 +4861,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-publisher"
+version = "0.1.0"
+dependencies = [
+ "amqprs",
+ "async-trait",
+ "clap 4.5.1",
+ "config",
+ "entangle-photon-sol",
+ "env_logger 0.11.2",
+ "ethabi",
+ "hex",
+ "libsecp256k1 0.7.1",
+ "log",
+ "onefunc",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha3 0.10.8",
+ "solana-program",
+ "solana-sdk",
+ "thiserror",
+ "tokio",
+ "transmitter-common",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5121,6 +5176,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "transmitter-common"
+version = "0.1.0"
+dependencies = [
+ "amqprs",
+ "async-trait",
+ "entangle-photon-sol",
+ "hex",
+ "log",
+ "serde",
+ "sha3 0.10.8",
+ "solana-sdk",
+]
+
+[[package]]
+name = "transmitter-module"
+version = "0.1.0"
+dependencies = [
+ "amqprs",
+ "anchor-lang",
+ "async-trait",
+ "clap 4.5.1",
+ "config",
+ "entangle-photon-sol",
+ "env_logger 0.11.2",
+ "futures-util",
+ "hex",
+ "libloading",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha3 0.10.8",
+ "solana-client",
+ "solana-sdk",
+ "thiserror",
+ "tokio",
+ "transmitter-common",
 ]
 
 [[package]]

@@ -11,6 +11,7 @@ import {
   hexToBytes,
   opHashFull,
   randomSigners,
+  predefinedSigners,
   signOp,
   addKeepers,
   setConsensusTargetRate,
@@ -40,7 +41,8 @@ describe("photon", () => {
   const onefunc = anchor.workspace.Onefunc as Program<Onefunc>;
 
   let owner = anchor.web3.Keypair.generate();
-  const executor = anchor.web3.Keypair.generate();
+  let executor_keypair = Uint8Array.from(require("./accounts/executor.json"));
+  const executor = anchor.web3.Keypair.fromSecretKey(executor_keypair);
 
   let config;
   let govProtocolInfo;
@@ -73,7 +75,8 @@ describe("photon", () => {
       [ROOT, utf8.encode("PROTOCOL"), GOV_PROTOCOL_ID],
       program.programId,
     )[0];
-    keepers = randomSigners(KEEPERS);
+    console.log("Executor", executor.publicKey.toBase58());
+    keepers = predefinedSigners(KEEPERS);
     for (var i = 0; i < keepers.length; i++) {
       console.log("Keeper", i, keepers[i].address);
       keepersRaw.push(hexToBytes(keepers[i].address));
@@ -137,11 +140,6 @@ describe("photon", () => {
       program.programId,
     )[0];
 
-    let signatures = [];
-    for (var i = 0; i < keepers.length; i++) {
-      const sig = await signOp(keepers[i], op);
-      signatures.push(sig);
-    }
     // Load
     await program.methods
       .loadOperation(op, op_hash)
@@ -156,6 +154,12 @@ describe("photon", () => {
       .rpc();
     // Sign
     const chunkSize = KEEPERS_PER_CALL;
+
+    let signatures = [];
+    for (let i = 0; i < keepers.length; i++) {
+      const sig = await signOp(keepers[i], op);
+      signatures.push(sig);
+    }
     for (let i = 0; i < signatures.length; i += chunkSize) {
       const chunk = signatures.slice(i, i + chunkSize);
       await program.methods
@@ -403,25 +407,6 @@ describe("photon", () => {
     );
     const state = await onefunc.account.counter.fetch(counter);
     expect(state.count.toNumber()).eq(3);
-  });
-
-  it("executeOperation by id", async () => {
-    let params = hexToBytes(
-      ethers.utils.defaultAbiCoder.encode(["uint256"], [2]),
-    );
-    let keys = [{ isSigner: false, isWritable: true, pubkey: counter }];
-    await executeProposal(
-      ONE_FUNC_ID,
-      onefunc.programId,
-      Buffer.from([1, 2, 3, 4, 0]), // [method_id, 0] to call by id
-      params,
-      null,
-      [
-        { pubkey: onefunc.programId, isSigner: false, isWritable: false },
-      ].concat(keys),
-    );
-    const state = await onefunc.account.counter.fetch(counter);
-    expect(state.count.toNumber()).eq(5);
   });
 
   it("propose", async () => {

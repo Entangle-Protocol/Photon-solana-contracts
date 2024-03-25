@@ -1,7 +1,8 @@
 import { OperationLib } from "@entangle_protocol/oracle-sdk/dist/typechain-types/contracts/AggregationSpotter";
-import { expect } from "chai";
+import { assert, expect } from "chai";
 import { Wallet, ethers } from "ethers";
 import * as anchor from "@coral-xyz/anchor";
+import { readFileSync } from "fs";
 
 interface AnchorOpData {
   protocolId: Buffer;
@@ -81,6 +82,16 @@ export function randomSigners(amount: number): Wallet[] {
   const signers = [];
   for (let i = 0; i < amount; i++) {
     signers.push(ethers.Wallet.createRandom());
+  }
+  return signers;
+}
+
+export function predefinedSigners(amount: number): Wallet[] {
+  const signers = [];
+  assert(amount <= 3, "Unexpected number of signers");
+  for (let i = 1; i <= amount; i++) {
+    let signer = new Wallet(readFileSync("tests/accounts/keeper_" + i, "utf-8"));
+    signers.push(signer);
   }
   return signers;
 }
