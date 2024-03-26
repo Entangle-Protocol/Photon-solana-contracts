@@ -6,16 +6,19 @@ use solana_sdk::{
     hash::Hash, instruction::Instruction, message::Message, pubkey::Pubkey,
     transaction::Transaction,
 };
-use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    Mutex,
+use tokio::{
+    select,
+    sync::{
+        mpsc::{UnboundedReceiver, UnboundedSender},
+        Mutex,
+    },
 };
 
 use transmitter_common::data::{OpHash, OperationData};
 
 use super::{
     config::SolanaClientConfig, error::ExecutorError, extension_manager::ExtensionManager,
-    OperationStatus, TransactionSet,
+    OperationStatus, ServiceCmd, TransactionSet,
 };
 
 pub(super) struct ExecOpTxBuilder {
@@ -25,6 +28,7 @@ pub(super) struct ExecOpTxBuilder {
     tx_set_sender: UnboundedSender<TransactionSet>,
     extension_mng: ExtensionManager,
     status_sender: UnboundedSender<OperationStatus>,
+    service_receiver: Mutex<UnboundedReceiver<ServiceCmd>>,
 }
 
 impl ExecOpTxBuilder {
@@ -35,6 +39,7 @@ impl ExecOpTxBuilder {
         op_data_receiver: UnboundedReceiver<(OpHash, OperationData)>,
         tx_set_sender: UnboundedSender<TransactionSet>,
         status_sender: UnboundedSender<OperationStatus>,
+        service_receiver: UnboundedReceiver<ServiceCmd>,
     ) -> Result<Self, ExecutorError> {
         let solana_client =
             RpcClient::new_with_commitment(client_config.url, client_config.commitment);
@@ -43,34 +48,62 @@ impl ExecOpTxBuilder {
             solana_client,
             op_data_receiver: Mutex::new(op_data_receiver),
             tx_set_sender,
-            extension_mng: ExtensionManager::try_new(extensions)?,
+            extension_mng: ExtensionManager::new(extensions),
             status_sender,
+            service_receiver: Mutex::new(service_receiver),
         })
     }
 
     pub(super) async fn execute(self) -> Result<(), ExecutorError> {
         info!("Start building exec operation transactions");
         let mut op_data_receiver = self.op_data_receiver.lock().await;
-        while let Some((op_hash, op_data)) = op_data_receiver.recv().await {
-            debug!("Build exec_operation tx, op_hash: {}", hex::encode(op_hash));
-            let Ok(blockhash) = self.solana_client.get_latest_blockhash().await.map_err(|err| {
-                error!("Failed to get latest blockhash: {}", err);
-                ExecutorError::SolanaClient
-            }) else {
-                self.status_sender
-                    .send(OperationStatus::Reschedule(op_hash))
-                    .expect("Expected status to be sent");
-                continue;
-            };
-            let Ok(transaction_set) = self.build_txs(blockhash, op_hash, op_data) else {
-                self.status_sender
-                    .send(OperationStatus::Error(op_hash))
-                    .expect("Expected status to be sent");
-                continue;
-            };
-            self.tx_set_sender.send(transaction_set).expect("Expected transaction_set to be sent");
+        let mut service_receiver = self.service_receiver.lock().await;
+        loop {
+            select! {
+                op_data = op_data_receiver.recv() => {
+                    let Some((op_hash, op_data)) = op_data else {
+                        break;
+                    };
+                    self.on_op_data(op_hash, op_data).await;
+                },
+                service_cmd = service_receiver.recv() => {
+                    let Some(service_cmd) = service_cmd else {
+                        break;
+                    };
+                    self.on_service_cmd(service_cmd).await;
+                }
+            }
         }
         Ok(())
+    }
+
+    async fn on_op_data(&self, op_hash: OpHash, op_data: OperationData) {
+        debug!("Build exec_operation tx, op_hash: {}", hex::encode(op_hash));
+        let Ok(blockhash) = self.get_latest_blockhash().await else {
+            self.status_sender
+                .send(OperationStatus::Reschedule(op_hash))
+                .expect("Expected status to be sent");
+            return;
+        };
+        let Ok(transaction_set) = self.build_txs(blockhash, op_hash, op_data) else {
+            self.status_sender
+                .send(OperationStatus::Error(op_hash))
+                .expect("Expected status to be sent");
+            return;
+        };
+        self.tx_set_sender.send(transaction_set).expect("Expected transaction_set to be sent");
+    }
+
+    async fn on_service_cmd(&self, service_cmd: ServiceCmd) {
+        let ServiceCmd::UpdateExtensions(extensions) = service_cmd;
+        self.extension_mng.on_update_extensions(extensions);
+    }
+
+    async fn get_latest_blockhash(&self) -> Result<Hash, ExecutorError> {
+        self.solana_client.get_latest_blockhash().await.map_err(|err| {
+            error!("Failed to get latest blockhash: {}", err);
+            ExecutorError::SolanaClient
+        })
     }
 
     fn build_txs(

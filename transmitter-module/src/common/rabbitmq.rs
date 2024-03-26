@@ -6,9 +6,19 @@ use amqprs::{
 };
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
+use std::sync::Arc;
+use tokio::sync::Notify;
 
 #[derive(Default)]
-pub(crate) struct ConnectionControl;
+pub(crate) struct ConnectionControl {
+    pub(crate) notify: Arc<Notify>,
+}
+
+impl ConnectionControl {
+    pub(crate) fn new(notify: Arc<Notify>) -> ConnectionControl {
+        ConnectionControl { notify }
+    }
+}
 
 #[async_trait]
 impl ConnectionCallback for ConnectionControl {
@@ -17,8 +27,8 @@ impl ConnectionCallback for ConnectionControl {
         connection: &Connection,
         close: Close,
     ) -> Result<(), amqprs::error::Error> {
-        // TODO: reconnect should be implemented
         warn!("Rabbitmq connection closed: {}, reason: {}", connection, close);
+        self.notify.notify_waiters();
         Ok(())
     }
 
@@ -32,7 +42,15 @@ impl ConnectionCallback for ConnectionControl {
 }
 
 #[derive(Default)]
-pub(crate) struct ChannelControl;
+pub(crate) struct ChannelControl {
+    pub(crate) notify: Arc<Notify>,
+}
+
+impl ChannelControl {
+    pub(crate) fn new(notify: Arc<Notify>) -> ChannelControl {
+        ChannelControl { notify }
+    }
+}
 
 #[async_trait::async_trait]
 impl ChannelCallback for ChannelControl {
@@ -41,10 +59,8 @@ impl ChannelCallback for ChannelControl {
         channel: &Channel,
         close: CloseChannel,
     ) -> Result<(), amqprs::error::Error> {
-        warn!(
-            "Not implemented. Rabbitmq requested to close the channel: {}, cause: {}",
-            channel, close
-        );
+        warn!("Rabbitmq channel closed: {}, reason: {}", channel, close);
+        self.notify.notify_waiters();
         Ok(())
     }
 

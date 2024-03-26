@@ -3,7 +3,9 @@ use log::{error, info};
 use serde::{Deserialize, Deserializer};
 use solana_sdk::commitment_config::CommitmentLevel;
 use std::str::FromStr;
-use transmitter_common::rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig};
+use transmitter_common::rabbitmq_client::{
+    RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
+};
 
 use super::error::ListenError;
 
@@ -19,6 +21,8 @@ pub(super) struct RabbitmqConfig {
     pub(super) connect: RabbitmqConnectConfig,
     #[serde(flatten)]
     pub(super) binding: RabbitmqBindingConfig,
+    #[serde(flatten)]
+    pub(super) reconnect: RabbitmqReconnectConfig,
 }
 
 #[derive(Deserialize)]
