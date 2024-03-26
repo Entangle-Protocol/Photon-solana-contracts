@@ -66,9 +66,19 @@ Where `ENTANGLE_SOLANA_PAYER` is executor keypair encoded in base58, it's a test
 ### Test executor
 
 ```sh
-export NTANGLE_RABBITMQ_PASSWORD=guest
+export ENTANGLE_RABBITMQ_PASSWORD=guest
 export ENTANGLE_RABBITMQ_USER=guest
 export RUST_LOG="info,test_publisher=debug"
-cargo run --release --package test-publisher -- init-owned-counter --config transmitter-module/doc/listener-config.yaml
-cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-module/doc/listener-config.yaml --value 2
+cargo run --release --package test-publisher -- init-owned-counter --config transmitter-test-publisher/publisher-config.yaml
+cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-test-publisher/publisher-config.yaml  --value 2 --times 1
+```
+
+### Update extensions
+
+To update the internal state without stopping the executor service, it is possible to reload the extension list from the configuration by sending a SIGHUP.
+
+```she
+pgrep -a transmitter
+105971 target/debug/transmitter-module executor --config transmitter-module/doc/executor-config.yaml
+kill -1 105971
 ```

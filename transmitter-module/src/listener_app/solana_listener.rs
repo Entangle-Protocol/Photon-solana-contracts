@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use log::{error, info};
+use log::{debug, error, info};
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
     rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter},
@@ -77,7 +77,7 @@ impl SolanaListener {
                 }) else {
                     continue;
                 };
-
+                debug!("Solana event intercepted: {:?}", event);
                 if let Err(err) = self.op_data_sender.send(OperationData {
                     src_chain_id: self.config.chain_id,
                     src_block_number: logs.context.slot,

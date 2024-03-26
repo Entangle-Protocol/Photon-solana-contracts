@@ -26,3 +26,7 @@ pub(crate) struct TransactionSet {
     op_hash: OpHash,
     txs: Vec<Transaction>,
 }
+
+pub(crate) enum ServiceCmd {
+    UpdateExtensions(Vec<String>),
+}

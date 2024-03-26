@@ -30,7 +30,7 @@ impl ListenerApp {
     async fn execute_impl(&mut self) {
         tokio::select! {
             _ = self.solana_listener.listen_to_solana() => {}
-            _ = self.rabbitmq_sender.publish_operation_data() => {}
+            _ = self.rabbitmq_sender.publish_to_rabbitmq() => {}
         }
     }
 }

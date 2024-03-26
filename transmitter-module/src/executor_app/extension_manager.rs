@@ -1,28 +1,30 @@
 use libloading::{Library, Symbol};
 use log::{error, info};
-use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
-use transmitter_common::data::{ProtocolId, ProtocolIdImpl};
+use std::{
+    cell::RefCell,
+    collections::{btree_map::Entry, BTreeMap},
+    mem::swap,
+    ops::DerefMut,
+};
 
-use transmitter_common::protocol_extension::{ProtocolExtension, GET_EXTENSION_EXPORT};
+use transmitter_common::{
+    data::{ProtocolId, ProtocolIdImpl},
+    protocol_extension::{ProtocolExtension, GET_EXTENSION_EXPORT},
+};
 
 use super::error::ExecutorError;
 
 pub(super) struct ExtensionManager {
+    extension_manager_impl: RefCell<ExtensionManagerImpl>,
+}
+
+#[derive(Default)]
+struct ExtensionManagerImpl {
     libs: Vec<Library>,
     extensions: BTreeMap<&'static ProtocolIdImpl, &'static dyn ProtocolExtension>,
 }
 
-impl ExtensionManager {
-    pub(super) fn try_new(extensions_path: Vec<String>) -> Result<ExtensionManager, ExecutorError> {
-        let mut extensions = ExtensionManager {
-            libs: vec![],
-            extensions: BTreeMap::default(),
-        };
-        unsafe { extensions.load_extensions(extensions_path)? };
-        Ok(extensions)
-    }
-
+impl ExtensionManagerImpl {
     unsafe fn load_extensions(
         &mut self,
         extension_paths: Vec<String>,
@@ -59,11 +61,30 @@ impl ExtensionManager {
         }
         Ok(())
     }
+}
+
+impl ExtensionManager {
+    pub(super) fn new(extension_paths: Vec<String>) -> ExtensionManager {
+        let extension_mng = ExtensionManager {
+            extension_manager_impl: RefCell::new(ExtensionManagerImpl::default()),
+        };
+        extension_mng.on_update_extensions(extension_paths);
+        extension_mng
+    }
+
+    pub(super) fn on_update_extensions(&self, extension_paths: Vec<String>) {
+        let mut extensions = ExtensionManagerImpl::default();
+        if let Err(err) = unsafe { extensions.load_extensions(extension_paths) } {
+            error!("Failed to load extensions: {} - changes will not be applied", err);
+        } else {
+            swap(self.extension_manager_impl.borrow_mut().deref_mut(), &mut extensions);
+        }
+    }
 
     pub(super) fn get_extension(
         &self,
         protocol_id: &ProtocolId,
     ) -> Option<&'static dyn ProtocolExtension> {
-        self.extensions.get(&protocol_id.0).copied()
+        self.extension_manager_impl.borrow().extensions.get(&protocol_id.0).copied()
     }
 }

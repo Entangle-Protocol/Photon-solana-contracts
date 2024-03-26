@@ -7,7 +7,9 @@ use solana_sdk::{
     signature::Keypair,
 };
 
-use transmitter_common::rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig};
+use transmitter_common::rabbitmq_client::{
+    RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
+};
 
 use super::error::ExecutorError;
 
@@ -25,6 +27,9 @@ pub(super) struct RabbitmqConfig {
     #[serde(flatten)]
     pub(super) binding: RabbitmqBindingConfig,
     pub(super) consumer_tag: String,
+    pub(super) queue: String,
+    #[serde(flatten)]
+    pub(super) reconnect: RabbitmqReconnectConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
