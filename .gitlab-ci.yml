@@ -21,8 +21,6 @@ build_solana:
         - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest -f ./docker/Dockerfile_solana .
     tags:
         - linux
-    dependencies:
-      - configs
 
 
 build_module:
@@ -31,8 +29,6 @@ build_module:
         - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
     tags:
         - linux
-    dependencies:
-      - configs
 
 
 solana_push:
