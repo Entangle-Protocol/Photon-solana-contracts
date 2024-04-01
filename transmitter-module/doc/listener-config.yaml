@@ -17,7 +17,9 @@ rabbitmq:
 # solana [pubsubclient](https://docs.rs/solana-pubsub-client/latest/solana_pubsub_client/nonblocking/pubsub_client/index.html) settings
 solana:
     # Solana web socket address to connect to handle entangle events
-    url: ws://127.0.0.1:8900
+    web_socket_url: ws://127.0.0.1:8900
+    # Solana http address to connect to send rpc commands
+    rpc_url: http://127.0.0.1:8899
     # The solana client commitment receive only events have been happened on the given confirmation level
     # possible values: processed, confirmed, finalized
     commitment: confirmed

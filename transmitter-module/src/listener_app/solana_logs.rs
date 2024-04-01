@@ -13,7 +13,7 @@ pub(super) fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDes
     parse_logs_impl(logs.as_slice(), program_id_str)
 }
 
-fn parse_logs_impl<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
+pub(super) fn parse_logs_impl<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
     logs: &[&str],
     program_id_str: &str,
 ) -> Result<Vec<T>, ListenError> {

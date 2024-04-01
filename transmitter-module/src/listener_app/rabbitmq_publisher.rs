@@ -12,7 +12,7 @@ use tokio::{
 };
 
 use transmitter_common::{
-    data::{KeeperMsg, KeeperMsgImpl, OperationData},
+    data::{KeeperMsg, KeeperMsgImpl, Propose},
     rabbitmq_client::{RabbitmqClient, RabbitmqReconnectConfig},
 };
 
@@ -21,8 +21,8 @@ use crate::common::rabbitmq::{ChannelControl, ConnectionControl};
 
 pub(super) struct RabbitmqPublisher {
     config: RabbitmqConfig,
-    op_data_receiver: UnboundedReceiver<OperationData>,
-    buffered_op_data: Option<OperationData>,
+    propose_receiver: UnboundedReceiver<Propose>,
+    buffered_propose: Option<Propose>,
     close_notify: Arc<Notify>,
     connection: Option<Connection>,
     channel: Option<Channel>,
@@ -31,12 +31,12 @@ pub(super) struct RabbitmqPublisher {
 impl RabbitmqPublisher {
     pub(super) fn new(
         config: RabbitmqConfig,
-        op_data_receiver: UnboundedReceiver<OperationData>,
+        propose_receiver: UnboundedReceiver<Propose>,
     ) -> RabbitmqPublisher {
         RabbitmqPublisher {
             config,
-            op_data_receiver,
-            buffered_op_data: None,
+            propose_receiver,
+            buffered_propose: None,
             close_notify: Arc::new(Notify::new()),
             connection: None,
             channel: None,
@@ -51,22 +51,22 @@ impl RabbitmqPublisher {
         self.init_connection().await?;
         let notify = self.close_notify.clone();
         loop {
-            let op_data = select! {
+            let propose = select! {
                 _ = notify.notified() => {
                     self.init_connection().await?;
                     continue
                 },
-                op_data = self.op_data_to_progress() => op_data
+                op_data = self.propose_to_progress() => op_data
             };
-            let Some(op_data) = op_data else {
+            let Some(propose) = propose else {
                 return Ok(());
             };
-            self.publish_op_data(op_data).await;
+            self.publish_propose(propose).await;
         }
     }
 
-    async fn publish_op_data(&mut self, operation_data: OperationData) {
-        let keeper_msg = KeeperMsg::V1(KeeperMsgImpl::OperationData(operation_data.clone()));
+    async fn publish_propose(&mut self, propose: Propose) {
+        let keeper_msg = KeeperMsg::V1(KeeperMsgImpl::Propose(propose.clone()));
         debug!("operation_data to be sent: {:?}", keeper_msg);
         let Ok(json_data) = serde_json::to_vec(&keeper_msg).map_err(|err| {
             error!("Failed to encode operation_data message: {:?}, error: {}", keeper_msg, err);
@@ -77,16 +77,16 @@ impl RabbitmqPublisher {
         let channel = self.channel.as_ref().expect("Expected rabbitmq channel to be set");
         let res = channel.basic_publish(BasicProperties::default(), json_data, args.clone()).await;
         let _ = res.map_err(|err| {
-            self.buffered_op_data = Some(operation_data);
+            self.buffered_propose = Some(propose);
             error!("Failed to publish operation_data message, error: {}", err);
         });
     }
 
-    async fn op_data_to_progress(&mut self) -> Option<OperationData> {
-        if self.buffered_op_data.is_some() {
-            self.buffered_op_data.take()
+    async fn propose_to_progress(&mut self) -> Option<Propose> {
+        if self.buffered_propose.is_some() {
+            self.buffered_propose.take()
         } else {
-            self.op_data_receiver.recv().await
+            self.propose_receiver.recv().await
         }
     }
 }

@@ -1,0 +1,77 @@
+version: "3"
+
+services:
+  mongo:
+    image: 'mongo:latest'
+    container_name: 'mongo'
+    environment:
+      MONGO_INITDB_DATABASE: executor
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGODB_DB: executor
+      MONGODB_USER: root
+      MONGODB_PASSWORD: rootpassword
+    volumes:
+      - ./.executor_mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  rabbitmq:
+    image: "rabbitmq:3.12-management"
+    container_name: 'rabbitmq'
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  solana:
+    image: "entangle:solana"
+    container_name: "solana"
+    ports:
+      - "8899:8899"
+      - "8900:8900"
+    healthcheck:
+      test: netstat -ltn | grep -c 8899
+      interval: 1m
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+      start_interval: 3s
+
+  listener:
+    image: "entangle:solana-module"
+    container_name: "listener"
+    depends_on:
+      solana:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - ENTANGLE_RABBITMQ_USER=guest
+      - ENTANGLE_RABBITMQ_PASSWORD=guest
+      - RUST_LOG=DEBUG
+    entrypoint: /transmitter-module listener --config listener-config.yml
+
+  executor:
+    image: "entangle:solana-module"
+    container_name: "executor"
+    depends_on:
+      solana:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - ENTANGLE_RABBITMQ_USER=guest
+      - ENTANGLE_RABBITMQ_PASSWORD=guest
+      - RUST_LOG=DEBUG
+      - ENTANGLE_SOLANA_PAYER=4pewL6uTRV6g7SUa5B9QJVLHwhpXvnwAwrzxJaTA2g4WUosYZVyueEhAe5naFFhB1mtVet5fj9v6sRy9BUEzSuRt
+      - RUST_LOG=info,transmitter_module=debug
+    entrypoint: /transmitter-module executor --config executor-config.yml
+
+networks:
+  default:
+    name: entangle

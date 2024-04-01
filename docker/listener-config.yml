@@ -1,0 +1,13 @@
+rabbitmq:
+    host: rabbitmq
+    port: 5672
+    exchange: entangle
+    routing_key: from_solana
+    reconnect_attempts: 100
+    reconnect_timeout_ms: 200
+
+solana:
+    web_socket_url: ws://solana:8900
+    rpc_url: http://solana:8899
+    commitment: finalized
+    chain_id: 111111111

@@ -1,0 +1,22 @@
+FROM rust:1.76.0 as builder
+RUN rustup toolchain install nightly-2023-12-11-x86_64-unknown-linux-gnu
+RUN rustup default nightly-2023-12-11-x86_64-unknown-linux-gnu
+COPY . /photon-messaging-solana/
+RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package test-publisher --release
+RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package onefunc-extension --package transmitter-module --release
+
+FROM ubuntu
+COPY --from=builder /photon-messaging-solana/target/release/transmitter-module \
+                    /photon-messaging-solana/target/release/test-publisher \
+                    /photon-messaging-solana/target/release/libonefunc_extension.so \
+                    /photon-messaging-solana/docker/publisher-config.yml \
+                    /photon-messaging-solana/docker/listener-config.yml \
+                    /photon-messaging-solana/docker/executor-config.yml /
+
+# Listener
+#ENTRYPOINT ["/transmitter-module", "listener", "--config", "listener-config.yml"]
+# Executor
+#ENTRYPOINT ["/transmitter-module", "executor", "--config", "executor-config.yml"]
+# Test publisher
+#ENTRYPOINT ["/test-publisher", "init-owned-counter", "--config", "publisher-config.yml"]
+#ENTRYPOINT ["/test-publisher", "increment-owned-counter", "--value", "2", "--times", "1", "--config", "publisher-config.yml"]
