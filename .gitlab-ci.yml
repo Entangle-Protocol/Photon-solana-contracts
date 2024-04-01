@@ -62,9 +62,8 @@ clean_up_images:
 deploy_dev:
     stage: deploy
     script:
-        - echo "RESERVED"
-        # - git clone https://oauth2:$OAUTH_KEY@gitlab.ent-dx.com/devops/ci-scripts.git
-        # - python3 ci-scripts/awx_call.py https://awx.ent-dx.com/api/v2/job_templates/!!/launch/ $AWX_TOKEN script_target:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
+        - git clone https://oauth2:$OAUTH_KEY@gitlab.ent-dx.com/devops/ci-scripts.git
+        - python3 ci-scripts/awx_call.py https://awx.ent-dx.com/api/v2/job_templates/89/launch/ $AWX_TOKEN script_target:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
     tags:
         - linux
     when: manual
