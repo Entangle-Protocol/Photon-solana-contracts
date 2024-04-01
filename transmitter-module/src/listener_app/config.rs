@@ -1,7 +1,7 @@
+use crate::common::config::SolanaClientConfig;
 use config::{Config, File};
 use log::{error, info};
 use serde::{Deserialize, Deserializer};
-use solana_sdk::commitment_config::CommitmentLevel;
 use std::str::FromStr;
 use transmitter_common::rabbitmq_client::{
     RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
@@ -27,8 +27,8 @@ pub(super) struct RabbitmqConfig {
 
 #[derive(Deserialize)]
 pub(super) struct SolanaListenerConfig {
-    pub(super) url: String,
-    pub(super) commitment: CommitmentLevel,
+    #[serde(flatten)]
+    pub(super) client: SolanaClientConfig,
     #[serde(deserialize_with = "deserialize_chain_id")]
     pub(super) chain_id: u128,
 }

@@ -1,0 +1,21 @@
+FROM solanalabs/rust:1.75.0
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.18.4/install)" && \
+    /root/.local/share/solana/install/active_release/bin/sdk/sbf/scripts/install.sh
+ENV PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+RUN cargo install --git https://github.com/coral-xyz/anchor avm --locked --force && \
+    avm install latest && avm use latest
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+RUN apt update
+RUN apt -y install yarn python3 net-tools
+RUN apt clean && rm -rf /var/lib/apt/lists/* /var/lib/apt/cache/*
+RUN solana-keygen new -f -s --no-bip39-passphrase
+RUN solana config set --url http://localhost:8899
+COPY . /photon-crosschain-messaging/
+RUN yarn install --cwd /photon-crosschain-messaging/
+COPY tests/accounts/*keypair.json /photon-crosschain-messaging/target/deploy/
+RUN cd /photon-crosschain-messaging/ && anchor build
+WORKDIR /photon-crosschain-messaging/
+RUN docker/build_solana_test_state.sh
+RUN rm -rf target/release/deps
+ENTRYPOINT ["solana-test-validator"]

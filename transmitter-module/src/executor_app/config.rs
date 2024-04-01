@@ -1,17 +1,14 @@
 use config::{Config, File};
 use log::{error, info};
 use serde::{de::Error, Deserialize, Deserializer};
-use solana_sdk::{
-    bs58,
-    commitment_config::{CommitmentConfig, CommitmentLevel},
-    signature::Keypair,
-};
+use solana_sdk::{self, bs58, signature::Keypair};
 
 use transmitter_common::rabbitmq_client::{
     RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
 };
 
 use super::error::ExecutorError;
+use crate::common::config::SolanaClientConfig;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ExecutorConfig {
@@ -30,13 +27,6 @@ pub(super) struct RabbitmqConfig {
     pub(super) queue: String,
     #[serde(flatten)]
     pub(super) reconnect: RabbitmqReconnectConfig,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub(super) struct SolanaClientConfig {
-    #[serde(deserialize_with = "deserialize_commitment")]
-    pub(super) commitment: CommitmentConfig,
-    pub(super) url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,11 +63,4 @@ where D: Deserializer<'de> {
         .map_err(|err| Error::custom(format!("Malformed keypair base58: {}", err)))?;
     Keypair::from_bytes(&keydata)
         .map_err(|err| Error::custom(format!("Malformed keypair bytes: {}", err)))
-}
-
-fn deserialize_commitment<'de, D>(deserializer: D) -> Result<CommitmentConfig, D::Error>
-where D: Deserializer<'de> {
-    let commitment = CommitmentLevel::deserialize(deserializer)
-        .map_err(|err| Error::custom(format!("Malformed commitment: {}", err)))?;
-    Ok(CommitmentConfig { commitment })
 }

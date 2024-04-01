@@ -9,7 +9,8 @@ use tokio::sync::{
 
 use transmitter_common::data::OpHash;
 
-use super::{config::SolanaClientConfig, error::ExecutorError, OperationStatus, TransactionSet};
+use super::{error::ExecutorError, OperationStatus, TransactionSet};
+use crate::common::config::SolanaClientConfig;
 
 pub(super) struct SolanaTransactor {
     payer: Arc<Keypair>,
@@ -25,7 +26,7 @@ impl SolanaTransactor {
         tx_set_receiver: UnboundedReceiver<TransactionSet>,
         tx_status_sender: UnboundedSender<OperationStatus>,
     ) -> SolanaTransactor {
-        let client = RpcClient::new_with_commitment(client_cofig.url, client_cofig.commitment);
+        let client = RpcClient::new_with_commitment(client_cofig.rpc_url, client_cofig.commitment);
         SolanaTransactor {
             payer,
             solana_client: Arc::new(client),

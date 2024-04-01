@@ -1,11 +1,12 @@
 use tokio::sync::mpsc::unbounded_channel;
 
 use super::{
-    config::ListenConfig, rabbitmq_publisher::RabbitmqPublisher, solana_listener::SolanaListener,
+    config::ListenConfig, rabbitmq_publisher::RabbitmqPublisher,
+    solana_event_listener::SolanaEventListener,
 };
 
 pub(crate) struct ListenerApp {
-    solana_listener: SolanaListener,
+    solana_listener: SolanaEventListener,
     rabbitmq_sender: RabbitmqPublisher,
 }
 
@@ -20,10 +21,10 @@ impl ListenerApp {
     }
 
     fn new(config: ListenConfig) -> ListenerApp {
-        let (op_data_sender, op_data_receiver) = unbounded_channel();
+        let (propose_sender, propose_receiver) = unbounded_channel();
         ListenerApp {
-            solana_listener: SolanaListener::new(config.solana, op_data_sender),
-            rabbitmq_sender: RabbitmqPublisher::new(config.rabbitmq, op_data_receiver),
+            solana_listener: SolanaEventListener::new(config.solana, propose_sender),
+            rabbitmq_sender: RabbitmqPublisher::new(config.rabbitmq, propose_receiver),
         }
     }
 

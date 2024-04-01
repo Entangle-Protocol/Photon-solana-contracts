@@ -52,7 +52,7 @@ docker start rabbitmq
 ### Solana keeper module
 
 ```sh
-RUST_LOG=debug ENTANGLE_RABBITMQ_USER=guest ENTANGLE_RABBITMQ_PASSWORD=guest target/release/solana_keeper_module listener --config transmitter-common-module/doc/listener-config.yaml
+RUST_LOG=debug ENTANGLE_RABBITMQ_USER=guest ENTANGLE_RABBITMQ_PASSWORD=guest target/release/solana_keeper_module listener --config transmitter-common-module/doc/listener-config.yml
 ```
 
 ### Run executor
@@ -69,8 +69,8 @@ Where `ENTANGLE_SOLANA_PAYER` is executor keypair encoded in base58, it's a test
 export ENTANGLE_RABBITMQ_PASSWORD=guest
 export ENTANGLE_RABBITMQ_USER=guest
 export RUST_LOG="info,test_publisher=debug"
-cargo run --release --package test-publisher -- init-owned-counter --config transmitter-test-publisher/publisher-config.yaml
-cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-test-publisher/publisher-config.yaml  --value 2 --times 1
+cargo run --release --package test-publisher -- init-owned-counter --config transmitter-test-publisher/publisher-config.yml
+cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-test-publisher/publisher-config.yml  --value 2 --times 1
 ```
 
 ### Update extensions
@@ -81,4 +81,50 @@ To update the internal state without stopping the executor service, it is possib
 pgrep -a transmitter
 105971 target/debug/transmitter-module executor --config transmitter-module/doc/executor-config.yaml
 kill -1 105971
+```
+
+
+## Docker environment
+
+For users who prefer not to build tools from source, there is also an option to run them in a docker environment
+
+### Build solana test validator image
+
+This image is a functional solana node that can be used for testing. 
+Photon messaging and onefunc contracts with test accounts are installed and initialized on it
+
+```sh
+docker build -t entangle:solana -f docker/Dockerfile_module .
+```
+
+### Build solana module image
+
+```sh
+docker build -t entangle:solana-module -f docker/Dockerfile_module .
+```
+
+### Start test environment with docker-compose
+
+```sh
+docker-compose -f docker/docker-compose.yml up 
+```
+
+### Making a proposal
+
+To test a proposal event is emitted it could be done by using the anchor handle
+
+```sh
+docker exec -it solana anchor run propose
+```
+
+### Produce an operation with test publisher
+
+For the test purposes the publishing signed operation data is also provided
+
+```sh
+docker run --network entangle -e "ENTANGLE_RABBITMQ_USER=guest"\
+                              -e "ENTANGLE_RABBITMQ_PASSWORD=guest"\
+                              -e "RUST_LOG=debug" \
+           --rm -it --entrypoint './test-publisher'  --name publisher entangle:solana-module\
+           increment-owned-counter --value 2 --times 1 --config publisher-config.yml
 ```

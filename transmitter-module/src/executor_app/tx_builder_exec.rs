@@ -17,9 +17,10 @@ use tokio::{
 use transmitter_common::data::{OpHash, OperationData};
 
 use super::{
-    config::SolanaClientConfig, error::ExecutorError, extension_manager::ExtensionManager,
-    OperationStatus, ServiceCmd, TransactionSet,
+    error::ExecutorError, extension_manager::ExtensionManager, OperationStatus, ServiceCmd,
+    TransactionSet,
 };
+use crate::common::config::SolanaClientConfig;
 
 pub(super) struct ExecOpTxBuilder {
     payer: Pubkey,
@@ -42,7 +43,7 @@ impl ExecOpTxBuilder {
         service_receiver: UnboundedReceiver<ServiceCmd>,
     ) -> Result<Self, ExecutorError> {
         let solana_client =
-            RpcClient::new_with_commitment(client_config.url, client_config.commitment);
+            RpcClient::new_with_commitment(client_config.rpc_url, client_config.commitment);
         Ok(Self {
             payer,
             solana_client,

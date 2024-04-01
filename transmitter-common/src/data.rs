@@ -25,8 +25,7 @@ pub enum KeeperMsg {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
 pub enum KeeperMsgImpl {
-    #[serde(rename = "operation")]
-    OperationData(OperationData),
+    Propose(Propose),
     #[serde(rename = "signedOperation")]
     SignedOperationData(SignedOperation),
 }
@@ -54,6 +53,14 @@ impl From<KeeperSignature> for photon::signature::KeeperSignature {
             v: value.v,
         }
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Propose {
+    pub latest_block_id: String,
+    #[serde(flatten)]
+    pub operation_data: OperationData,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
