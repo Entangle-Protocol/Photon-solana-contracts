@@ -13,8 +13,9 @@ use std::sync::Arc;
 use tokio::sync::{mpsc::UnboundedSender, Notify};
 
 use transmitter_common::{
+    config::ReconnectConfig,
     data::{KeeperMsg, KeeperMsgImpl, SignedOperation},
-    rabbitmq_client::{RabbitmqClient, RabbitmqReconnectConfig},
+    rabbitmq_client::RabbitmqClient,
 };
 
 use super::{config::RabbitmqConfig, error::ExecutorError};
@@ -157,7 +158,7 @@ impl RabbitmqClient for RabbitmqConsumer {
         Ok(())
     }
 
-    fn reconnect_config(&self) -> &RabbitmqReconnectConfig {
+    fn reconnect_config(&self) -> &ReconnectConfig {
         &self.config.reconnect
     }
 }

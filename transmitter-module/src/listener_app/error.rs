@@ -10,4 +10,6 @@ pub(crate) enum ListenError {
     SolanaClient,
     #[error("Solana parse logs error")]
     SolanaParseLogs,
+    #[error("Mongodb client error")]
+    Mongodb(#[from] mongodb::error::Error),
 }

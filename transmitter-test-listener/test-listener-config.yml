@@ -1,0 +1,15 @@
+rabbitmq:
+  host: 127.0.0.1
+  port: 5672
+  user: guest
+  password: guest
+  exchange: entangle
+  routing_key: from_solana
+  consumer_tag: solana
+  queue: from_solana
+
+mongodb:
+  uri: mongodb://127.0.0.1:27017
+  user: root
+  password: rootpassword
+  db: entangle

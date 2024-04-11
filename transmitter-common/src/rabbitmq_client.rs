@@ -4,12 +4,11 @@ use amqprs::{
     connection::{Connection, OpenConnectionArguments},
 };
 use async_trait::async_trait;
-use log::{error, info};
+use log::{error, info, warn};
 use serde::Deserialize;
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
-#[cfg(feature = "rabbitmq_reconnect")]
-use {log::warn, std::time::Duration};
+use super::config::ReconnectConfig;
 
 #[derive(Debug, Deserialize)]
 pub struct RabbitmqConnectConfig {
@@ -23,24 +22,6 @@ pub struct RabbitmqConnectConfig {
 pub struct RabbitmqBindingConfig {
     pub exchange: String,
     pub routing_key: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct RabbitmqReconnectConfig {
-    #[serde(default = "RabbitmqReconnectConfig::default_reconnect_attempts")]
-    pub attempts: usize,
-    #[serde(default = "RabbitmqReconnectConfig::default_reconnect_timeout_ms")]
-    pub timeout_ms: u64,
-}
-
-impl RabbitmqReconnectConfig {
-    fn default_reconnect_timeout_ms() -> u64 {
-        500
-    }
-
-    fn default_reconnect_attempts() -> usize {
-        20
-    }
 }
 
 #[async_trait]
@@ -100,7 +81,6 @@ pub trait RabbitmqClient {
         Ok(channel)
     }
 
-    #[cfg(feature = "rabbitmq_reconnect")]
     async fn init_connection(&mut self) -> Result<(), Self::Error> {
         let mut attemts = 0;
         let config = self.reconnect_config().clone();
@@ -116,11 +96,13 @@ pub trait RabbitmqClient {
         Ok(())
     }
 
-    #[cfg(feature = "rabbitmq_reconnect")]
-    async fn reconnect(&mut self) -> Result<(), Self::Error>;
+    async fn reconnect(&mut self) -> Result<(), Self::Error> {
+        panic!("This method is can not to be excluded with cfg(feature) because of clippy");
+    }
 
-    #[cfg(feature = "rabbitmq_reconnect")]
-    fn reconnect_config(&self) -> &RabbitmqReconnectConfig;
+    fn reconnect_config(&self) -> &ReconnectConfig {
+        panic!("This method is can not to be excluded with cfg(feature) because of clippy");
+    }
 }
 
 impl From<&RabbitmqBindingConfig> for BasicPublishArguments {

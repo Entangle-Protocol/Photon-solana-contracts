@@ -1,3 +1,4 @@
+use log::warn;
 use solana_sdk::{
     hash::Hash,
     instruction::AccountMeta,
@@ -43,16 +44,30 @@ impl ProtocolExtension for OnefuncExtension {
         match function_selector {
             b"init_owned_counter" => self.get_accounts_init_counter(),
             b"increment_owned_counter" => self.get_accounts_increment(),
-            _ => panic!("unimplemented"),
+            _ => {
+                let selector = String::from_utf8_lossy(function_selector);
+                warn!("Unexpected function selector: {}", selector);
+                vec![]
+            }
         }
     }
 
     fn sign_transaction(
         &self,
+        function_selector: &[u8],
+        _params: &[u8],
         transaction: &mut Transaction,
         hash: &Hash,
     ) -> Result<(), SignerError> {
-        transaction.try_partial_sign(&[&self.counter_owner], *hash)
+        match function_selector {
+            b"init_owned_counter" | b"increment_owned_counter" => {
+                transaction.try_partial_sign(&[&self.counter_owner], *hash)
+            }
+            _ => {
+                warn!("Unexpected function selector");
+                Ok(())
+            }
+        }
     }
 }
 

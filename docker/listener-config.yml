@@ -10,4 +10,11 @@ solana:
     web_socket_url: ws://solana:8900
     rpc_url: http://solana:8899
     commitment: finalized
-    chain_id: 111111111
+    reconnect_attempts: 100
+    reconnect_timeout_ms: 200
+
+mongodb:
+    uri: mongodb://mongo:27017
+    user: root
+    password: rootpassword
+    db: "entangle"

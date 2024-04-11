@@ -5,14 +5,15 @@ services:
     image: 'mongo:latest'
     container_name: 'mongo'
     environment:
-      MONGO_INITDB_DATABASE: executor
+      MONGO_INITDB_DATABASE: entangle
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: rootpassword
       MONGODB_DB: executor
       MONGODB_USER: root
       MONGODB_PASSWORD: rootpassword
     volumes:
-      - ./.executor_mongo_data:/data/db
+#     - ./.executor_mongo_data:/data/db
+      - ../transmitter-test-listener/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
     ports:
       - "27017:27017"
 
@@ -67,7 +68,6 @@ services:
     environment:
       - ENTANGLE_RABBITMQ_USER=guest
       - ENTANGLE_RABBITMQ_PASSWORD=guest
-      - RUST_LOG=DEBUG
       - ENTANGLE_SOLANA_PAYER=4pewL6uTRV6g7SUa5B9QJVLHwhpXvnwAwrzxJaTA2g4WUosYZVyueEhAe5naFFhB1mtVet5fj9v6sRy9BUEzSuRt
       - RUST_LOG=info,transmitter_module=debug
     entrypoint: /transmitter-module executor --config executor-config.yml

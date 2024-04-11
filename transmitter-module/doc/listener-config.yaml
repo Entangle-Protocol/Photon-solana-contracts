@@ -23,5 +23,18 @@ solana:
     # The solana client commitment receive only events have been happened on the given confirmation level
     # possible values: processed, confirmed, finalized
     commitment: confirmed
-    # 16 byte number that used to address source chain_id
-    chain_id: 111111111
+    # Reconnect attempts. The count of times listener will try to recover the connection. Default: 20
+    reconnect_attempts: 100
+    # Reconnect Timeout. The time between attempts for the listener to try to reconnect. Default: 500
+    reconnect_timeout_ms: 200
+
+# mongodb is used to store last_processed_block in a persistent way
+mongodb:
+    # Mongodb uri to connect to
+    uri: mongodb://127.0.0.1:27017
+    # Mongodb user name
+    user: root
+    # Mongodb user password
+    password: rootpassword
+    # Database that is used to get last_processed_block during the retrospective proposal reading
+    db: "entangle"

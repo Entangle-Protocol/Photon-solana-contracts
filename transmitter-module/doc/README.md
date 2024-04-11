@@ -40,7 +40,7 @@ anchor test --skip-local-validator --skip-build --skip-deploy
 ### Rabbitmq
 
 ```sh 
- docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.12-management
+docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.12-management
 ```
 
 or if rabbitmq container has been initialized before
@@ -109,17 +109,17 @@ docker build -t entangle:solana-module -f docker/Dockerfile_module .
 docker-compose -f docker/docker-compose.yml up 
 ```
 
-### Making a proposal
-
-To test a proposal event is emitted it could be done by using the anchor handle
-
-```sh
-docker exec -it solana anchor run propose
-```
-
 ### Produce an operation with test publisher
 
 For the test purposes the publishing signed operation data is also provided
+
+```sh
+docker run --network entangle -e "ENTANGLE_RABBITMQ_USER=guest"\
+                              -e "ENTANGLE_RABBITMQ_PASSWORD=guest"\
+                              -e "RUST_LOG=debug" \
+           --rm -it --entrypoint './test-publisher'  --name publisher entangle:solana-module\
+           init-owned-counter --config publisher-config.yml
+```
 
 ```sh
 docker run --network entangle -e "ENTANGLE_RABBITMQ_USER=guest"\

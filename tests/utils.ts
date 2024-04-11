@@ -46,11 +46,11 @@ function opHash(opData: OperationLib.OperationDataStruct) {
 function convertOpData(opData: AnchorOpData): OperationLib.OperationDataStruct {
   return {
     protocolId: Buffer.from(opData.protocolId),
-    srcChainId: opData.srcChainId.toNumber(),
+    srcChainId: opData.srcChainId.toString(),
     srcBlockNumber: opData.srcBlockNumber.toNumber(),
     srcOpTxId: Buffer.from(opData.srcOpTxId),
     nonce: opData.nonce.toNumber(),
-    destChainId: opData.destChainId.toNumber(),
+    destChainId: opData.destChainId.toString(),
     protocolAddr: opData.protocolAddr.toBytes(),
     functionSelector: Buffer.from(opData.functionSelector),
     params: opData.params,

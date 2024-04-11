@@ -1,108 +1,117 @@
 use futures_util::StreamExt;
-use log::{debug, error, info};
+use log::{error, info};
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
     rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter},
+    rpc_response::{Response, RpcLogsResponse},
 };
-use solana_sdk::signature::Signature;
-use std::str::FromStr;
+use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 
-use photon::{ProposeEvent, ID as PROGRAM_ID};
-use transmitter_common::data::{OperationData, Propose, ProtocolId};
+use transmitter_common::{config::ReconnectConfig, mongodb::MongodbConfig};
 
-use super::{config::SolanaListenerConfig, error::ListenError, solana_logs::parse_logs_response};
+use super::{
+    config::SolanaListenerConfig, error::ListenError, solana_events_reader::SolanaEventsReader,
+    LogsBunch,
+};
 
 pub(super) struct SolanaEventListener {
-    pub(super) config: SolanaListenerConfig,
-    pub(super) propose_sender: UnboundedSender<Propose>,
+    solana_config: SolanaListenerConfig,
+    mongodb_config: MongodbConfig,
+    logs_sender: UnboundedSender<LogsBunch>,
+    events_reader: SolanaEventsReader,
 }
 
 impl SolanaEventListener {
     pub(super) fn new(
-        config: SolanaListenerConfig,
-        propose_sender: UnboundedSender<Propose>,
+        solana_config: SolanaListenerConfig,
+        mongodb_config: MongodbConfig,
+        logs_sender: UnboundedSender<LogsBunch>,
     ) -> Self {
         SolanaEventListener {
-            config,
-            propose_sender,
+            solana_config,
+            mongodb_config,
+            logs_sender: logs_sender.clone(),
+            events_reader: SolanaEventsReader::new(logs_sender),
         }
     }
 
     pub(super) async fn listen_to_solana(&self) -> Result<(), ListenError> {
-        let websocket_url = self.config.client.web_socket_url.clone().unwrap();
+        let websocket_url = self.solana_config.client.web_socket_url.clone().ok_or_else(|| {
+            error!("web_socket_url is not configured");
+            ListenError::Config
+        })?;
+        let commitment = self.solana_config.client.commitment;
         info!(
             "Start listening for new solana events, url: {}, commitment: {}, program_id: {}",
-            websocket_url, self.config.client.commitment.commitment, PROGRAM_ID
+            websocket_url,
+            commitment.commitment,
+            photon::ID
         );
 
-        let program_id_str = PROGRAM_ID.to_string();
+        let program_id_str = photon::ID.to_string();
         let filter = RpcTransactionLogsFilter::Mentions(vec![program_id_str.clone()]);
         let config = RpcTransactionLogsConfig {
-            commitment: Some(self.config.client.commitment),
+            commitment: Some(commitment),
         };
-
-        let client = PubsubClient::new(&websocket_url).await.map_err(|err| {
-            error!("Failed to create solana pubsub client: {}", err);
-            ListenError::SolanaClient
-        })?;
-
-        let (mut notifications, unsubscribe) =
-            client.logs_subscribe(filter, config).await.map_err(|err| {
-                error!("Failed to subscribe for logs on solana: {}", err);
-                ListenError::SolanaClient
-            })?;
-
-        while let Some(logs) = notifications.next().await {
-            let Ok(events): Result<Vec<ProposeEvent>, ListenError> =
-                parse_logs_response(logs.clone(), &program_id_str)
-            else {
-                log::error!("Failed to parse logs: {:?}", logs);
-                continue;
-            };
-            debug!(
-                "Logs intercepted, tx_signature: {}, events: {}",
-                logs.value.signature,
-                events.len()
-            );
-
-            let Ok(signature) = Signature::from_str(&logs.value.signature).map_err(|err| {
-                error!(
-                    "Failed to deserialize tx signature from base58: {}, error: {}",
-                    logs.value.signature, err
-                )
-            }) else {
-                continue;
-            };
-
-            for event in events {
-                let Ok(protocol_id) = event.protocol_id.first_chunk().ok_or_else(|| {
-                    error!("Failed to get 32 bytes protocol_id chunk from event data, skip")
-                }) else {
-                    continue;
-                };
-                debug!("Solana event intercepted: {:?}", event);
-                if let Err(err) = self.propose_sender.send(Propose {
-                    latest_block_id: logs.value.signature.clone(),
-                    operation_data: OperationData {
-                        src_chain_id: self.config.chain_id,
-                        src_block_number: logs.context.slot,
-                        src_op_tx_id: signature.as_ref().to_vec(),
-                        protocol_id: ProtocolId(*protocol_id),
-                        nonce: event.nonce,
-                        dest_chain_id: event.dst_chain_id,
-                        protocol_addr: event.protocol_address,
-                        function_selector: event.function_selector,
-                        params: event.params,
-                    },
-                }) {
-                    error!("Failed to send operation_data through the channel: {}", err);
+        let reconnect = &self.solana_config.reconnect;
+        while let Ok(client) = self.init_connection(websocket_url.as_str(), reconnect).await {
+            info!("Solana logs subscription is done");
+            let (mut notifications, unsubscribe) =
+                client.logs_subscribe(filter.clone(), config.clone()).await.map_err(|err| {
+                    error!("Failed to subscribe for logs: {}, error: {}", program_id_str, err);
+                    ListenError::SolanaClient
+                })?;
+            // logs are collected in the pubsub client's internal channel asynchronously meanwhile
+            self.events_reader
+                .read_events_backward(&self.solana_config.client, &self.mongodb_config)
+                .await?;
+            // for finalized commitment solana duplicates messages
+            info!("Retrospective logs reading is done, start to process realtime events");
+            let mut last_tx_workaround = String::default();
+            while let Some(logs) = notifications.next().await {
+                if logs.value.signature == last_tx_workaround {
                     continue;
                 }
+                last_tx_workaround = logs.value.signature.clone();
+                self.on_logs(logs);
             }
+            unsubscribe().await;
         }
-        unsubscribe().await;
-        info!("Subscription for events cancelled");
         Ok(())
+    }
+
+    fn on_logs(&self, logs: Response<RpcLogsResponse>) {
+        self.logs_sender
+            .send(LogsBunch {
+                tx_signature: logs.value.signature,
+                slot: logs.context.slot,
+                logs: logs.value.logs,
+            })
+            .expect("Expected logs_bunch to be sent");
+    }
+
+    async fn init_connection(
+        &self,
+        solana_rpc_url: &str,
+        reconnect: &ReconnectConfig,
+    ) -> Result<PubsubClient, ListenError> {
+        let mut attemts = 0;
+        Ok(loop {
+            match PubsubClient::new(solana_rpc_url).await {
+                Err(err) => {
+                    attemts += 1;
+                    error!(
+                        "Failed to subscribe for solana logs, attempt: {}, error: {}",
+                        attemts, err
+                    );
+                    if attemts == reconnect.attempts {
+                        return Err(ListenError::SolanaClient);
+                    }
+                    tokio::time::sleep(Duration::from_millis(reconnect.timeout_ms)).await;
+                }
+                Ok(solana_client) => break solana_client,
+            }
+        })
     }
 }

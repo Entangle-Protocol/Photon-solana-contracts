@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod error;
 mod extension_manager;
+mod last_block_updater;
 mod operation_manager;
 mod rabbitmq_consumer;
 mod solana_transactor;

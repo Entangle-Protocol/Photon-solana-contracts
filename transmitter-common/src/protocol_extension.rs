@@ -10,6 +10,8 @@ pub trait ProtocolExtension: RefUnwindSafe {
     fn get_accounts(&self, function_selector: &[u8], params: &[u8]) -> Vec<AccountMeta>;
     fn sign_transaction(
         &self,
+        function_selector: &[u8],
+        params: &[u8],
         transaction: &mut Transaction,
         recent_block_hash: &Hash,
     ) -> Result<(), SignerError>;

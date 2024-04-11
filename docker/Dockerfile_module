@@ -2,7 +2,7 @@ FROM rust:1.76.0 as builder
 RUN rustup toolchain install nightly-2023-12-11-x86_64-unknown-linux-gnu
 RUN rustup default nightly-2023-12-11-x86_64-unknown-linux-gnu
 COPY . /photon-messaging-solana/
-RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package test-publisher --release
+RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package transmitter-test-listener --package test-publisher --release
 RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package onefunc-extension --package transmitter-module --release
 
 FROM ubuntu

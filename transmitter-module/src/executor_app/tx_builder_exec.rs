@@ -145,10 +145,17 @@ impl ExecOpTxBuilder {
         let message = Message::new(&[instruction], Some(&self.payer));
         let mut transaction = Transaction::new_unsigned(message);
 
-        extension.sign_transaction(&mut transaction, &blockhash).map_err(|err| {
-            error!("Failed to sign transaction by extension: {}, error: {}", protocol_id, err);
-            ExecutorError::Extensions
-        })?;
+        extension
+            .sign_transaction(
+                &op_data.function_selector,
+                &op_data.params,
+                &mut transaction,
+                &blockhash,
+            )
+            .map_err(|err| {
+                error!("Failed to sign transaction by extension: {}, error: {}", protocol_id, err);
+                ExecutorError::Extensions
+            })?;
 
         Ok(TransactionSet {
             op_hash,

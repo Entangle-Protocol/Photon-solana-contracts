@@ -1,11 +1,21 @@
 stages:
+    - checks
     - versioning
-   # - sonarqube
     - container_build
     - push
     - clean_up
     - deploy
 
+clippy:
+    stage: checks
+    image: rust:1.76.0
+    script:
+        - rustup toolchain install nightly-2023-12-11-x86_64-unknown-linux-gnu
+        - rustup default nightly-2023-12-11-x86_64-unknown-linux-gnu
+        - rustup component add clippy
+        - cargo clippy --all-targets --all-features -- -Dwarnings
+    tags:
+        - docker
 
 versioning and prepare:
     stage: versioning
@@ -13,7 +23,6 @@ versioning and prepare:
         - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
     tags:
         - linux
-
 
 build_solana:
     stage: container_build
