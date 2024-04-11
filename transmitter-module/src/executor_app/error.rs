@@ -12,4 +12,6 @@ pub(crate) enum ExecutorError {
     Rabbitmq(#[from] amqprs::error::Error),
     #[error("Solana client error")]
     SolanaClient,
+    #[error("Mongodb client error")]
+    Mongodb(#[from] mongodb::error::Error),
 }

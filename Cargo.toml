@@ -4,7 +4,8 @@ members = [
     "programs/*",
     "transmitter-module",
     "transmitter-test-publisher",
-    "transmitter-common"
+    "transmitter-common",
+    "transmitter-test-listener"
 ]
 resolver = "1"
 

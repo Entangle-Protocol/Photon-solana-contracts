@@ -24,6 +24,7 @@ pub(super) struct OperationStateMng {
     load_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
     sign_operation_builder_sender: UnboundedSender<(OpHash, ProtocolId, Vec<KeeperSignature>)>,
     exec_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
+    last_block_sender: UnboundedSender<u64>,
 }
 
 enum OpStage {
@@ -44,6 +45,7 @@ impl OperationStateMng {
         load_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
         sign_operation_builder_sender: UnboundedSender<(OpHash, ProtocolId, Vec<KeeperSignature>)>,
         exec_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
+        last_block_sender: UnboundedSender<u64>,
     ) -> OperationStateMng {
         OperationStateMng {
             op_data_in_progress: RefCell::default(),
@@ -52,6 +54,7 @@ impl OperationStateMng {
             load_operation_builder_sender,
             sign_operation_builder_sender,
             exec_operation_builder_sender,
+            last_block_sender,
         }
     }
 
@@ -134,9 +137,12 @@ impl OperationStateMng {
         self.execute_operation(op_hash, op_info.operation.clone());
     }
 
-    fn on_operation_executed(&self, op_hash: OpHash, _entry: OccupiedEntry<'_, OpHash, OpInfo>) {
+    fn on_operation_executed(&self, op_hash: OpHash, entry: OccupiedEntry<'_, OpHash, OpInfo>) {
         debug!("Operation executed, remove: {}", hex::encode(op_hash));
-        _entry.remove();
+        self.last_block_sender
+            .send(entry.get().operation.eob_block_number)
+            .expect("Expected last_block_number to be sent");
+        entry.remove();
     }
 
     fn sign_operation(&self, op_hash: OpHash, signed_operation: SignedOperation) {

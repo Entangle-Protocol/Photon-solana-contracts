@@ -3,8 +3,10 @@ use log::{error, info};
 use serde::{de::Error, Deserialize, Deserializer};
 use solana_sdk::{self, bs58, signature::Keypair};
 
-use transmitter_common::rabbitmq_client::{
-    RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
+use transmitter_common::{
+    config::ReconnectConfig,
+    mongodb::MongodbConfig,
+    rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig},
 };
 
 use super::error::ExecutorError;
@@ -15,6 +17,7 @@ pub(super) struct ExecutorConfig {
     pub(super) extensions: Vec<String>,
     pub(super) rabbitmq: RabbitmqConfig,
     pub(super) solana: SolanaExecutorConfig,
+    pub(super) mongodb: MongodbConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,7 +29,7 @@ pub(super) struct RabbitmqConfig {
     pub(super) consumer_tag: String,
     pub(super) queue: String,
     #[serde(flatten)]
-    pub(super) reconnect: RabbitmqReconnectConfig,
+    pub(super) reconnect: ReconnectConfig,
 }
 
 #[derive(Debug, Deserialize)]

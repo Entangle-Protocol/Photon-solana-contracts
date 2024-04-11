@@ -11,7 +11,7 @@ use config::{Config, File};
 use ethabi::{Token, Uint};
 use libsecp256k1::sign;
 use log::error;
-use rand::RngCore;
+use rand::{random, RngCore};
 use serde::Deserialize;
 use std::{env, time::Duration};
 use thiserror::Error;
@@ -44,9 +44,10 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
         .add_source(File::with_name(config))
         .add_source(config::Environment::with_prefix("ENTANGLE").separator("_"))
         .build()
-        .unwrap();
+        .expect("Expected publisher config be build from the given sources");
 
-    let config: PublisherConfig = config.try_deserialize().unwrap();
+    let config: PublisherConfig =
+        config.try_deserialize().expect("Expected publisher_config be deserialized");
 
     let publisher = RabbitmqPublisher::new(config.rabbitmq);
 
@@ -91,13 +92,13 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 }
             }
         };
-
         let predefined_signers = predefined_signers(3);
         let keepers = predefined_signers
             .iter()
             .map(|wallet| {
                 let op_hash = op_data.op_hash_with_message();
-                let message = libsecp256k1::Message::parse_slice(&op_hash).unwrap();
+                let message = libsecp256k1::Message::parse_slice(&op_hash)
+                    .expect("Expected secp256k1 message be built from op_hash");
                 let (sig, recover_id) = sign(&message, &wallet.0);
                 let serialized_sig = sig.serialize();
                 transmitter_common::data::KeeperSignature {
@@ -108,7 +109,11 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
             })
             .collect();
 
-        publisher.publish_operation_data(op_data, keepers).await.unwrap();
+        let eob_block_number: u64 = random();
+        publisher
+            .publish_operation_data(op_data, keepers, eob_block_number)
+            .await
+            .expect("Expected signed op_data be published");
     }
 
     tokio::time::sleep(Duration::from_millis(1)).await;
@@ -128,8 +133,9 @@ mod test {
 
         const TEST_OP_HASH: &str =
             "c9382d122da415500ff93d62be8ea03b68d564beeaba159004cd2c62f48c5e17";
-        let op_hash = hex::decode(TEST_OP_HASH).unwrap();
-        let message = libsecp256k1::Message::parse_slice(&op_hash).unwrap();
+        let op_hash = hex::decode(TEST_OP_HASH).expect("Expected op_hash be decoded");
+        let message =
+            libsecp256k1::Message::parse_slice(&op_hash).expect("Expected secp256k1 be built");
         let (sig, recover_id) = sign(&message, &keepers[0].0);
         let serialized_sig = sig.serialize();
         let keeper_signature = KeeperSignature {
@@ -145,7 +151,7 @@ mod test {
         let signature = [&sig.r[..], &sig.s[..]].concat();
         let v = sig.v % 27;
         assert_eq!(signature.len(), 64);
-        let pk = secp256k1_recover(op_hash, v, &signature).unwrap();
-        pk
+        secp256k1_recover(op_hash, v, &signature)
+            .expect("Expected secp256k1 hash be recovered from signature")
     }
 }

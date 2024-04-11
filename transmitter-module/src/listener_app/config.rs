@@ -1,18 +1,21 @@
-use crate::common::config::SolanaClientConfig;
 use config::{Config, File};
 use log::{error, info};
-use serde::{Deserialize, Deserializer};
-use std::str::FromStr;
-use transmitter_common::rabbitmq_client::{
-    RabbitmqBindingConfig, RabbitmqConnectConfig, RabbitmqReconnectConfig,
+use serde::Deserialize;
+
+use transmitter_common::{
+    config::ReconnectConfig,
+    mongodb::MongodbConfig,
+    rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig},
 };
 
 use super::error::ListenError;
+use crate::common::config::SolanaClientConfig;
 
 #[derive(Deserialize)]
 pub(super) struct ListenConfig {
     pub(super) rabbitmq: RabbitmqConfig,
     pub(super) solana: SolanaListenerConfig,
+    pub(super) mongodb: MongodbConfig,
 }
 
 #[derive(Deserialize)]
@@ -22,15 +25,15 @@ pub(super) struct RabbitmqConfig {
     #[serde(flatten)]
     pub(super) binding: RabbitmqBindingConfig,
     #[serde(flatten)]
-    pub(super) reconnect: RabbitmqReconnectConfig,
+    pub(super) reconnect: ReconnectConfig,
 }
 
 #[derive(Deserialize)]
 pub(super) struct SolanaListenerConfig {
     #[serde(flatten)]
     pub(super) client: SolanaClientConfig,
-    #[serde(deserialize_with = "deserialize_chain_id")]
-    pub(super) chain_id: u128,
+    #[serde(flatten)]
+    pub(super) reconnect: ReconnectConfig,
 }
 
 impl ListenConfig {
@@ -50,10 +53,4 @@ impl ListenConfig {
             ListenError::Config
         })
     }
-}
-
-fn deserialize_chain_id<'de, D>(deserializer: D) -> Result<u128, D::Error>
-where D: Deserializer<'de> {
-    let chain_id_string = String::deserialize(deserializer)?;
-    u128::from_str(&chain_id_string).map_err(serde::de::Error::custom)
 }

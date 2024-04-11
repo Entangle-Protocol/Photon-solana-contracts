@@ -1,19 +1,98 @@
-use log::error;
+use log::{debug, error};
+use photon::ProposeEvent;
 use regex::Regex;
-use solana_client::rpc_response::{Response, RpcLogsResponse};
+use solana_sdk::signature::Signature;
+use std::str::FromStr;
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    Mutex,
+};
 
-use super::error::ListenError;
+use transmitter_common::{
+    data::{OperationData, Propose, ProtocolId},
+    SOLANA_CHAIN_ID,
+};
 
-pub(super) fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
-    logs: Response<RpcLogsResponse>,
-    program_id_str: &str,
-) -> Result<Vec<T>, ListenError> {
-    let logs = &logs.value.logs[..];
-    let logs: Vec<&str> = logs.iter().by_ref().map(String::as_str).collect();
-    parse_logs_impl(logs.as_slice(), program_id_str)
+use crate::listener_app::{error::ListenError, LogsBunch};
+
+pub(super) struct SolanaLogsProcessor {
+    logs_receiver: Mutex<UnboundedReceiver<LogsBunch>>,
+    propose_sender: UnboundedSender<Propose>,
 }
 
-pub(super) fn parse_logs_impl<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
+impl SolanaLogsProcessor {
+    pub(super) fn new(
+        logs_receiver: UnboundedReceiver<LogsBunch>,
+        propose_sender: UnboundedSender<Propose>,
+    ) -> SolanaLogsProcessor {
+        SolanaLogsProcessor {
+            logs_receiver: Mutex::new(logs_receiver),
+            propose_sender,
+        }
+    }
+
+    pub(super) async fn execute(&self) {
+        while let Some(logs_bunch) = self.logs_receiver.lock().await.recv().await {
+            self.on_logs(logs_bunch);
+        }
+    }
+
+    fn on_logs(&self, logs_bunch: LogsBunch) {
+        let logs = &logs_bunch.logs[..];
+        let logs: Vec<&str> = logs.iter().by_ref().map(String::as_str).collect();
+        let Ok(events) =
+            parse_logs::<ProposeEvent>(logs.as_slice(), photon::ID.to_string().as_str())
+        else {
+            log::error!("Failed to parse logs: {:?}", logs);
+            return;
+        };
+        debug!(
+            "Logs intercepted, tx_signature: {}, events: {}",
+            logs_bunch.tx_signature.to_string(),
+            events.len()
+        );
+
+        for event in events {
+            let Ok(protocol_id) = event.protocol_id.first_chunk().copied().ok_or_else(|| {
+                error!("Failed to get 32 bytes protocol_id chunk from event data, skip event")
+            }) else {
+                continue;
+            };
+            self.on_event(
+                event,
+                ProtocolId(protocol_id),
+                &logs_bunch.tx_signature,
+                logs_bunch.slot,
+            );
+        }
+    }
+
+    fn on_event(&self, event: ProposeEvent, protocol_id: ProtocolId, signature: &str, slot: u64) {
+        debug!("Solana event intercepted: {:?}", event);
+        let Ok(signature) = Signature::from_str(signature) else {
+            error!("Failed to parse tx_signature from: {}", signature);
+            return;
+        };
+        if let Err(err) = self.propose_sender.send(Propose {
+            latest_block_id: signature.to_string(),
+            operation_data: OperationData {
+                src_chain_id: SOLANA_CHAIN_ID,
+                src_block_number: slot,
+                src_op_tx_id: signature.as_ref().to_vec(),
+                protocol_id,
+                nonce: event.nonce,
+                dest_chain_id: event.dst_chain_id,
+                protocol_addr: event.protocol_address,
+                function_selector: event.function_selector,
+                params: event.params,
+            },
+        }) {
+            error!("Failed to send proposal through the channel: {}", err);
+        }
+    }
+}
+
+fn parse_logs<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
     logs: &[&str],
     program_id_str: &str,
 ) -> Result<Vec<T>, ListenError> {
@@ -170,7 +249,7 @@ mod test {
             "Program EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ success",
         ];
 
-        let events: Vec<ProposeEvent> = parse_logs_impl(SAMPLE, &PROGRAM_ID.to_string())
+        let events: Vec<ProposeEvent> = parse_logs(SAMPLE, &PROGRAM_ID.to_string())
             .expect("Processing logs should not result in errors");
         assert_eq!(events.len(), 1);
         let propose_event = events.first().expect("No events caught");
@@ -190,7 +269,7 @@ mod test {
             "Deployed program 3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ",
             "Program BPFLoaderUpgradeab1e11111111111111111111111 success",
         ];
-        let events: Vec<ProposeEvent> = parse_logs_impl(SAMPLE, &PROGRAM_ID.to_string())
+        let events: Vec<ProposeEvent> = parse_logs(SAMPLE, &PROGRAM_ID.to_string())
             .expect("Processing logs should not result in errors");
         assert!(events.is_empty(), "Expected no events have been met")
     }

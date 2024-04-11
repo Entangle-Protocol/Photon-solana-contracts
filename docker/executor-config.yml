@@ -11,8 +11,13 @@ rabbitmq:
 solana:
     web_socket_url: ws://solana:8900
     rpc_url: http://solana:8899
-    commitment: finalized
+    commitment: confirmed
 
-# List of executor extensions registered for solana transaction preprocessing
 extensions:
   - /libonefunc_extension.so
+
+mongodb:
+    uri: mongodb://mongo:27017
+    user: root
+    password: rootpassword
+    db: "entangle"

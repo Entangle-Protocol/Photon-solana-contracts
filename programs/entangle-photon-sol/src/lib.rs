@@ -12,7 +12,7 @@ declare_id!("3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ");
 
 #[program]
 pub mod photon {
-    pub const SOLANA_CHAIN_ID: u128 = 111111111;
+    pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
     pub const RATE_DECIMALS: u64 = 10000;
     pub const ROOT: &[u8] = b"root-0";
     pub const MAX_KEEPERS: usize = 20;

@@ -12,8 +12,9 @@ use tokio::{
 };
 
 use transmitter_common::{
+    config::ReconnectConfig,
     data::{KeeperMsg, KeeperMsgImpl, Propose},
-    rabbitmq_client::{RabbitmqClient, RabbitmqReconnectConfig},
+    rabbitmq_client::RabbitmqClient,
 };
 
 use super::{config::RabbitmqConfig, error::ListenError};
@@ -103,7 +104,7 @@ impl RabbitmqClient for RabbitmqPublisher {
         Ok(())
     }
 
-    fn reconnect_config(&self) -> &RabbitmqReconnectConfig {
+    fn reconnect_config(&self) -> &ReconnectConfig {
         &self.config.reconnect
     }
 }

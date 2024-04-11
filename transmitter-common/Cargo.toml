@@ -16,6 +16,4 @@ sha3 = "0.10"
 solana-sdk = "1.17"
 tokio = "1.36"
 
-[features]
-rabbitmq_reconnect = []
 

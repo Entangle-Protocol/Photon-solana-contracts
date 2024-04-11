@@ -38,3 +38,14 @@ solana:
 # List of executor extensions registered for solana transaction preprocessing
 extensions:
   - target/debug/libonefunc_extension.so
+
+# mongodb is used to store last_processed_block in a persistent way
+mongodb:
+    # Mongodb uri to connect to
+    uri: mongodb://127.0.0.1:27017
+    # Mongodb user name
+    user: root
+    # Mongodb user password
+    password: rootpassword
+    # Database that is used to get last_processed_block during the retrospective proposal reading
+    db: "entangle"

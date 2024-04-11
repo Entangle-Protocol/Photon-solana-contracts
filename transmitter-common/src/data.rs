@@ -36,6 +36,7 @@ pub struct SignedOperation {
     #[serde(rename = "operation")]
     pub operation_data: OperationData,
     pub signatures: Vec<KeeperSignature>,
+    pub eob_block_number: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -34,6 +34,7 @@ impl RabbitmqPublisher {
         &self,
         operation_data: OperationData,
         signatures: Vec<KeeperSignature>,
+        eob_block_number: u64,
     ) -> Result<(), PublisherError> {
         let connection = self.connect(&self.config.connect, DefaultConnectionCallback).await?;
         let channel = self.open_channel(&connection, DefaultChannelCallback).await?;
@@ -46,6 +47,7 @@ impl RabbitmqPublisher {
         let msg = KeeperMsg::V1(KeeperMsgImpl::SignedOperationData(SignedOperation {
             operation_data,
             signatures,
+            eob_block_number,
         }));
 
         let json_data = serde_json::to_vec(&msg).expect("Expected operation be serialized well");
@@ -55,7 +57,10 @@ impl RabbitmqPublisher {
             error!("Failed to publish operation_data message, error: {}", err);
             return Err(PublisherError::from(err));
         }
-        debug!("operation_data sent: {}", serde_json::to_string(&msg).unwrap());
+        debug!(
+            "operation_data sent: {}",
+            serde_json::to_string(&msg).expect("Expected message be serialized")
+        );
         Ok(())
     }
 }

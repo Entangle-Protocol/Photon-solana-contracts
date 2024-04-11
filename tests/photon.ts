@@ -23,7 +23,7 @@ import { expect } from "chai";
 const TEST_REMOVE_FUNCS = true;
 const ROOT = utf8.encode("root-0");
 const EOB_CHAIN_ID = 33133;
-const SOLANA_CHAIN_ID = 111111111;
+const SOLANA_CHAIN_ID = "100000000000000000000";
 const CONSENSUS_TARGET_RATE = 10000;
 const KEEPERS = 3;
 const KEEPERS_PER_CALL = 4;
