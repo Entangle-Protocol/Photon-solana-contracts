@@ -114,6 +114,13 @@ impl AsyncConsumer for Consumer {
         _basic_properties: BasicProperties,
         data: Vec<u8>,
     ) {
+        let args = BasicAckArguments::new(deliver.delivery_tag(), false);
+        if let Err(err) = channel.basic_ack(args).await {
+            error!("Failed to do basic ack: {}", err);
+            return;
+        }
+        debug!("Ack to delivery {} on channel {}", deliver, channel);
+
         let signed_operation = match serde_json::from_slice(&data) {
             Ok(KeeperMsg::V1(KeeperMsgImpl::SignedOperationData(signed_operation))) => {
                 signed_operation
@@ -135,12 +142,6 @@ impl AsyncConsumer for Consumer {
             signed_operation,
         );
 
-        let args = BasicAckArguments::new(deliver.delivery_tag(), false);
-        if let Err(err) = channel.basic_ack(args).await {
-            error!("Failed to do basic ack: {}", err);
-            return;
-        }
-        debug!("Ack to delivery {} on channel {}", deliver, channel);
         self.0.send(signed_operation).expect("Expected signed_operation to be sent");
     }
 }

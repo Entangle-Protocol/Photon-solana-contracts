@@ -17,7 +17,8 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-propose = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'propose' tests/photon.ts "
+propose = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'propose' tests/photon.ts"
+byname = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'executeOperation by name' tests/photon.ts"
 
 [test]
 startup_wait = 10000

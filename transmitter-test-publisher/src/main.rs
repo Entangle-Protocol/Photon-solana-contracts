@@ -16,7 +16,7 @@ use serde::Deserialize;
 use std::{env, time::Duration};
 use thiserror::Error;
 
-use transmitter_common::data::{OperationData, ProtocolId};
+use transmitter_common::data::{Meta, OperationData, ProtocolId};
 
 use cli::Operation;
 use rabbitmq_publisher::{RabbitmqConfig, RabbitmqPublisher};
@@ -56,16 +56,21 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
     );
     let dst_chain_id = photon::photon::SOLANA_CHAIN_ID;
     let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
-
+    let meta: Meta =
+        *hex::decode("0100000000000000000000000000000000000000000000000000000000000000")
+            .expect("Expected meta hex to be decoded")
+            .first_chunk()
+            .expect("Expected meta chunck to be");
     for nonce in 0..times {
         let mut tx_id = [0u8; 64];
         rand::thread_rng().fill_bytes(&mut tx_id);
 
         let op_data = match operation {
             Operation::InitOwnedCounter => {
-                let function_selector: Vec<u8> = b"init_owned_counter".to_vec();
+                let function_selector: Vec<u8> = b"\x01\x12init_owned_counter".to_vec();
                 OperationData {
                     protocol_id,
+                    meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -73,14 +78,16 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     src_op_tx_id: tx_id.to_vec(),
                     protocol_addr: protocol_address.clone(),
                     function_selector,
-                    params: vec![],
+                    params: <Vec<u8>>::default(),
+                    reserved: <Vec<u8>>::default(),
                 }
             }
             Operation::Increment(component) => {
-                let function_selector: Vec<u8> = b"increment_owned_counter".to_vec();
+                let function_selector: Vec<u8> = b"\x01\x17increment_owned_counter".to_vec();
                 let params: Vec<u8> = ethabi::encode(&[Token::Uint(Uint::from(*component))]);
                 OperationData {
                     protocol_id,
+                    meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -89,6 +96,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     protocol_addr: protocol_address.clone(),
                     function_selector,
                     params,
+                    reserved: <Vec<u8>>::default(),
                 }
             }
         };
@@ -111,7 +119,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 
         let eob_block_number: u64 = random();
         publisher
-            .publish_operation_data(op_data, keepers, eob_block_number)
+            .publish_operation_data(op_data.clone(), keepers, eob_block_number)
             .await
             .expect("Expected signed op_data be published");
     }
@@ -121,12 +129,16 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 
 #[cfg(test)]
 mod test {
+    use super::OperationData;
     use crate::util::{predefined_signers, KeeperSignature};
     use libsecp256k1::{sign, PublicKey};
+    use rand::RngCore;
     use solana_program::secp256k1_recover::{secp256k1_recover, Secp256k1Pubkey};
+    use transmitter_common::data::ProtocolId;
 
     #[test]
     fn test_signature() {
+        env_logger::init();
         let keepers = predefined_signers(3);
 
         let public_key = PublicKey::from_secret_key(&keepers[0].0);
@@ -153,5 +165,34 @@ mod test {
         assert_eq!(signature.len(), 64);
         secp256k1_recover(op_hash, v, &signature)
             .expect("Expected secp256k1 hash be recovered from signature")
+    }
+
+    #[test]
+    fn test_op_hash_matches() {
+        env_logger::init();
+        let meta = [1; 32];
+        let protocol_id = ProtocolId(
+            *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
+        );
+        let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
+        let mut tx_id = [0u8; 64];
+        rand::thread_rng().fill_bytes(&mut tx_id);
+        let op_data = OperationData {
+            protocol_id,
+            meta,
+            src_block_number: 1,
+            src_chain_id: photon::photon::SOLANA_CHAIN_ID,
+            dest_chain_id: photon::photon::SOLANA_CHAIN_ID,
+            nonce: 1,
+            src_op_tx_id: tx_id.to_vec(),
+            protocol_addr: protocol_address.clone(),
+            function_selector: b"\x01\x12init_owned_counter".to_vec(),
+            params: <Vec<u8>>::default(),
+            reserved: <Vec<u8>>::default(),
+        };
+        let op_hash_module = op_data.op_hash_with_message();
+        let op_data = photon::signature::OperationData::try_from(op_data).unwrap();
+        let op_hash_contract = op_data.op_hash_with_message();
+        assert_eq!(op_hash_contract, op_hash_module);
     }
 }
