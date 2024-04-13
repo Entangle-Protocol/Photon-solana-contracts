@@ -1,4 +1,7 @@
-use photon::util::{u128_to_bytes32, u64_to_bytes32};
+use photon::{
+    signature::FunctionSelector,
+    util::{u128_to_bytes32, u64_to_bytes32},
+};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use solana_sdk::pubkey::Pubkey;
@@ -8,6 +11,7 @@ use std::fmt::{Display, Formatter};
 pub struct ProtocolId(pub ProtocolIdImpl);
 pub type ProtocolIdImpl = [u8; 32];
 pub type OpHash = [u8; 32];
+pub type Meta = [u8; 32];
 
 impl Display for ProtocolId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -69,6 +73,7 @@ pub struct Propose {
 pub struct OperationData {
     #[serde(with = "protocol_id_serialization")]
     pub protocol_id: ProtocolId,
+    pub meta: Meta,
     #[serde(with = "u128_serialization")]
     pub src_chain_id: u128,
     pub src_block_number: u64,
@@ -79,6 +84,7 @@ pub struct OperationData {
     pub protocol_addr: Vec<u8>,
     pub function_selector: Vec<u8>,
     pub params: Vec<u8>,
+    pub reserved: Vec<u8>,
 }
 
 impl OperationData {
@@ -94,6 +100,7 @@ impl OperationData {
     fn op_data_evm(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend_from_slice(&self.protocol_id.0);
+        buf.extend_from_slice(&self.meta);
         buf.extend_from_slice(&u128_to_bytes32(self.src_chain_id));
         buf.extend_from_slice(&u64_to_bytes32(self.src_block_number));
         buf.extend_from_slice(&self.src_op_tx_id);
@@ -102,6 +109,7 @@ impl OperationData {
         buf.extend_from_slice(self.protocol_addr.as_ref());
         buf.extend_from_slice(&self.function_selector);
         buf.extend_from_slice(&self.params);
+        buf.extend_from_slice(&self.reserved);
         buf
     }
 }
@@ -111,14 +119,16 @@ impl TryFrom<OperationData> for photon::signature::OperationData {
     fn try_from(value: OperationData) -> Result<Self, Self::Error> {
         Ok(photon::signature::OperationData {
             protocol_id: <Vec<u8>>::from(value.protocol_id.0),
+            meta: value.meta,
             src_chain_id: value.src_chain_id,
             src_block_number: value.src_block_number,
             src_op_tx_id: value.src_op_tx_id,
             nonce: value.nonce,
             dest_chain_id: value.dest_chain_id,
             protocol_addr: Pubkey::try_from(value.protocol_addr)?,
-            function_selector: value.function_selector,
+            function_selector: FunctionSelector::try_from(value.function_selector.as_slice())?,
             params: value.params,
+            reserved: value.reserved,
         })
     }
 }

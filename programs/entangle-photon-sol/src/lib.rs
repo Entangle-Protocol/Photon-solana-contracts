@@ -1,3 +1,5 @@
+#![feature(extend_one)]
+
 pub mod interface;
 pub mod signature;
 pub mod util;
@@ -22,6 +24,7 @@ pub mod photon {
     use super::*;
     use crate::{
         interface::{PhotonMsg, PhotonMsgWithSelector},
+        signature::FunctionSelector,
         util::sighash,
     };
     use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
@@ -150,18 +153,23 @@ pub mod photon {
             .filter(|x| x.key() != op_data.protocol_addr)
             .map(|x| x.to_account_metas(None).first().expect("always at least one").clone())
             .collect();
-        let (method, payload) =
-            if op_data.function_selector.len() == 5 && op_data.function_selector[4] == 0 {
+
+        let (method, payload) = match &op_data.function_selector {
+            FunctionSelector::ByCode(code) => {
                 let payload = PhotonMsgWithSelector {
                     protocol_id: op_data.protocol_id.clone(),
                     src_chain_id: op_data.src_chain_id,
                     src_block_number: op_data.src_block_number,
                     src_op_tx_id: op_data.src_op_tx_id.clone(),
-                    function_selector: op_data.function_selector[..4].to_vec(),
+                    function_selector: code.clone(),
                     params: op_data.params.clone(),
                 };
-                ("photon_msg".to_owned(), payload.try_to_vec().expect("fixed struct serialization"))
-            } else {
+                (
+                    "receive_photon_msg".to_owned(),
+                    payload.try_to_vec().expect("fixed struct serialization"),
+                )
+            }
+            FunctionSelector::ByName(name) => {
                 let payload = PhotonMsg {
                     protocol_id: op_data.protocol_id.clone(),
                     src_chain_id: op_data.src_chain_id,
@@ -169,12 +177,11 @@ pub mod photon {
                     src_op_tx_id: op_data.src_op_tx_id.clone(),
                     params: op_data.params.clone(),
                 };
-                (
-                    String::from_utf8(op_data.function_selector.clone())
-                        .map_err(|_| CustomError::InvalidMethodSelector)?,
-                    payload.try_to_vec().expect("fixed struct serialization"),
-                )
-            };
+                (name.clone(), payload.try_to_vec().expect("fixed struct serialization"))
+            }
+            FunctionSelector::Dummy => panic!("Uninitialized function_selector"),
+        };
+
         let data = [&sighash("global", &method)[..], &payload[..]].concat();
         let instr = Instruction::new_with_bytes(op_data.protocol_addr, &data, metas);
         let err = invoke_signed(

@@ -132,8 +132,14 @@ impl ExecOpTxBuilder {
             call_authority: call_authority_pda,
         }
         .to_account_metas(None);
-        let extension_accounts =
-            extension.get_accounts(&op_data.function_selector, &op_data.params);
+        let function_selector = &op_data.function_selector;
+
+        if function_selector.len() < 3 {
+            error!("Failed to process function_selector due to its size");
+            return Err(ExecutorError::MalformedData);
+        }
+
+        let extension_accounts = extension.get_accounts(&function_selector[2..], &op_data.params);
         accounts.extend(extension_accounts);
 
         let exec_op_data = photon::instruction::ExecuteOperation {
@@ -147,7 +153,7 @@ impl ExecOpTxBuilder {
 
         extension
             .sign_transaction(
-                &op_data.function_selector,
+                &function_selector[2..],
                 &op_data.params,
                 &mut transaction,
                 &blockhash,

@@ -12,7 +12,7 @@ services:
       MONGODB_USER: root
       MONGODB_PASSWORD: rootpassword
     volumes:
-#     - ./.executor_mongo_data:/data/db
+      #     - ./.executor_mongo_data:/data/db
       - ../transmitter-test-listener/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
     ports:
       - "27017:27017"

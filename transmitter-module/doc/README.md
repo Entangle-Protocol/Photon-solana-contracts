@@ -11,7 +11,6 @@ are captured and passed on to the keeper base module
 anchor build
 ```
 
-
 ### Build solana-keeper-module
 
 ```
@@ -61,7 +60,8 @@ RUST_LOG=debug ENTANGLE_RABBITMQ_USER=guest ENTANGLE_RABBITMQ_PASSWORD=guest tar
 ENTANGLE_RABBITMQ_PASSWORD=guest;ENTANGLE_RABBITMQ_USER=guest;ENTANGLE_SOLANA_PAYER=4pewL6uTRV6g7SUa5B9QJVLHwhpXvnwAwrzxJaTA2g4WUosYZVyueEhAe5naFFhB1mtVet5fj9v6sRy9BUEzSuRt;RUST_LOG=info,transmitter_module=debug
 ```
 
-Where `ENTANGLE_SOLANA_PAYER` is executor keypair encoded in base58, it's a test account that is also available at `tests/accounts`
+Where `ENTANGLE_SOLANA_PAYER` is executor keypair encoded in base58, it's a test account that is also available
+at `tests/accounts`
 
 ### Test executor
 
@@ -75,7 +75,8 @@ cargo run --release --package test-publisher -- increment-owned-counter --config
 
 ### Update extensions
 
-To update the internal state without stopping the executor service, it is possible to reload the extension list from the configuration by sending a SIGHUP.
+To update the internal state without stopping the executor service, it is possible to reload the extension list from the
+configuration by sending a SIGHUP.
 
 ```she
 pgrep -a transmitter
@@ -83,18 +84,17 @@ pgrep -a transmitter
 kill -1 105971
 ```
 
-
 ## Docker environment
 
 For users who prefer not to build tools from source, there is also an option to run them in a docker environment
 
 ### Build solana test validator image
 
-This image is a functional solana node that can be used for testing. 
+This image is a functional solana node that can be used for testing.
 Photon messaging and onefunc contracts with test accounts are installed and initialized on it
 
 ```sh
-docker build -t entangle:solana -f docker/Dockerfile_module .
+docker build -t entangle:solana -f docker/Dockerfile_solana .
 ```
 
 ### Build solana module image

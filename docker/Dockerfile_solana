@@ -13,7 +13,7 @@ RUN solana-keygen new -f -s --no-bip39-passphrase
 RUN solana config set --url http://localhost:8899
 COPY . /photon-crosschain-messaging/
 RUN yarn install --cwd /photon-crosschain-messaging/
-COPY tests/accounts/*keypair.json /photon-crosschain-messaging/target/deploy/
+COPY keys/*-keypair.json /photon-crosschain-messaging/target/deploy/
 RUN cd /photon-crosschain-messaging/ && anchor build
 WORKDIR /photon-crosschain-messaging/
 RUN docker/build_solana_test_state.sh

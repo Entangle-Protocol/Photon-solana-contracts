@@ -9,7 +9,7 @@ use tokio::sync::{
 };
 
 use transmitter_common::{
-    data::{OperationData, Propose, ProtocolId},
+    data::{Meta, OperationData, Propose, ProtocolId},
     SOLANA_CHAIN_ID,
 };
 
@@ -77,6 +77,7 @@ impl SolanaLogsProcessor {
             latest_block_id: signature.to_string(),
             operation_data: OperationData {
                 src_chain_id: SOLANA_CHAIN_ID,
+                meta: Meta::default(),
                 src_block_number: slot,
                 src_op_tx_id: signature.as_ref().to_vec(),
                 protocol_id,
@@ -85,6 +86,7 @@ impl SolanaLogsProcessor {
                 protocol_addr: event.protocol_address,
                 function_selector: event.function_selector,
                 params: event.params,
+                reserved: <Vec<u8>>::default(),
             },
         }) {
             error!("Failed to send proposal through the channel: {}", err);

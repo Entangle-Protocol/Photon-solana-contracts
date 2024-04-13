@@ -54,7 +54,6 @@ pub mod onefunc {
         msg!("counter = {} + {} = {}", counter, inc_item, ctx.accounts.counter.count);
         Ok(())
     }
-
     /// Example, call propose within the entangle multichain environment
     pub fn propose_to_other_chain(ctx: Context<ProposeToOtherChain>) -> Result<()> {
         let protocol_id: Vec<u8> = PROTOCOL_ID.to_vec();
@@ -82,6 +81,8 @@ pub mod onefunc {
             function_selector,
             params,
         )
+
+        // TODO: implement the `receive_photon_msg` to check if the code based function_selector works well
     }
 }
 

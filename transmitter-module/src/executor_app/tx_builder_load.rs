@@ -73,12 +73,14 @@ impl LoadOpTxBuilder {
             system_program: anchor_lang::system_program::ID,
         }
         .to_account_metas(None);
-
-        let load_op_data = photon::instruction::LoadOperation {
-            op_data: photon::signature::OperationData::try_from(op_data).map_err(|err| {
+        let photon_op_data =
+            photon::signature::OperationData::try_from(op_data).map_err(|err| {
                 error!("Failed to get op_data from op_data_message: {}", hex::encode(err));
                 ExecutorError::MalformedData
-            })?,
+            })?;
+
+        let load_op_data = photon::instruction::LoadOperation {
+            op_data: photon_op_data,
             op_hash_cached: op_hash.to_vec(),
         }
         .data();

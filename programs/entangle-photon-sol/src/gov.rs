@@ -6,19 +6,44 @@ use crate::{
     MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS,
 };
 
+use crate::signature::FunctionSelector;
+use num_enum::TryFromPrimitive;
+
+#[derive(TryFromPrimitive)]
+#[repr(u32)]
+enum GovOperation {
+    AddAllowedProtocol = 0x45a004b9,
+    AddAllowedProtocolAddress = 0xd296a0ff,
+    RemoveAllowedProtocolAddress = 0xb0a4ca98,
+    AddAllowedProposerAddress = 0xce0940a5,
+    RemoveAllowedProposerAddress = 0xb8e5f3f4,
+    AddExecutor = 0xe0aafb68,
+    RemoveExecutor = 0x04fa384a,
+    AddTransmitter = 0xa8da4c51,
+    RemoveTransmitter = 0x80936851,
+    SetConsensusTargetRate = 0x970b6109,
+}
+
+const U32_SIZE: usize = 4;
+
 pub(super) fn handle_gov_operation(
     ctx: Context<ExecuteGovOperation>,
     op_data: OperationData,
     target_protocol: Vec<u8>,
 ) -> Result<()> {
-    let selector = u32::from_be_bytes(require_ok!(
-        op_data.function_selector.try_into(),
+    let FunctionSelector::ByCode(code) = op_data.function_selector else {
+        panic!("Unexpected function_selector");
+    };
+    let selector_u32 = u32::from_be_bytes(require_ok!(
+        <[u8; U32_SIZE]>::try_from(code),
         CustomError::InvalidMethodSelector
     ));
+    let gov_operation =
+        require_ok!(GovOperation::try_from(selector_u32), CustomError::InvalidMethodSelector);
+
     let calldata = &op_data.params;
-    match selector {
-        // addAllowedProtocol(bytes)
-        0x45a004b9 => {
+    match gov_operation {
+        GovOperation::AddAllowedProtocol => {
             let decoded = require_ok!(
                 ethabi::decode(
                     &[
@@ -48,8 +73,7 @@ pub(super) fn handle_gov_operation(
                 ctx.accounts.protocol_info.keepers[i] = k.into();
             }
         }
-        // addAllowedProtocolAddress(bytes)
-        0xd296a0ff => {
+        GovOperation::AddAllowedProtocolAddress => {
             let decoded = require_ok!(
                 ethabi::decode(
                     &[
@@ -69,8 +93,7 @@ pub(super) fn handle_gov_operation(
                 protocol_address.try_into().map_err(|_| CustomError::InvalidGovMsg)?,
             )
         }
-        // removeAllowedProtocolAddress(bytes)
-        0xb0a4ca98 => {
+        GovOperation::RemoveAllowedProtocolAddress => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -84,8 +107,7 @@ pub(super) fn handle_gov_operation(
             require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
             ctx.accounts.protocol_info.protocol_address = Pubkey::default();
         }
-        // addAllowedProposerAddress(bytes)
-        0xce0940a5 => {
+        GovOperation::AddAllowedProposerAddress => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -118,8 +140,7 @@ pub(super) fn handle_gov_operation(
                 }
             }
         }
-        // removeAllowedProposerAddress(bytes)
-        0xb8e5f3f4 => {
+        GovOperation::RemoveAllowedProposerAddress => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -151,8 +172,7 @@ pub(super) fn handle_gov_operation(
                 ctx.accounts.protocol_info.proposers[i] = k;
             }
         }
-        // addExecutor(bytes)
-        0xe0aafb68 => {
+        GovOperation::AddExecutor => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -186,7 +206,7 @@ pub(super) fn handle_gov_operation(
             }
         }
         // removeExecutor(bytes)
-        0x04fa384a => {
+        GovOperation::RemoveExecutor => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -218,8 +238,7 @@ pub(super) fn handle_gov_operation(
                 ctx.accounts.protocol_info.executors[i] = k;
             }
         }
-        // addKeeper(bytes)
-        0xa8da4c51 => {
+        GovOperation::AddTransmitter => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32),                      // protocolId
@@ -252,8 +271,7 @@ pub(super) fn handle_gov_operation(
                 return Err(CustomError::MaxKeepersExceeded.into());
             }
         }
-        // removeKeeper(bytes)
-        0x80936851 => {
+        GovOperation::RemoveTransmitter => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32),                      // protocolId
@@ -287,8 +305,7 @@ pub(super) fn handle_gov_operation(
                 ctx.accounts.protocol_info.keepers[i] = k;
             }
         }
-        // setConsensusTargetRate(bytes)
-        0x970b6109 => {
+        GovOperation::SetConsensusTargetRate => {
             let decoded = ethabi::decode(
                 &[
                     ParamType::FixedBytes(32), // protocolId
@@ -303,9 +320,6 @@ pub(super) fn handle_gov_operation(
             let consensus_target_rate =
                 decoded[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
             ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
-        }
-        _ => {
-            return Err(CustomError::InvalidMethodSelector.into());
         }
     }
     Ok(())
