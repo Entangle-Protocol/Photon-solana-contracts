@@ -3040,6 +3040,7 @@ dependencies = [
 name = "onefunc-extension"
 version = "0.1.0"
 dependencies = [
+ "entangle-photon-sol",
  "env_logger 0.11.2",
  "lazy_static",
  "log",

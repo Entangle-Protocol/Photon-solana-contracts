@@ -209,7 +209,6 @@ pub mod photon {
         op_hash: Vec<u8>,
         target_protocol: Vec<u8>,
     ) -> Result<()> {
-        let _ = op_hash;
         let op_data = ctx.accounts.op_info.op_data.clone();
         require!(
             op_data.protocol_id == gov_protocol_id() && op_data.protocol_addr == photon::ID,

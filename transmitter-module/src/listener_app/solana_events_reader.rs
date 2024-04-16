@@ -158,10 +158,7 @@ impl SolanaEventsReader {
 
         let chain_id = mdb_solana_chain_id();
         let doc = collection
-            .find_one(
-                doc! { "direction": "from", "chain": chain_id, "key": "last_processed_block" },
-                FindOneOptions::default(),
-            )
+            .find_one(doc! { "direction": "from", "chain": chain_id }, FindOneOptions::default())
             .await
             .map_err(|err| {
                 error!("Failed to request last_processed_block: {}", err);
@@ -171,7 +168,7 @@ impl SolanaEventsReader {
             warn!("last_processed_block not found");
             return Ok(None);
         };
-        let Some(Bson::String(tx_signature)) = doc.get("value").cloned() else {
+        let Some(Bson::String(tx_signature)) = doc.get("last_processed_block").cloned() else {
             warn!("Failed to get last_processed_block from document");
             return Ok(None);
         };

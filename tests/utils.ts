@@ -28,15 +28,18 @@ function opHash(opData: OperationLib.OperationDataStruct) {
             "bytes32",
             "uint256",
             "uint256",
+            "uint256",
             "bytes32",
             "uint256",
             "uint256",
             "bytes",
             "bytes",
             "bytes",
+            "bytes",
         ],
         [
             opData.protocolId,
+            opData.meta,
             opData.srcChainId,
             opData.srcBlockNumber,
             opData.srcOpTxId,
@@ -45,6 +48,7 @@ function opHash(opData: OperationLib.OperationDataStruct) {
             opData.protocolAddr,
             opData.functionSelector,
             opData.params,
+            opData.reserved
         ],
     );
 }
@@ -58,8 +62,10 @@ function convertOpData(opData: AnchorOpData): OperationLib.OperationDataStruct {
         selector_data.writeUInt8(len, 1);
         selector_data.write(opData.functionSelector.byName[0].toString(), 2);
     } else if (opData.functionSelector.byCode) {
-        selector_data = Buffer.alloc(34);
-        new Buffer([0, 32]).copy(selector_data);
+        let len = opData.functionSelector.byCode[0].length;
+        selector_data = Buffer.alloc(2 + opData.functionSelector.byCode[0].length);
+        selector_data.writeUInt8(0);
+        selector_data.writeUInt8(len, 1);
         opData.functionSelector.byCode[0].copy(selector_data, 2);
     } else {
         assert(false, "Unexpected function_selector value");

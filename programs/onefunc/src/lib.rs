@@ -4,6 +4,16 @@ use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon};
 
 declare_id!("EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ");
 
+#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize)]
+pub struct PhotonMsgWithSelector {
+    pub protocol_id: Vec<u8>,
+    pub src_chain_id: u128,
+    pub src_block_number: u64,
+    pub src_op_tx_id: Vec<u8>,
+    pub function_selector: Vec<u8>,
+    pub params: Vec<u8>,
+}
+
 #[program]
 pub mod onefunc {
     use super::*;
@@ -83,6 +93,14 @@ pub mod onefunc {
         )
 
         // TODO: implement the `receive_photon_msg` to check if the code based function_selector works well
+    }
+
+    pub fn receive_photon_msg(
+        _ctx: Context<ReceivePhotonMsg>,
+        msg: PhotonMsgWithSelector,
+    ) -> Result<()> {
+        msg!("photon msg receive, code: {:?}", msg);
+        Ok(())
     }
 }
 
@@ -236,4 +254,10 @@ fn decode_increment_item(params: Vec<u8>) -> u64 {
         .into_uint()
         .expect("Expected params first token to be uint")
         .as_u64()
+}
+
+#[derive(Accounts)]
+pub struct ReceivePhotonMsg<'info> {
+    #[account(signer, mut)]
+    executor: Signer<'info>,
 }

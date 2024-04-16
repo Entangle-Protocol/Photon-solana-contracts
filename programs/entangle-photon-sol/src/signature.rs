@@ -80,15 +80,12 @@ impl OperationData {
         buf.extend_from_slice(self.protocol_addr.as_ref());
         match &self.function_selector {
             FunctionSelector::ByCode(code) => {
-                let mut code_selector = vec![0, 32];
-                code_selector.extend_from_slice(code.as_slice());
-                code_selector.resize(34, 0);
-                buf.extend_from_slice(&code_selector)
+                buf.extend_from_slice(&[0, code.len() as u8]);
+                buf.extend_from_slice(code.as_slice())
             }
             FunctionSelector::ByName(name) => {
-                let mut name_selector = vec![1, name.len() as u8];
-                name_selector.extend_from_slice(name.as_bytes());
-                buf.extend_from_slice(&name_selector)
+                buf.extend_from_slice(&[1, name.len() as u8]);
+                buf.extend_from_slice(name.as_bytes())
             }
             FunctionSelector::Dummy => panic!("function_selector is not initialized"),
         }

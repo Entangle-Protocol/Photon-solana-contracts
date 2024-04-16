@@ -44,6 +44,7 @@ impl ProtocolExtension for OnefuncExtension {
         match function_selector {
             b"init_owned_counter" => self.get_accounts_init_counter(),
             b"increment_owned_counter" => self.get_accounts_increment(),
+            b"\x01\x02\x03\x04" => self.get_accounts_receive_photon_msg(),
             _ => {
                 let selector = String::from_utf8_lossy(function_selector);
                 warn!("Unexpected function selector: {}", selector);
@@ -63,6 +64,7 @@ impl ProtocolExtension for OnefuncExtension {
             b"init_owned_counter" | b"increment_owned_counter" => {
                 transaction.try_partial_sign(&[&self.counter_owner], *hash)
             }
+            b"\x01\x02\x03\x04" => Ok(()),
             _ => {
                 warn!("Unexpected function selector");
                 Ok(())
@@ -93,5 +95,9 @@ impl OnefuncExtension {
             AccountMeta::new_readonly(self.counter_owner.pubkey(), true),
             AccountMeta::new(onefunc_counter_pda, false),
         ]
+    }
+
+    fn get_accounts_receive_photon_msg(&self) -> Vec<AccountMeta> {
+        vec![AccountMeta::new_readonly(onefunc::ID, false)]
     }
 }

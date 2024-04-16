@@ -53,11 +53,12 @@ impl LastBlockUpdater {
         let update_options = UpdateOptions::builder().upsert(true).build();
         while let Some(last_block) = self.last_block_receiver.lock().await.recv().await {
             debug!("last_block_number_received to be updated: {}", last_block);
-            let block_number = last_block as i64;
+            let block_number = last_block.to_string();
+            let in_ms = transmitter_common::utils::get_time_ms();
             collection
                 .update_one(
-                    doc! { "direction": "to", "chain": &chain_id, "key": "last_processed_block" },
-                    doc! { "$set": { "value": block_number }  },
+                    doc! { "direction": "to", "chain": &chain_id },
+                    doc! { "$set": { "last_processed_block": block_number, "updated_at": in_ms as i64 }  },
                     update_options.clone(),
                 )
                 .await
