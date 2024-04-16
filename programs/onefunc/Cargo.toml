@@ -10,12 +10,12 @@ name = "onefunc"
 
 [features]
 no-entrypoint = []
-no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
 
+
 [dependencies]
-anchor-lang = "0.29"
+anchor-lang = { version = "0.29" }
 entangle-photon-sol = { path = "../entangle-photon-sol", features = ["no-entrypoint", "cpi"] }
 ethabi = { version = "18.0.0", default-features = false }

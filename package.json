@@ -4,7 +4,7 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0",
+    "@coral-xyz/anchor": "0.29.0",
     "@entangle_protocol/oracle-sdk": "^1.4.51-testnet-v4",
     "@solana-developers/node-helpers": "^1.2.2",
     "base58-js": "2.0.0",
