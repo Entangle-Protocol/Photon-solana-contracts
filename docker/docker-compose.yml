@@ -68,7 +68,7 @@ services:
     environment:
       - ENTANGLE_RABBITMQ_USER=guest
       - ENTANGLE_RABBITMQ_PASSWORD=guest
-      - ENTANGLE_SOLANA_PAYER=4pewL6uTRV6g7SUa5B9QJVLHwhpXvnwAwrzxJaTA2g4WUosYZVyueEhAe5naFFhB1mtVet5fj9v6sRy9BUEzSuRt
+      - ENTANGLE_SOLANA_PAYER=4F7NuvMHvfTAeG47WaXWUP5rkyhqbKSQPzbXQAQHj5PXg8YbQs5Dt1PspaAWeAHnQqifFvFFQjc91gcnTjRCNaeU
       - RUST_LOG=info,transmitter_module=debug
     entrypoint: /transmitter-module executor --config executor-config.yml
 
