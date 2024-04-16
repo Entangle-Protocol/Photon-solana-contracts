@@ -138,7 +138,6 @@ impl ExecOpTxBuilder {
             error!("Failed to process function_selector due to its size");
             return Err(ExecutorError::MalformedData);
         }
-
         let extension_accounts = extension.get_accounts(&function_selector[2..], &op_data.params);
         accounts.extend(extension_accounts);
 

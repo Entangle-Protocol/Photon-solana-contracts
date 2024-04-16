@@ -11,8 +11,9 @@ name = "onefunc_extension"
 
 [dependencies]
 env_logger = "0.11"
+entangle-photon-sol = { path = "../../programs/entangle-photon-sol" }
 lazy_static = "1.4"
-onefunc = {path = "../../programs/onefunc"}
+onefunc = { path = "../../programs/onefunc" }
 transmitter-common = { path = "../../transmitter-common" }
 solana-sdk = "1.16"
 log = "0.4.20"

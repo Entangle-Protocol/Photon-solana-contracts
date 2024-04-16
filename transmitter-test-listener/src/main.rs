@@ -21,6 +21,7 @@ use std::env;
 use transmitter_common::{
     data::KeeperMsgImpl::Propose,
     mongodb::{mdb_solana_chain_id, MongodbConfig, MDB_LAST_BLOCK_COLLECTION},
+    utils::get_time_ms,
 };
 
 use crate::test_config::TestConfig;
@@ -83,8 +84,8 @@ impl AsyncConsumer for Consumer {
         let chain_id = mdb_solana_chain_id();
         self.collection
             .update_one(
-                doc! { "direction": "from", "chain": chain_id, "key": "last_processed_block" },
-                doc! { "$set": { "value": &proposal.latest_block_id }  },
+                doc! { "direction": "from", "chain": chain_id },
+                doc! { "$set": { "last_processed_block": &proposal.latest_block_id, "updated_at": get_time_ms() as i64 } },
                 UpdateOptions::builder().upsert(true).build(),
             )
             .await

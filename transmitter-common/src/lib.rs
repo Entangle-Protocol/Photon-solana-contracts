@@ -6,6 +6,7 @@ pub mod data;
 pub mod mongodb;
 pub mod protocol_extension;
 pub mod rabbitmq_client;
+pub mod utils;
 
 extern crate photon;
 

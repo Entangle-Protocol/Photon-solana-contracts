@@ -147,7 +147,7 @@ describe("photon", () => {
             program.programId,
         )[0];
         // Load
-        let _signature = await program.methods
+        let signature = await program.methods
             .loadOperation(op, op_hash)
             .accounts({
                 executor: executor.publicKey,
@@ -158,6 +158,7 @@ describe("photon", () => {
             })
             .signers([executor])
             .rpc();
+        console.log("load_operation:", signature);
         // Sign
         const chunkSize = KEEPERS_PER_CALL;
         // console.debug("load_operation:", signature);
@@ -168,7 +169,7 @@ describe("photon", () => {
         }
         for (let i = 0; i < signatures.length; i += chunkSize) {
             const chunk = signatures.slice(i, i + chunkSize);
-            let _signature = await program.methods
+            let signature = await program.methods
                 .signOperation(op_hash, chunk)
                 .accounts({
                     executor: executor.publicKey,
@@ -177,11 +178,11 @@ describe("photon", () => {
                 })
                 .signers([executor])
                 .rpc();
-            // console.debug("sign_operation:", signature)
+            console.debug("sign_operation:", signature)
         }
         // Execute
         if (protocolId == GOV_PROTOCOL_ID) {
-            let _signature = await program.methods
+            let signature = await program.methods
                 .executeGovOperation(op_hash, targetProtocol)
                 .accounts({
                     executor: executor.publicKey,
@@ -195,9 +196,9 @@ describe("photon", () => {
                 })
                 .signers([executor])
                 .rpc();
-            // console.debug("execute_gov_operation:", signature)
+            console.debug("execute_gov_operation:", signature)
         } else {
-            let _signature = await program.methods
+            let signature = await program.methods
                 .executeOperation(op_hash)
                 .accounts({
                     executor: executor.publicKey,
@@ -208,7 +209,7 @@ describe("photon", () => {
                 .signers([executor])
                 .remainingAccounts(remainingAccounts)
                 .rpc();
-            // console.debug("execute_operation:", signature)
+            console.debug("execute_operation:", signature)
         }
         console.log("Proposal", nonce, "executed");
         nonce++;
@@ -417,6 +418,25 @@ describe("photon", () => {
         const state = await onefunc.account.counter.fetch(counter);
         expect(state.count.toNumber()).eq(3);
     });
+
+
+    it("executeOperation by code", async () => {
+        let keys = [{isSigner: false, isWritable: true, pubkey: counter}];
+        // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
+        await executeOperation(
+            ONE_FUNC_ID,
+            onefunc.programId,
+            0x01020304,
+            new Buffer([]),
+            null,
+            [
+                {pubkey: onefunc.programId, isSigner: false, isWritable: false},
+            ].concat(keys),
+        );
+        const state = await onefunc.account.counter.fetch(counter);
+        expect(state.count.toNumber()).eq(3);
+    });
+
 
     it("propose", async () => {
         let signature = await onefunc.methods

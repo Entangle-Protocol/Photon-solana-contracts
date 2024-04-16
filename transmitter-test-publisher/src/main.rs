@@ -99,6 +99,23 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     reserved: <Vec<u8>>::default(),
                 }
             }
+            Operation::CodeBased(code) => {
+                let mut code_function_selector = vec![0u8, code.len() as u8];
+                code_function_selector.extend(code.iter());
+                OperationData {
+                    protocol_id,
+                    meta,
+                    src_block_number: 1,
+                    src_chain_id: dst_chain_id,
+                    dest_chain_id: dst_chain_id,
+                    nonce,
+                    src_op_tx_id: tx_id.to_vec(),
+                    protocol_addr: protocol_address.clone(),
+                    function_selector: code_function_selector,
+                    params: <Vec<u8>>::default(),
+                    reserved: <Vec<u8>>::default(),
+                }
+            }
         };
         let predefined_signers = predefined_signers(3);
         let keepers = predefined_signers
@@ -168,7 +185,7 @@ mod test {
     }
 
     #[test]
-    fn test_op_hash_matches() {
+    fn test_op_hash_by_name_matches() {
         env_logger::init();
         let meta = [1; 32];
         let protocol_id = ProtocolId(
@@ -187,6 +204,35 @@ mod test {
             src_op_tx_id: tx_id.to_vec(),
             protocol_addr: protocol_address.clone(),
             function_selector: b"\x01\x12init_owned_counter".to_vec(),
+            params: <Vec<u8>>::default(),
+            reserved: <Vec<u8>>::default(),
+        };
+        let op_hash_module = op_data.op_hash_with_message();
+        let op_data = photon::signature::OperationData::try_from(op_data).unwrap();
+        let op_hash_contract = op_data.op_hash_with_message();
+        assert_eq!(op_hash_contract, op_hash_module);
+    }
+
+    #[test]
+    fn test_op_hash_by_code_matches() {
+        env_logger::init();
+        let meta = [1; 32];
+        let protocol_id = ProtocolId(
+            *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
+        );
+        let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
+        let mut tx_id = [0u8; 64];
+        rand::thread_rng().fill_bytes(&mut tx_id);
+        let op_data = OperationData {
+            protocol_id,
+            meta,
+            src_block_number: 1,
+            src_chain_id: photon::photon::SOLANA_CHAIN_ID,
+            dest_chain_id: photon::photon::SOLANA_CHAIN_ID,
+            nonce: 1,
+            src_op_tx_id: tx_id.to_vec(),
+            protocol_addr: protocol_address.clone(),
+            function_selector: b"\x00\x04\x01\x02\x03\x04".to_vec(),
             params: <Vec<u8>>::default(),
             reserved: <Vec<u8>>::default(),
         };

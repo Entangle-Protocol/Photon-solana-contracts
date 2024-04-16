@@ -5,11 +5,15 @@ use clap::{Parser, Subcommand};
 pub(crate) enum Operation {
     InitOwnedCounter,
     Increment(u64),
+    CodeBased(Vec<u8>),
 }
+
+#[derive(Clone)]
+pub(crate) struct Workaround(Vec<u8>);
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
-    #[command(about = "Publish an operation to be called")]
+    #[command(about = "Publish the increment operation to be called")]
     IncrementOwnedCounter {
         #[arg(long, short, help = "Config path")]
         config: String,
@@ -23,8 +27,15 @@ pub(crate) enum Command {
         )]
         times: u64,
     },
-    #[command(about = "Publish an operation to be called")]
+    #[command(about = "Publish the init owned counter operation to be called")]
     InitOwnedCounter {
+        #[arg(long, short, help = "Config path")]
+        config: String,
+    },
+    #[command(about = "Publish the hexademical code based operation to be called in a proper way")]
+    CodeBased {
+        #[arg(value_parser=parse_hex, help = "Hexademical code")]
+        code: Workaround,
         #[arg(long, short, help = "Config path")]
         config: String,
     },
@@ -49,6 +60,14 @@ impl Cli {
             Command::InitOwnedCounter { config } => {
                 publish(config, &Operation::InitOwnedCounter, 1).await
             }
+            Command::CodeBased { config, code } => {
+                publish(config, &Operation::CodeBased(code.0.clone()), 1).await
+            }
         }
     }
+}
+
+pub fn parse_hex(value: &str) -> Result<Workaround, String> {
+    let bytes = hex::decode(value).map_err(|err| err.to_string())?;
+    Ok(Workaround(bytes))
 }

@@ -97,7 +97,7 @@ impl OperationData {
         Keccak256::digest(op_data_evm).to_vec()
     }
 
-    fn op_data_evm(&self) -> Vec<u8> {
+    pub fn op_data_evm(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend_from_slice(&self.protocol_id.0);
         buf.extend_from_slice(&self.meta);
