@@ -120,8 +120,12 @@ impl AsyncConsumer for Consumer {
             return;
         }
         debug!("Ack to delivery {} on channel {}", deliver, channel);
-
-        let signed_operation = match serde_json::from_slice(&data) {
+        let Ok(data) = String::from_utf8(data)
+            .map_err(|err| error!("Failed to convert data to string: {}", err))
+        else {
+            return;
+        };
+        let signed_operation = match serde_json::from_str(&data) {
             Ok(KeeperMsg::V1(KeeperMsgImpl::SignedOperationData(signed_operation))) => {
                 signed_operation
             }
@@ -130,7 +134,7 @@ impl AsyncConsumer for Consumer {
                 return;
             }
             Err(err) => {
-                error!("Failed to deserialize message: {}, data: {}", err, hex::encode(data));
+                error!("Failed to deserialize message: {}, data: {}", err, data);
                 return;
             }
         };
