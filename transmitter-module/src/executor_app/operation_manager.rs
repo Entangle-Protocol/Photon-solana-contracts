@@ -77,6 +77,11 @@ impl OperationStateMng {
 
     fn process_operation(&self, op_hash: OpHash, signed_operation: SignedOperation) {
         debug!("Process operation received: {}", hex::encode(op_hash));
+
+        self.last_block_sender
+            .send(signed_operation.eob_block_number)
+            .expect("Expected last_block_number to be sent");
+
         let mut op_data = self.op_data_in_progress.borrow_mut();
         let Entry::Vacant(entry) = op_data.entry(op_hash) else {
             warn!("Operation data is already in progress: {}", hex::encode(op_hash));
@@ -139,9 +144,6 @@ impl OperationStateMng {
 
     fn on_operation_executed(&self, op_hash: OpHash, entry: OccupiedEntry<'_, OpHash, OpInfo>) {
         debug!("Operation executed, remove: {}", hex::encode(op_hash));
-        self.last_block_sender
-            .send(entry.get().operation.eob_block_number)
-            .expect("Expected last_block_number to be sent");
         entry.remove();
     }
 

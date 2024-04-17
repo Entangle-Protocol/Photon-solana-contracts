@@ -77,6 +77,7 @@ pub struct OperationData {
     #[serde(with = "u128_serialization")]
     pub src_chain_id: u128,
     pub src_block_number: u64,
+    #[serde(with = "tx_id_serialization")]
     pub src_op_tx_id: Vec<u8>,
     pub nonce: u64,
     #[serde(with = "u128_serialization")]
@@ -145,6 +146,37 @@ mod u128_serialization {
     where D: Deserializer<'de> {
         let data = <[u8; 16]>::deserialize(deserializer)?;
         Ok(u128::from_be_bytes(data))
+    }
+}
+
+mod tx_id_serialization {
+    use log::error;
+    use serde::{
+        ser::{Error, SerializeSeq},
+        Deserialize, Deserializer, Serializer,
+    };
+
+    pub(super) fn serialize<S>(tx_id: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        let mut chunks = tx_id.chunks(32);
+        let first = chunks.next().ok_or_else(|| {
+            error!("Failed to get first tx id chunk");
+            S::Error::custom("bad tx_id")
+        })?;
+        let second = chunks.next().ok_or_else(|| {
+            error!("Failed to get second tx id chunk");
+            S::Error::custom("bad tx_id")
+        })?;
+        let mut seq = serializer.serialize_seq(Some(2))?;
+        seq.serialize_element(first)?;
+        seq.serialize_element(second)?;
+        seq.end()
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where D: Deserializer<'de> {
+        let chunks = <Vec<[u8; 32]>>::deserialize(deserializer)?;
+        Ok(chunks.flatten().to_vec())
     }
 }
 

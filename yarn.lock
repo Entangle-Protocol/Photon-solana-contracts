@@ -96,10 +96,10 @@
   resolved "https://registry.yarnpkg.com/@digitak/grubber/-/grubber-3.1.4.tgz#f29280bc8d205995b6bf4d73344f08b01f21fc65"
   integrity sha512-pqsnp2BUYlDoTXWG34HWgEJse/Eo1okRgNex8IG84wHrJp8h3SakeR5WhB4VxSA2+/D+frNYJ0ch3yXzsfNDoA==
 
-"@entangle_protocol/oracle-sdk@^1.4.51-testnet-v4":
-  version "1.4.51-testnet-v4"
-  resolved "https://registry.yarnpkg.com/@entangle_protocol/oracle-sdk/-/oracle-sdk-1.4.51-testnet-v4.tgz#ad0684a0c368e1179a46f60feb8bc4cd58ee47f6"
-  integrity sha512-OBIUwCHiPacvoQ7Z6bIkB1Rcw78TivWQUP0JUk8pdKfjsFGToW47DFuD9Lir8T30l++FwPwX1uLQtPTt8MBNBw==
+"@entangle_protocol/oracle-sdk@^1.4.57-testnet-v4":
+  version "1.4.57-testnet-v4"
+  resolved "https://registry.yarnpkg.com/@entangle_protocol/oracle-sdk/-/oracle-sdk-1.4.57-testnet-v4.tgz#e046e98fe3c238710509342e52e7e4206fa39482"
+  integrity sha512-UYIKNoLJ8OzOVs27TnhYQU9+6h6GZMIbWWuYRb1BXQfOkeRluSnqPKsea+2+tPzmkA5vlKxJf4oXSYSKIbEe3A==
   dependencies:
     "@nomicfoundation/hardhat-chai-matchers" "^2.0.6"
     "@nomicfoundation/hardhat-ethers" "^3.0.5"
@@ -112,7 +112,6 @@
     chai "^4.3.7"
     ethers "^6.11.1"
     hardhat "^2.22.2"
-    lodash "^4.17.21"
     ts-node "^10.8.2"
     typescript "^4.9.5"
 
