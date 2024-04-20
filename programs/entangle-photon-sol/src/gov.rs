@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
-use ethabi::ParamType;
+use ethabi::{ethereum_types::U256, ParamType, Token};
 
 use crate::{
-    require_ok, signature::OperationData, util::EthAddress, CustomError, ExecuteGovOperation,
-    MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS,
+    gov_protocol_id, require_ok, signature::OperationData, util::EthAddress, CustomError,
+    ExecuteGovOperation, ProposeEvent, MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS, SOLANA_CHAIN_ID,
 };
 
 use crate::signature::FunctionSelector;
@@ -25,6 +25,7 @@ enum GovOperation {
 }
 
 const U32_SIZE: usize = 4;
+const HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR: u32 = 0xba966e5f_u32;
 
 pub(super) fn handle_gov_operation(
     ctx: Context<ExecuteGovOperation>,
@@ -72,6 +73,25 @@ pub(super) fn handle_gov_operation(
             for (i, k) in keepers.into_iter().enumerate() {
                 ctx.accounts.protocol_info.keepers[i] = k.into();
             }
+            // Propose handleAddAllowedProtocol
+            let nonce = ctx.accounts.config.nonce;
+            ctx.accounts.config.nonce += 1;
+            let mut function_selector = vec![0_u8, 32];
+            function_selector.extend_from_slice(&ethabi::encode(&[Token::Uint(U256::from(
+                HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR,
+            ))]));
+            let params = ethabi::encode(&[
+                Token::FixedBytes(protocol_id),
+                Token::Uint(U256::from(SOLANA_CHAIN_ID)),
+            ]);
+            emit!(ProposeEvent {
+                protocol_id: gov_protocol_id().to_vec(),
+                nonce,
+                dst_chain_id: ctx.accounts.config.eob_chain_id as u128,
+                protocol_address: ctx.accounts.config.eob_master_smart_contract.to_vec(),
+                function_selector,
+                params
+            });
         }
         GovOperation::AddAllowedProtocolAddress => {
             let decoded = require_ok!(

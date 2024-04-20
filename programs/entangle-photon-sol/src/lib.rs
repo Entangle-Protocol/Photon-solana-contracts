@@ -32,12 +32,15 @@ pub mod photon {
     pub fn initialize(
         ctx: Context<Initialize>,
         eob_chain_id: u64,
+        eob_master_smart_contract: Vec<u8>,
         consensus_target_rate: u64,
         gov_keepers: Vec<EthAddress>,
         gov_executors: Vec<Pubkey>,
     ) -> Result<()> {
         ctx.accounts.config.admin = ctx.accounts.admin.key();
         ctx.accounts.config.eob_chain_id = eob_chain_id;
+        require_eq!(eob_master_smart_contract.len(), 32);
+        ctx.accounts.config.eob_master_smart_contract.copy_from_slice(&eob_master_smart_contract);
         ctx.accounts.protocol_info.is_init = true;
         ctx.accounts.protocol_info.protocol_address = photon::ID;
         ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate;
@@ -385,6 +388,10 @@ pub struct ExecuteGovOperation<'info> {
     )]
     executor: Signer<'info>,
 
+    /// System config
+    #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
+    config: Box<Account<'info, Config>>,
+
     /// Operation info
     #[account(
         mut,
@@ -442,11 +449,12 @@ pub struct Propose<'info> {
 pub struct Config {
     admin: Pubkey,
     eob_chain_id: u64,
+    eob_master_smart_contract: [u8; 32],
     nonce: u64,
 }
 
 impl Config {
-    pub const LEN: usize = 8 + 32 + 8 * 2;
+    pub const LEN: usize = 8 + 32 * 2 + 8 * 2;
 }
 
 #[account]
