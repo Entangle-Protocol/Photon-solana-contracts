@@ -1,6 +1,10 @@
 use log::{debug, error, info};
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::{hash::Hash, signature::Keypair, transaction::Transaction};
+use solana_sdk::{
+    hash::Hash,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 use std::sync::Arc;
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
@@ -38,7 +42,13 @@ impl SolanaTransactor {
     pub(super) async fn execute(self) -> Result<(), ExecutorError> {
         let url = self.solana_client.url();
         let commitment = self.solana_client.commitment().commitment;
-        info!("Start to send transactions to solana: {}, commitment: {}", url, commitment);
+        info!(
+            "Start to send transactions to solana: {}, commitment: {}, executor: {}",
+            url,
+            commitment,
+            self.payer.pubkey()
+        );
+
         self.process_transactions().await
     }
 

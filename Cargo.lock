@@ -2044,6 +2044,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gov-extension"
+version = "0.1.0"
+dependencies = [
+ "entangle-photon-sol",
+ "env_logger 0.11.2",
+ "ethabi",
+ "lazy_static",
+ "log",
+ "onefunc",
+ "serde_json",
+ "solana-sdk",
+ "transmitter-common",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3988,9 +4003,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.113"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69801b70b1c3dac963ecb03a364ba0ceda9cf60c71cfe475e99864759c8b8a79"
+checksum = "3e17db7126d17feb94eb3fad46bf1a96b034e8aacbc2e775fe81505f8b0b2813"
 dependencies = [
  "indexmap 2.2.3",
  "itoa",
@@ -5626,6 +5641,7 @@ dependencies = [
  "serde",
  "sha3 0.10.8",
  "solana-sdk",
+ "thiserror",
  "tokio",
 ]
 

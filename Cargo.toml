@@ -5,7 +5,8 @@ members = [
     "transmitter-module",
     "transmitter-test-publisher",
     "transmitter-common",
-    "transmitter-test-listener"
+    "transmitter-test-listener",
+    "transmitter-protocol-extensions/gov-extension"
 ]
 resolver = "1"
 

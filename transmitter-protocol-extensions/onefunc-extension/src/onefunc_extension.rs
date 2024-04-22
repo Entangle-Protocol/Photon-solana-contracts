@@ -1,14 +1,9 @@
-use log::warn;
+use log::{error, warn};
 use solana_sdk::{
-    hash::Hash,
-    instruction::AccountMeta,
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::{Signer, SignerError},
-    system_program::id as system_program_id,
-    transaction::Transaction,
+    hash::Hash, instruction::AccountMeta, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    system_program::id as system_program_id, transaction::Transaction,
 };
-use transmitter_common::protocol_extension::ProtocolExtension;
+use transmitter_common::{error::ExtensionError, protocol_extension::ProtocolExtension};
 
 lazy_static::lazy_static! {
     static ref ONEFUNC_EXTENTION: OnefuncExtension = {
@@ -40,8 +35,12 @@ impl ProtocolExtension for OnefuncExtension {
             .expect("Expected onefunc-extension protocol_id be converted well")
     }
 
-    fn get_accounts(&self, function_selector: &[u8], _params: &[u8]) -> Vec<AccountMeta> {
-        match function_selector {
+    fn get_accounts(
+        &self,
+        function_selector: &[u8],
+        _params: &[u8],
+    ) -> Result<Vec<AccountMeta>, ExtensionError> {
+        Ok(match function_selector {
             b"init_owned_counter" => self.get_accounts_init_counter(),
             b"increment_owned_counter" => self.get_accounts_increment(),
             b"\x01\x02\x03\x04" => self.get_accounts_receive_photon_msg(),
@@ -50,7 +49,7 @@ impl ProtocolExtension for OnefuncExtension {
                 warn!("Unexpected function selector: {}", selector);
                 vec![]
             }
-        }
+        })
     }
 
     fn sign_transaction(
@@ -59,10 +58,13 @@ impl ProtocolExtension for OnefuncExtension {
         _params: &[u8],
         transaction: &mut Transaction,
         hash: &Hash,
-    ) -> Result<(), SignerError> {
+    ) -> Result<(), ExtensionError> {
         match function_selector {
             b"init_owned_counter" | b"increment_owned_counter" => {
-                transaction.try_partial_sign(&[&self.counter_owner], *hash)
+                transaction.try_partial_sign(&[&self.counter_owner], *hash).map_err(|err| {
+                    error!("Failed to partial sign tx: {}", err);
+                    ExtensionError::Sign
+                })
             }
             b"\x01\x02\x03\x04" => Ok(()),
             _ => {

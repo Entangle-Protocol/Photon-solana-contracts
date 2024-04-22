@@ -81,8 +81,11 @@ impl SignOpTxBuilder {
                 .collect(),
         }
         .data();
+
+        let compute_budget =
+            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(400000);
         let instruction = Instruction::new_with_bytes(photon::id(), &sign_op_data, accounts);
-        let message = Message::new(&[instruction], Some(&self.payer));
+        let message = Message::new(&[compute_budget, instruction], Some(&self.payer));
         let transaction = Transaction::new_unsigned(message);
 
         Ok::<TransactionSet, _>(TransactionSet {

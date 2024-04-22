@@ -1,13 +1,11 @@
 use anchor_lang::prelude::*;
 use ethabi::{ethereum_types::U256, ParamType, Token};
+use num_enum::TryFromPrimitive;
 
 use crate::{
-    gov_protocol_id, require_ok, signature::OperationData, util::EthAddress, CustomError,
-    ExecuteGovOperation, ProposeEvent, MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS, SOLANA_CHAIN_ID,
+    gov_protocol_id, require_ok, signature::OperationData, util::EthAddress, Config, CustomError,
+    ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS, SOLANA_CHAIN_ID,
 };
-
-use crate::signature::FunctionSelector;
-use num_enum::TryFromPrimitive;
 
 #[derive(TryFromPrimitive)]
 #[repr(u32)]
@@ -28,17 +26,17 @@ const U32_SIZE: usize = 4;
 const HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR: u32 = 0xba966e5f_u32;
 
 pub(super) fn handle_gov_operation(
-    ctx: Context<ExecuteGovOperation>,
-    op_data: OperationData,
-    target_protocol: Vec<u8>,
+    config: &mut Config,
+    target_protocol_info: &mut ProtocolInfo,
+    code: Vec<u8>,
+    op_data: &OperationData,
 ) -> Result<()> {
-    let FunctionSelector::ByCode(code) = op_data.function_selector else {
-        panic!("Unexpected function_selector");
+    let Some(code) = code.first_chunk::<U32_SIZE>() else {
+        panic!("Failed to get first chunk of gov selector")
     };
-    let selector_u32 = u32::from_be_bytes(require_ok!(
-        <[u8; U32_SIZE]>::try_from(code),
-        CustomError::InvalidMethodSelector
-    ));
+
+    let selector_u32 = u32::from_be_bytes(*code);
+
     let gov_operation =
         require_ok!(GovOperation::try_from(selector_u32), CustomError::InvalidMethodSelector);
 
@@ -56,9 +54,7 @@ pub(super) fn handle_gov_operation(
                 ),
                 CustomError::InvalidProtoMsg
             );
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let consensus_target_rate =
                 decoded[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
             let keepers: Vec<ethabi::Address> = decoded[2]
@@ -68,18 +64,20 @@ pub(super) fn handle_gov_operation(
                 .into_iter()
                 .map(|x| x.into_address().expect("always address"))
                 .collect();
-            ctx.accounts.protocol_info.is_init = true;
-            ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
+            target_protocol_info.is_init = true;
+            target_protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
             for (i, k) in keepers.into_iter().enumerate() {
-                ctx.accounts.protocol_info.keepers[i] = k.into();
+                target_protocol_info.keepers[i] = k.into();
             }
             // Propose handleAddAllowedProtocol
-            let nonce = ctx.accounts.config.nonce;
-            ctx.accounts.config.nonce += 1;
+            let nonce = config.nonce;
+            config.nonce += 1;
             let mut function_selector = vec![0_u8, 32];
             function_selector.extend_from_slice(&ethabi::encode(&[Token::Uint(U256::from(
                 HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR,
             ))]));
+            let protocol_id =
+                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
             let params = ethabi::encode(&[
                 Token::FixedBytes(protocol_id),
                 Token::Uint(U256::from(SOLANA_CHAIN_ID)),
@@ -87,8 +85,8 @@ pub(super) fn handle_gov_operation(
             emit!(ProposeEvent {
                 protocol_id: gov_protocol_id().to_vec(),
                 nonce,
-                dst_chain_id: ctx.accounts.config.eob_chain_id as u128,
-                protocol_address: ctx.accounts.config.eob_master_smart_contract.to_vec(),
+                dst_chain_id: config.eob_chain_id as u128,
+                protocol_address: config.eob_master_smart_contract.to_vec(),
                 function_selector,
                 params
             });
@@ -104,28 +102,16 @@ pub(super) fn handle_gov_operation(
                 ),
                 CustomError::InvalidProtoMsg
             );
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let protocol_address =
                 decoded[1].clone().into_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            ctx.accounts.protocol_info.protocol_address = Pubkey::new_from_array(
+            target_protocol_info.protocol_address = Pubkey::new_from_array(
                 protocol_address.try_into().map_err(|_| CustomError::InvalidGovMsg)?,
             )
         }
+
         GovOperation::RemoveAllowedProtocolAddress => {
-            let decoded = ethabi::decode(
-                &[
-                    ParamType::FixedBytes(32), // protocolId
-                    ParamType::Bytes,          // protocolAddr
-                ],
-                calldata,
-            )
-            .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
-            ctx.accounts.protocol_info.protocol_address = Pubkey::default();
+            target_protocol_info.protocol_address = Pubkey::default();
         }
         GovOperation::AddAllowedProposerAddress => {
             let decoded = ethabi::decode(
@@ -136,9 +122,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let proposer = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -147,13 +131,13 @@ pub(super) fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let mut proposers: Vec<_> = ctx.accounts.protocol_info.proposers();
+            let mut proposers: Vec<_> = target_protocol_info.proposers();
             if !proposers.contains(&proposer) && proposer != Pubkey::default() {
                 if proposers.len() < MAX_PROPOSERS {
                     proposers.push(proposer);
-                    ctx.accounts.protocol_info.proposers = Default::default();
+                    target_protocol_info.proposers = Default::default();
                     for (i, k) in proposers.into_iter().enumerate() {
-                        ctx.accounts.protocol_info.proposers[i] = k;
+                        target_protocol_info.proposers[i] = k;
                     }
                 } else {
                     return Err(CustomError::MaxExecutorsExceeded.into());
@@ -169,9 +153,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let proposer = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -180,16 +162,11 @@ pub(super) fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let proposers: Vec<_> = ctx
-                .accounts
-                .protocol_info
-                .proposers()
-                .into_iter()
-                .filter(|x| x != &proposer)
-                .collect();
-            ctx.accounts.protocol_info.proposers = Default::default();
+            let proposers: Vec<_> =
+                target_protocol_info.proposers().into_iter().filter(|x| x != &proposer).collect();
+            target_protocol_info.proposers = Default::default();
             for (i, k) in proposers.into_iter().enumerate() {
-                ctx.accounts.protocol_info.proposers[i] = k;
+                target_protocol_info.proposers[i] = k;
             }
         }
         GovOperation::AddExecutor => {
@@ -201,9 +178,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let executor = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -212,20 +187,19 @@ pub(super) fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let mut executors: Vec<_> = ctx.accounts.protocol_info.executors();
+            let mut executors: Vec<_> = target_protocol_info.executors();
             if !executors.contains(&executor) && executor != Pubkey::default() {
                 if executors.len() < MAX_EXECUTORS {
                     executors.push(executor);
-                    ctx.accounts.protocol_info.executors = Default::default();
+                    target_protocol_info.executors = Default::default();
                     for (i, k) in executors.into_iter().enumerate() {
-                        ctx.accounts.protocol_info.executors[i] = k;
+                        target_protocol_info.executors[i] = k;
                     }
                 } else {
                     return Err(CustomError::MaxExecutorsExceeded.into());
                 }
             }
         }
-        // removeExecutor(bytes)
         GovOperation::RemoveExecutor => {
             let decoded = ethabi::decode(
                 &[
@@ -235,9 +209,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let executor = Pubkey::new_from_array(
                 decoded[1]
                     .clone()
@@ -246,16 +218,11 @@ pub(super) fn handle_gov_operation(
                     .try_into()
                     .map_err(|_| CustomError::InvalidGovMsg)?,
             );
-            let executors: Vec<_> = ctx
-                .accounts
-                .protocol_info
-                .executors()
-                .into_iter()
-                .filter(|x| x != &executor)
-                .collect();
-            ctx.accounts.protocol_info.executors = Default::default();
+            let executors: Vec<_> =
+                target_protocol_info.executors().into_iter().filter(|x| x != &executor).collect();
+            target_protocol_info.executors = Default::default();
             for (i, k) in executors.into_iter().enumerate() {
-                ctx.accounts.protocol_info.executors[i] = k;
+                target_protocol_info.executors[i] = k;
             }
         }
         GovOperation::AddTransmitter => {
@@ -267,9 +234,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let keepers: Vec<EthAddress> = decoded[1]
                 .clone()
                 .into_array()
@@ -279,13 +244,13 @@ pub(super) fn handle_gov_operation(
                 .filter(|x| x != &EthAddress::default())
                 .collect();
             require!(!keepers.is_empty(), CustomError::NoKeepersAllowed);
-            let mut total_keepers = ctx.accounts.protocol_info.keepers();
+            let mut total_keepers = target_protocol_info.keepers();
             total_keepers.extend_from_slice(&keepers);
             total_keepers.dedup();
             if total_keepers.len() <= MAX_KEEPERS {
-                ctx.accounts.protocol_info.keepers = Default::default();
+                target_protocol_info.keepers = Default::default();
                 for (i, k) in total_keepers.into_iter().enumerate() {
-                    ctx.accounts.protocol_info.keepers[i] = k;
+                    target_protocol_info.keepers[i] = k;
                 }
             } else {
                 return Err(CustomError::MaxKeepersExceeded.into());
@@ -300,9 +265,7 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let keepers: std::result::Result<Vec<EthAddress>, CustomError> = decoded[1]
                 .clone()
                 .into_array()
@@ -313,16 +276,14 @@ pub(super) fn handle_gov_operation(
                 })
                 .collect();
             let to_remove = keepers?;
-            let total_keepers: Vec<_> = ctx
-                .accounts
-                .protocol_info
+            let total_keepers: Vec<_> = target_protocol_info
                 .keepers()
                 .into_iter()
                 .filter(|x| !to_remove.contains(x))
                 .collect();
-            ctx.accounts.protocol_info.keepers = Default::default();
+            target_protocol_info.keepers = Default::default();
             for (i, k) in total_keepers.into_iter().enumerate() {
-                ctx.accounts.protocol_info.keepers[i] = k;
+                target_protocol_info.keepers[i] = k;
             }
         }
         GovOperation::SetConsensusTargetRate => {
@@ -334,12 +295,10 @@ pub(super) fn handle_gov_operation(
                 calldata,
             )
             .map_err(|_| CustomError::InvalidProtoMsg)?;
-            let protocol_id =
-                decoded[0].clone().into_fixed_bytes().ok_or(CustomError::InvalidGovMsg)?;
-            require!(protocol_id == target_protocol, CustomError::TargetProtocolMismatch);
+
             let consensus_target_rate =
                 decoded[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
-            ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
+            target_protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
         }
     }
     Ok(())

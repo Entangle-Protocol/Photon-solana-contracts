@@ -4,13 +4,14 @@ import {Photon} from "../target/types/photon";
 import {utf8} from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {getKeypairFromFile} from "@solana-developers/node-helpers";
 import fs, {readFileSync} from "fs";
+import {ethers} from "ethers";
 
 
 const EOB_CHAIN_ID = 33133;
 const ROOT = utf8.encode("root-0");
 const GOV_CONSENSUS_TARGET_RATE = 6000;
 const GOV_PROTOCOL_ID = Buffer.from(
-    utf8.encode("aggregation-gov_________________"),
+    utf8.encode("gov-protocol\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 );
 const KEYS_PATH = "./keys";
 
@@ -38,6 +39,8 @@ module.exports = async function (provider: anchor.AnchorProvider) {
         [ROOT, utf8.encode("PROTOCOL"), GOV_PROTOCOL_ID],
         program.programId,
     )[0];
+    let eob_master_contract = ethers.utils.defaultAbiCoder.encode(["address"], ["0xe981b4f9580cce1ff1b87d63a9b68e53110b9aa7"]);
+    let eob_master_contract_buf: Buffer = new Buffer(eob_master_contract.substring(2), "hex");
     console.log("Transmitters:", transmitters.map((num: number[]) =>
         "0x" + num.map((x) => x.toString(16).padStart(2, '0')).join("")));
     console.log("Owner account:", owner.publicKey.toBase58());
@@ -45,10 +48,12 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     console.log("Config account:", config.toBase58());
     console.log("Protocol info:", protocolInfo.toBase58());
     console.log("Photon program account:", program.programId.toBase58());
+    console.log("eob_master_contract:", eob_master_contract);
 
-    await program.methods
+    let tx_signature = await program.methods
         .initialize(
             new anchor.BN(EOB_CHAIN_ID),
+            eob_master_contract_buf,
             new anchor.BN(GOV_CONSENSUS_TARGET_RATE),
             transmitters,
             [govExecutor.publicKey],
@@ -61,4 +66,5 @@ module.exports = async function (provider: anchor.AnchorProvider) {
         })
         .signers([owner])
         .rpc();
+    console.log("initialize tx:", tx_signature);
 };

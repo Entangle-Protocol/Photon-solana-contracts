@@ -24,8 +24,11 @@ pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {
     sighash
 }
 
-pub const fn gov_protocol_id() -> Bytes32 {
-    *b"aggregation-gov_________________"
+pub const GOV_PROTOCOL_ID: &Bytes32 =
+    b"gov-protocol\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+pub const fn gov_protocol_id() -> &'static Bytes32 {
+    GOV_PROTOCOL_ID
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, PartialEq, Eq)]

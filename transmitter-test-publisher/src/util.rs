@@ -26,7 +26,7 @@ pub fn predefined_signers(amount: usize) -> Vec<(SecretKey, PublicKey)> {
 }
 
 const KEEPER_DATA: [&str; 3] = [
-    "e79dad9ac664c5e3c6b7297a18e28f9522f66009b727a73a5370f5b475331560",
-    "c9f34cd7e4366498ecc4ab36d339d0176bc835aa4b81629259b9f09981360052",
-    "19a4ea1b0e72d931ce0482e58a7166e28e748d028d726a0a4a1efcb70d704f22",
+    "74e3ffad2b87174dc1d806edf1a01e3b017cf1be05d1894d329826f10fa1d72f",
+    "66a222403ce2448cdf98d7194d9d0e4533c354f8f472d594ba5b50d2568d2c08",
+    "b948355471a4013b8166fa7cfee601c6aeae38ee38066a5ddf821a9b0db9dd10",
 ];

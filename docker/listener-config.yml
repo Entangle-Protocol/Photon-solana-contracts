@@ -1,20 +1,18 @@
 rabbitmq:
-  host: rabbitmq
-  port: 5672
-  exchange: entangle
-  routing_key: from_solana
-  reconnect_attempts: 100
-  reconnect_timeout_ms: 200
+    host: rabbitmq
+    port: 5672
+    exchange: entangle
+    routing_key: from_solana
+    reconnect_attempts: 100
+    reconnect_timeout_ms: 200
 
 solana:
-  web_socket_url: ws://solana:8900
-  rpc_url: http://solana:8899
-  commitment: finalized
-  reconnect_attempts: 100
-  reconnect_timeout_ms: 200
+    web_socket_url: ws://solana:8900
+    rpc_url: http://solana:8899
+    commitment: finalized
+    reconnect_attempts: 100
+    reconnect_timeout_ms: 200
 
 mongodb:
-  uri: mongodb://mongo:27017
-  user: root
-  password: rootpassword
-  db: "entangle"
+    uri: mongodb://mongo:27017
+    db: "executor"

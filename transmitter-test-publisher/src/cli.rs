@@ -6,6 +6,7 @@ pub(crate) enum Operation {
     InitOwnedCounter,
     Increment(u64),
     CodeBased(Vec<u8>),
+    AddProtocol,
 }
 
 #[derive(Clone)]
@@ -39,6 +40,10 @@ pub(crate) enum Command {
         #[arg(long, short, help = "Config path")]
         config: String,
     },
+    AddProtocol {
+        #[arg(long, short, help = "Config path")]
+        config: String,
+    },
 }
 
 #[derive(Parser)]
@@ -63,6 +68,7 @@ impl Cli {
             Command::CodeBased { config, code } => {
                 publish(config, &Operation::CodeBased(code.0.clone()), 1).await
             }
+            Command::AddProtocol { config } => publish(config, &Operation::AddProtocol, 1).await,
         }
     }
 }

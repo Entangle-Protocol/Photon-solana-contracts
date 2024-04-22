@@ -17,18 +17,18 @@ import {
   setConsensusTargetRate,
   sleep,
 } from "./utils";
-import { Wallet, ethers } from "ethers";
+import { Wallet, ethers, BigNumber } from "ethers";
 import { assert, expect } from "chai";
 
 const TEST_REMOVE_FUNCS = true;
 const ROOT = utf8.encode("root-0");
 const EOB_CHAIN_ID = 33133;
 const SOLANA_CHAIN_ID = "100000000000000000000";
-const CONSENSUS_TARGET_RATE = 10000;
+const CONSENSUS_TARGET_RATE = 6000;
 const KEEPERS = 3;
 const KEEPERS_PER_CALL = 4;
 const GOV_PROTOCOL_ID = Buffer.from(
-  utf8.encode("aggregation-gov_________________"),
+  utf8.encode("gov-protocol\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 );
 const ONE_FUNC_ID = Buffer.from(
   utf8.encode("onefunc_________________________"),
@@ -52,7 +52,7 @@ describe("photon", () => {
   let counter;
   let proposer;
   let callAuthority;
-  let callAuthorityBump;
+  let govCallAuthority;
   let keepers: Wallet[];
   let keepersRaw = [];
   let nonce = 0;
@@ -84,10 +84,14 @@ describe("photon", () => {
       console.log("Keeper", i, keepers[i].address);
       keepersRaw.push(hexToBytes(keepers[i].address));
     }
-    [callAuthority, callAuthorityBump] = web3.PublicKey.findProgramAddressSync(
+    callAuthority = web3.PublicKey.findProgramAddressSync(
       [ROOT, utf8.encode("CALL_AUTHORITY"), ONE_FUNC_ID],
       program.programId,
-    );
+    )[0];
+    govCallAuthority = web3.PublicKey.findProgramAddressSync(
+      [ROOT, utf8.encode("CALL_AUTHORITY"), GOV_PROTOCOL_ID],
+      program.programId,
+    )[0];
     counter = web3.PublicKey.findProgramAddressSync(
       [utf8.encode("COUNTER")],
       onefunc.programId,
@@ -184,20 +188,32 @@ describe("photon", () => {
       console.debug("sign_operation:", signature);
     }
     // Execute
-    if (protocolId == GOV_PROTOCOL_ID) {
+    if (protocolId.equals(GOV_PROTOCOL_ID)) {
+      let target_protocol_info_pda = web3.PublicKey.findProgramAddressSync(
+        [ROOT, utf8.encode("PROTOCOL"), targetProtocol],
+        program.programId,
+      )[0];
+      let config_pda = web3.PublicKey.findProgramAddressSync(
+        [ROOT, utf8.encode("CONFIG")],
+        program.programId,
+      )[0];
+
       let signature = await program.methods
-        .executeGovOperation(op_hash, targetProtocol)
+        .executeOperation(op_hash)
         .accounts({
           executor: executor.publicKey,
-          config,
           opInfo,
-          govInfo: govProtocolInfo,
-          protocolInfo: web3.PublicKey.findProgramAddressSync(
-            [ROOT, utf8.encode("PROTOCOL"), targetProtocol],
-            program.programId,
-          )[0],
-          systemProgram: web3.SystemProgram.programId,
-        })
+          protocolInfo: govProtocolInfo,
+          callAuthority: govCallAuthority,
+        }).remainingAccounts(
+          [
+            { pubkey: program.programId, isSigner: false, isWritable: false },
+            { pubkey: config_pda, isSigner: false, isWritable: true },
+            { pubkey: govProtocolInfo, isSigner: false, isWritable: true },
+            { pubkey: target_protocol_info_pda, isSigner: false, isWritable: true },
+            { pubkey: web3.SystemProgram.programId, isSigner: false, isWritable: true },
+          ]
+        )
         .signers([executor])
         .rpc();
       console.debug("execute_gov_operation:", signature);

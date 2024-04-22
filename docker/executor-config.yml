@@ -4,7 +4,7 @@ rabbitmq:
     exchange: entangle
     routing_key: to_solana
     consumer_tag: solana
-    queue: "signed_operations"
+    queue: "to_solana"
     reconnect_attempts: 100
     reconnect_timeout_ms: 200
 
@@ -14,10 +14,9 @@ solana:
     commitment: confirmed
 
 extensions:
-  - /libonefunc_extension.so
+    - /libonefunc_extension.so
+    - /libgov_extension.so
 
 mongodb:
     uri: mongodb://mongo:27017
     user: root
-    password: rootpassword
-    db: "entangle"

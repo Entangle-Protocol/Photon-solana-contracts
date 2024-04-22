@@ -51,7 +51,6 @@ impl RabbitmqPublisher {
         }));
 
         let json_data = serde_json::to_vec(&msg).expect("Expected operation be serialized well");
-
         let args = BasicPublishArguments::from(&self.config.binding);
         if let Err(err) = channel.basic_publish(BasicProperties::default(), json_data, args).await {
             error!("Failed to publish operation_data message, error: {}", err);

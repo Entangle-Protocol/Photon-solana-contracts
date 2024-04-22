@@ -1,5 +1,5 @@
 import json
-photon_address = "3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ"
+photon_address = "JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT"
 onefunc_address = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
 def fix(path, address):
