@@ -1,11 +1,14 @@
 use thiserror::Error;
+use transmitter_common::error::ExtensionError;
 
 #[derive(Debug, Error)]
 pub(crate) enum ExecutorError {
     #[error("Config error")]
     Config,
-    #[error("Protocol extensions error")]
-    Extensions,
+    #[error("Extension manager error")]
+    ExtensionMng,
+    #[error("Extension error")]
+    Extension(#[from] ExtensionError),
     #[error("Malformed operation data")]
     MalformedData,
     #[error("Rabbitmq client error")]

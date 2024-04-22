@@ -3,8 +3,8 @@ use log::{debug, error, info};
 use photon::photon::ROOT;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
-    hash::Hash, instruction::Instruction, message::Message, pubkey::Pubkey,
-    transaction::Transaction,
+    compute_budget::ComputeBudgetInstruction, hash::Hash, instruction::Instruction,
+    message::Message, pubkey::Pubkey, transaction::Transaction,
 };
 use tokio::{
     select,
@@ -116,7 +116,7 @@ impl ExecOpTxBuilder {
         let protocol_id = op_data.protocol_id;
         let extension = self.extension_mng.get_extension(&protocol_id).ok_or_else(|| {
             error!("Failed to get extension by protocol_id: {}", protocol_id);
-            ExecutorError::Extensions
+            ExecutorError::ExtensionMng
         })?;
 
         let (op_info_pda, _bump) =
@@ -125,6 +125,7 @@ impl ExecOpTxBuilder {
             Pubkey::find_program_address(&[ROOT, b"PROTOCOL", &protocol_id.0], &photon::ID);
         let (call_authority_pda, _) =
             Pubkey::find_program_address(&[ROOT, b"CALL_AUTHORITY", &protocol_id.0], &photon::ID);
+
         let mut accounts = photon::accounts::ExecuteOperation {
             executor: self.payer,
             op_info: op_info_pda,
@@ -138,7 +139,9 @@ impl ExecOpTxBuilder {
             error!("Failed to process function_selector due to its size");
             return Err(ExecutorError::MalformedData);
         }
-        let extension_accounts = extension.get_accounts(&function_selector[2..], &op_data.params);
+        let extension_accounts = extension
+            .get_accounts(&function_selector[2..], &op_data.params)
+            .map_err(ExecutorError::from)?;
         accounts.extend(extension_accounts);
 
         let exec_op_data = photon::instruction::ExecuteOperation {
@@ -146,8 +149,15 @@ impl ExecOpTxBuilder {
         }
         .data();
 
-        let instruction = Instruction::new_with_bytes(photon::id(), &exec_op_data, accounts);
-        let message = Message::new(&[instruction], Some(&self.payer));
+        let mut instructons = vec![];
+
+        if let Some(compute_budget) =
+            extension.get_compute_budget(&function_selector[2..], &op_data.params)
+        {
+            instructons.push(ComputeBudgetInstruction::set_compute_unit_limit(compute_budget))
+        };
+        instructons.push(Instruction::new_with_bytes(photon::id(), &exec_op_data, accounts));
+        let message = Message::new(&instructons, Some(&self.payer));
         let mut transaction = Transaction::new_unsigned(message);
 
         extension
@@ -157,10 +167,7 @@ impl ExecOpTxBuilder {
                 &mut transaction,
                 &blockhash,
             )
-            .map_err(|err| {
-                error!("Failed to sign transaction by extension: {}, error: {}", protocol_id, err);
-                ExecutorError::Extensions
-            })?;
+            .map_err(ExecutorError::from)?;
 
         Ok(TransactionSet {
             op_hash,

@@ -1,4 +1,5 @@
 #![feature(extend_one)]
+#![feature(slice_first_last_chunk)]
 
 pub mod interface;
 pub mod signature;
@@ -7,10 +8,11 @@ pub mod util;
 mod gov;
 
 use anchor_lang::prelude::*;
+use ethabi::{ParamType, Token};
 use signature::{KeeperSignature, OperationData};
 use util::{gov_protocol_id, EthAddress, OpStatus};
 
-declare_id!("3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ");
+declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
 
 #[program]
 pub mod photon {
@@ -20,13 +22,15 @@ pub mod photon {
     pub const MAX_KEEPERS: usize = 20;
     pub const MAX_EXECUTORS: usize = 20;
     pub const MAX_PROPOSERS: usize = 20;
-    use self::{gov::handle_gov_operation, signature::ecrecover};
-    use super::*;
-    use crate::{
+
+    use self::{
+        gov::handle_gov_operation,
         interface::{PhotonMsg, PhotonMsgWithSelector},
-        signature::FunctionSelector,
+        signature::{ecrecover, FunctionSelector},
         util::sighash,
     };
+    use super::*;
+
     use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
 
     pub fn initialize(
@@ -95,9 +99,9 @@ pub mod photon {
             .into_iter()
             .filter(|x| x != &EthAddress::default())
             .collect();
-        let mut consensus_reached = ((unique_signers.len() as u64) * RATE_DECIMALS)
-            / (allowed_keepers.len() as u64)
-            >= ctx.accounts.protocol_info.consensus_target_rate;
+        let consensus =
+            ((unique_signers.len() as u64) * RATE_DECIMALS) / (allowed_keepers.len() as u64);
+        let mut consensus_reached = consensus >= ctx.accounts.protocol_info.consensus_target_rate;
         if consensus_reached {
             return Ok(true);
         }
@@ -129,12 +133,8 @@ pub mod photon {
         ctx: Context<'_, '_, '_, 'info, ExecuteOperation<'info>>,
         op_hash: Vec<u8>,
     ) -> Result<()> {
-        let _ = op_hash;
         let op_data = &ctx.accounts.op_info.op_data;
-        require!(
-            op_data.protocol_id != gov_protocol_id() && op_data.protocol_addr != photon::ID,
-            CustomError::InvalidEndpoint
-        );
+
         // The first account in remaining_accounts should be protocol address, which is added first in account list
         let mut accounts: Vec<_> = ctx.remaining_accounts.first().into_iter().cloned().collect();
         require!(
@@ -147,6 +147,8 @@ pub mod photon {
         let mut call_authority = ctx.accounts.call_authority.to_account_info().clone();
         call_authority.is_signer = true;
         accounts.push(call_authority);
+        let op_info = ctx.accounts.op_info.to_account_info().clone();
+        accounts.push(op_info);
         // And then the other accounts for protocol instruction
         if ctx.remaining_accounts.len() > 1 {
             accounts.extend_from_slice(&ctx.remaining_accounts[1..]);
@@ -158,13 +160,10 @@ pub mod photon {
             .collect();
 
         let (method, payload) = match &op_data.function_selector {
-            FunctionSelector::ByCode(code) => {
+            FunctionSelector::ByCode(selector) => {
                 let payload = PhotonMsgWithSelector {
-                    protocol_id: op_data.protocol_id.clone(),
-                    src_chain_id: op_data.src_chain_id,
-                    src_block_number: op_data.src_block_number,
-                    src_op_tx_id: op_data.src_op_tx_id.clone(),
-                    function_selector: code.clone(),
+                    op_hash: op_hash.clone(),
+                    selector: selector.clone(),
                     params: op_data.params.clone(),
                 };
                 (
@@ -174,10 +173,6 @@ pub mod photon {
             }
             FunctionSelector::ByName(name) => {
                 let payload = PhotonMsg {
-                    protocol_id: op_data.protocol_id.clone(),
-                    src_chain_id: op_data.src_chain_id,
-                    src_block_number: op_data.src_block_number,
-                    src_op_tx_id: op_data.src_op_tx_id.clone(),
                     params: op_data.params.clone(),
                 };
                 (name.clone(), payload.try_to_vec().expect("fixed struct serialization"))
@@ -199,31 +194,13 @@ pub mod photon {
         )
         .map_err(|e| format!("{}", e))
         .err();
+
+        ctx.accounts.op_info.status = OpStatus::Executed;
+
         emit!(ProposalExecuted {
             op_hash,
             err,
             executor: ctx.accounts.executor.key()
-        });
-        Ok(())
-    }
-
-    pub fn execute_gov_operation(
-        ctx: Context<ExecuteGovOperation>,
-        op_hash: Vec<u8>,
-        target_protocol: Vec<u8>,
-    ) -> Result<()> {
-        let op_data = ctx.accounts.op_info.op_data.clone();
-        require!(
-            op_data.protocol_id == gov_protocol_id() && op_data.protocol_addr == photon::ID,
-            CustomError::InvalidEndpoint
-        );
-        let executor = ctx.accounts.executor.key();
-        let err =
-            handle_gov_operation(ctx, op_data, target_protocol).map_err(|e| format!("{}", e)).err();
-        emit!(ProposalExecuted {
-            op_hash,
-            err,
-            executor
         });
         Ok(())
     }
@@ -250,6 +227,36 @@ pub mod photon {
         });
         Ok(())
     }
+
+    pub fn receive_photon_msg(
+        ctx: Context<ReceivePhotonMsg>,
+        op_hash: Vec<u8>,
+        code: Vec<u8>,
+        _params: Vec<u8>,
+    ) -> Result<()> {
+        let op_data = &ctx.accounts.op_info.op_data;
+        require!(
+            op_data.protocol_id == gov_protocol_id() && op_data.protocol_addr == ID,
+            CustomError::InvalidEndpoint
+        );
+        let executor = ctx.accounts.executor.key();
+        let err = handle_gov_operation(
+            &mut ctx.accounts.config,
+            &mut ctx.accounts.target_protocol_info,
+            code,
+            op_data,
+        )
+        .map_err(|e| format!("{}", e))
+        .err();
+
+        emit!(ProposalExecuted {
+            op_hash,
+            err,
+            executor
+        });
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -263,7 +270,7 @@ pub struct Initialize<'info> {
         init_if_needed,
         payer = admin,
         space = ProtocolInfo::LEN,
-        seeds = [ROOT, b"PROTOCOL", &gov_protocol_id()],
+        seeds = [ROOT, b"PROTOCOL", gov_protocol_id()],
         bump
     )]
     protocol_info: Box<Account<'info, ProtocolInfo>>,
@@ -378,51 +385,6 @@ pub struct ExecuteOperation<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(op_hash: Vec<u8>, target_protocol: Vec<u8>)]
-pub struct ExecuteGovOperation<'info> {
-    /// Executor account
-    #[account(
-        signer,
-        mut,
-        constraint = gov_info.executors.contains(&executor.key()) @ CustomError::ExecutorIsNotAllowed
-    )]
-    executor: Signer<'info>,
-
-    /// System config
-    #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
-    config: Box<Account<'info, Config>>,
-
-    /// Operation info
-    #[account(
-        mut,
-        seeds = [ROOT, b"OP", &op_hash],
-        bump,
-        constraint = op_info.status == OpStatus::Signed @ CustomError::OpStateInvalid
-    )]
-    op_info: Box<Account<'info, OpInfo>>,
-
-    /// Gov protocol info
-    #[account(
-        seeds = [ROOT, b"PROTOCOL", &gov_protocol_id()],
-        bump
-    )]
-    gov_info: Box<Account<'info, ProtocolInfo>>,
-
-    /// Target protocol info
-    #[account(
-        init_if_needed,
-        space = ProtocolInfo::LEN,
-        payer = executor,
-        seeds = [ROOT, b"PROTOCOL", &target_protocol],
-        bump
-    )]
-    protocol_info: Box<Account<'info, ProtocolInfo>>,
-
-    /// System program
-    system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
 #[instruction(protocol_id: Vec<u8>)]
 pub struct Propose<'info> {
     /// Proposer account
@@ -442,6 +404,66 @@ pub struct Propose<'info> {
         bump
     )]
     protocol_info: Box<Account<'info, ProtocolInfo>>,
+}
+
+#[derive(Accounts)]
+#[instruction(op_hash: Vec<u8>, code: Vec<u8>, params: Vec<u8>)]
+pub struct ReceivePhotonMsg<'info> {
+    /// Executor account
+    #[account(
+        signer,
+        mut,
+        constraint = gov_info.executors.contains(&executor.key()) @ CustomError::ExecutorIsNotAllowed
+    )]
+    executor: Signer<'info>,
+
+    /// Call authority
+    #[account(signer)]
+    call_authority: Signer<'info>,
+
+    /// Operation info
+    #[account(
+        seeds = [ROOT, b"OP", &op_hash],
+        bump,
+        constraint = op_info.status == OpStatus::Signed @ CustomError::OpStateInvalid
+    )]
+    op_info: Box<Account<'info, OpInfo>>,
+
+    /// System config
+    #[account(init_if_needed, space = Config::LEN, payer = executor, seeds = [ROOT, b"CONFIG"], bump)]
+    config: Box<Account<'info, Config>>,
+
+    /// Gov protocol info
+    #[account(
+        seeds = [ROOT, b"PROTOCOL", gov_protocol_id()],
+        bump
+    )]
+    gov_info: Box<Account<'info, ProtocolInfo>>,
+
+    /// Target protocol info
+    #[account(
+        init_if_needed,
+        space = ProtocolInfo::LEN,
+        payer = executor,
+        seeds = [ROOT, b"PROTOCOL", &target_protocol(&op_info.op_data.params)],
+        bump
+    )]
+    target_protocol_info: Box<Account<'info, ProtocolInfo>>,
+
+    /// System program
+    system_program: Program<'info, System>,
+}
+
+pub fn protocol_params(params: &[u8]) -> std::result::Result<Vec<Token>, ethabi::Error> {
+    ethabi::decode(&[ParamType::FixedBytes(32)], params)
+}
+
+fn target_protocol(params: &[u8]) -> Vec<u8> {
+    let add_protocol_params = protocol_params(params).expect("Expected eth params be extracted");
+    add_protocol_params[0]
+        .clone()
+        .into_fixed_bytes()
+        .expect("Expected first param be available as fixed bytes")
 }
 
 #[account]

@@ -8,10 +8,10 @@ extern crate onefunc;
 extern crate photon;
 
 use config::{Config, File};
-use ethabi::{Token, Uint};
+use ethabi::{ethereum_types, Address, Token, Uint};
 use libsecp256k1::sign;
-use log::error;
-use rand::{random, RngCore};
+use log::{error, info};
+use rand::{distributions::Alphanumeric, random, Rng, RngCore};
 use serde::Deserialize;
 use std::{env, time::Duration};
 use thiserror::Error;
@@ -19,6 +19,7 @@ use thiserror::Error;
 use transmitter_common::data::{Meta, OperationData, ProtocolId};
 
 use cli::Operation;
+use photon::util::GOV_PROTOCOL_ID;
 use rabbitmq_publisher::{RabbitmqConfig, RabbitmqPublisher};
 use util::predefined_signers;
 
@@ -54,6 +55,9 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
     let protocol_id = ProtocolId(
         *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
     );
+    let gov_protocol_id =
+        ProtocolId(*GOV_PROTOCOL_ID.first_chunk().expect("Expected GOV_PROTOCOL_ID be set"));
+
     let dst_chain_id = photon::photon::SOLANA_CHAIN_ID;
     let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
     let meta: Meta =
@@ -114,6 +118,36 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     function_selector: code_function_selector,
                     params: <Vec<u8>>::default(),
                     reserved: <Vec<u8>>::default(),
+                }
+            }
+            Operation::AddProtocol => {
+                let new_program_id: String = rand::thread_rng()
+                    .sample_iter(&Alphanumeric)
+                    .take(32)
+                    .map(char::from)
+                    .collect();
+                info!("new_program_id: {}", new_program_id);
+                let params = ethabi::encode(&[
+                    Token::FixedBytes(new_program_id.as_bytes().to_vec()), // protocolId
+                    Token::Uint(ethereum_types::U256::from(60000u32)),     // consensusTargetRate
+                    Token::Array(vec![Token::Address(Address::random())]),
+                ]);
+
+                OperationData {
+                    protocol_id: gov_protocol_id,
+                    meta,
+                    src_block_number: 1,
+                    src_chain_id: 33133,
+                    dest_chain_id: dst_chain_id,
+                    nonce,
+                    protocol_addr: photon::ID.to_bytes().to_vec(),
+                    src_op_tx_id: tx_id.to_vec(),
+                    function_selector: vec![
+                        0, 32, 0x45, 0xa0, 0x04, 0xb9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ],
+                    params,
+                    reserved: vec![],
                 }
             }
         };

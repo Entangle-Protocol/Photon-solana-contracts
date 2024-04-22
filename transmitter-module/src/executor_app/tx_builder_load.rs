@@ -73,6 +73,16 @@ impl LoadOpTxBuilder {
             system_program: anchor_lang::system_program::ID,
         }
         .to_account_metas(None);
+        let protocol_id = String::from_utf8(op_data.protocol_id.0.to_vec()).map_err(|err| {
+            error!("Failed to get protocol id utf8: {}", err);
+            ExecutorError::MalformedData
+        })?;
+
+        debug!(
+            "Build txs for protocol_id: {}, executor: {}, protocol_info: {}, op_info: {}, config: {}",
+            protocol_id, self.payer, protocol_info_pda, op_info_pda, config_pda
+        );
+
         let photon_op_data =
             photon::signature::OperationData::try_from(op_data).map_err(|err| {
                 error!("Failed to get op_data from op_data_message: {}", hex::encode(err));
@@ -88,7 +98,7 @@ impl LoadOpTxBuilder {
         let instruction = Instruction::new_with_bytes(photon::id(), &load_op_data, accounts);
         let message = Message::new(&[instruction], Some(&self.payer));
         let transaction = Transaction::new_unsigned(message);
-
+        debug!("load_tx transaction: {:?}", transaction);
         Ok(TransactionSet {
             op_hash,
             txs: vec![transaction],

@@ -4,6 +4,7 @@
 
 pub mod config;
 pub mod data;
+pub mod error;
 pub mod mongodb;
 pub mod protocol_extension;
 pub mod rabbitmq_client;

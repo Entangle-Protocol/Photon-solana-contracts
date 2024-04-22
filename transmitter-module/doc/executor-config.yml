@@ -1,0 +1,52 @@
+# rabbit AMQP 0.9.1 settings to connect with and establish a channel
+rabbitmq:
+    # The server host
+    host: localhost
+    # The server port. Default: 5672 by [AMQP 0-9-1 spec](https://www.rabbitmq.com/amqp-0-9-1-reference.html).
+    port: 5672
+    # Exchange name
+    exchange: entangle
+    # Routing key
+    routing_key: to_solana
+    # Executor `consumer_tag`
+    consumer_tag: solana
+    # Queue will optionally be created if doesn't exist and will be used to get signed operations from it
+    queue: "signed_operations"
+    # User to connect to rabbitmq and be authorized with, it's recommended to set user as env `ENTANGLE_RABBITMQ_USER` but could also be set right here
+    # user: guest
+    # Password to connect to rabbitmq and be authorized with, it's recommended to set user as env `ENTANGLE_RABBITMQ_PASSWORD` but could also be set right here
+    # password: guest
+    # Reconnect attempts. The count of times executor will try to recover the connection. Default: 20
+    reconnect_attempts: 100
+    # Reconnect Timeout. The time between attempts for the listener to try to reconnect. Default: 500
+    reconnect_timeout_ms: 200
+
+# solana interaction settings
+solana:
+    # Payer is recommended to set payer as env `ENTANGLE_SOLANA_PAYER` but could also be set right here
+    # payer: mRazhLmdFRULW1Z6jHcQ2WR4f9eRmjiLvR7R2Yo4LQfvFj5XiN3bwPt6dSUoQfNWpey5VgJaZZWU3vkQmH9ubsY
+    # Solana web socket address to connect to handle entangle events
+    web_socket_url: http://127.0.0.1:8899
+    # Solana http address to connect to send rpc commands
+    rpc_url: http://127.0.0.1:8899
+
+    # The solana client commitment to not continue processing until the given confirmation level happens
+    # possible values: processed, confirmed, finalized
+    commitment: confirmed
+
+
+# List of executor extensions registered for solana transaction preprocessing
+extensions:
+    - target/release/libonefunc_extension.so
+    - target/release/libgov_extension.so
+
+# mongodb is used to store last_processed_block in a persistent way
+mongodb:
+    # Mongodb uri to connect to
+    uri: mongodb://127.0.0.1:27017
+    # Mongodb user name
+    user: root
+    # Mongodb user password
+    password: rootpassword
+    # Database that is used to get last_processed_block during the retrospective proposal reading
+    db: "entangle"

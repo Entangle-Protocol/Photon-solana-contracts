@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use ethabi::ParamType;
-use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon};
+use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon, OpInfo};
 
 declare_id!("EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ");
 
@@ -36,14 +36,7 @@ pub mod onefunc {
     }
 
     /// Example call by method name
-    pub fn increment(
-        ctx: Context<Increment>,
-        _protocol_id: Vec<u8>,
-        _src_chain_id: u128,
-        _src_block_number: u64,
-        _src_op_tx_id: Vec<u8>,
-        params: Vec<u8>,
-    ) -> Result<()> {
+    pub fn increment(ctx: Context<Increment>, params: Vec<u8>) -> Result<()> {
         let inc_item = decode_increment_item(params);
         ctx.accounts.counter.count += inc_item;
         Ok(())
@@ -51,10 +44,6 @@ pub mod onefunc {
 
     pub fn increment_owned_counter(
         ctx: Context<IncrementOwnedCounter>,
-        _protocol_id: Vec<u8>,
-        _src_chain_id: u128,
-        _src_block_number: u64,
-        _src_op_tx_id: Vec<u8>,
         params: Vec<u8>,
     ) -> Result<()> {
         let inc_item = decode_increment_item(params);
@@ -97,9 +86,10 @@ pub mod onefunc {
 
     pub fn receive_photon_msg(
         _ctx: Context<ReceivePhotonMsg>,
-        msg: PhotonMsgWithSelector,
+        code: Vec<u8>,
+        _params: Vec<u8>,
     ) -> Result<()> {
-        msg!("photon msg receive, code: {:?}", msg);
+        msg!("photon msg receive, code: {:?}", code);
         Ok(())
     }
 }
@@ -138,6 +128,10 @@ pub struct InitOwnedCounter<'info> {
     #[account(signer)]
     call_authority: Signer<'info>,
 
+    /// Operation info
+    #[account()]
+    op_info: Account<'info, OpInfo>,
+
     /// Account that owns and determines which counter to be incremented
     #[account(signer)]
     counter_owner: Signer<'info>,
@@ -166,6 +160,10 @@ pub struct Increment<'info> {
     #[account(signer, constraint = call_authority.key() == counter.call_authority)]
     call_authority: Signer<'info>,
 
+    /// Operation info
+    #[account()]
+    op_info: Account<'info, OpInfo>,
+
     /// Counter
     #[account(
         mut,
@@ -184,6 +182,10 @@ pub struct IncrementOwnedCounter<'info> {
     /// entangle authority account
     #[account(signer)]
     call_authority: Signer<'info>,
+
+    /// Operation info
+    #[account()]
+    op_info: Account<'info, OpInfo>,
 
     /// account that owns and determines which counter to be incremented
     #[account(signer)]

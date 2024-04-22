@@ -32,7 +32,7 @@ impl ExtensionManagerImpl {
         for ref extension_path in extension_paths {
             let lib = Library::new(extension_path).map_err(|err| {
                 error!("Failed to load library from path: {}, error: {}", extension_path, err);
-                ExecutorError::Extensions
+                ExecutorError::ExtensionMng
             })?;
             let get_extension: Symbol<extern "C" fn() -> &'static dyn ProtocolExtension> =
                 lib.get(GET_EXTENSION_EXPORT.as_bytes()).map_err(|err| {
@@ -40,14 +40,14 @@ impl ExtensionManagerImpl {
                         "Failed to get `{}` export from: {}, error: {}",
                         GET_EXTENSION_EXPORT, extension_path, err
                     );
-                    ExecutorError::Extensions
+                    ExecutorError::ExtensionMng
                 })?;
             let extension: &'static dyn ProtocolExtension = get_extension();
             let protocol_id = extension.get_protocol_id();
 
             let Entry::Vacant(entry) = self.extensions.entry(protocol_id) else {
                 error!("Extension with protocol_id exists: {}", ProtocolId(*protocol_id));
-                return Err(ExecutorError::Extensions);
+                return Err(ExecutorError::ExtensionMng);
             };
 
             entry.insert(extension);
