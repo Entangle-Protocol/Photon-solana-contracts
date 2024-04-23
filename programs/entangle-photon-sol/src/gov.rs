@@ -6,8 +6,8 @@ use crate::{
     gov_protocol_id, require_ok,
     signature::{FunctionSelector, OperationData},
     util::EthAddress,
-    Config, CustomError, ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_KEEPERS, MAX_PROPOSERS,
-    SOLANA_CHAIN_ID,
+    Config, CustomError, ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_PROPOSERS,
+    MAX_TRANSMITTERS, SOLANA_CHAIN_ID,
 };
 
 #[derive(TryFromPrimitive)]
@@ -89,7 +89,7 @@ fn add_allowed_protocol(
     )?;
 
     let consensus_target_rate = params[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
-    let keepers: Vec<ethabi::Address> = params[2]
+    let transmitters: Vec<ethabi::Address> = params[2]
         .clone()
         .into_array()
         .ok_or(CustomError::InvalidGovMsg)?
@@ -98,8 +98,8 @@ fn add_allowed_protocol(
         .collect();
     target_protocol_info.is_init = true;
     target_protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
-    for (i, k) in keepers.into_iter().enumerate() {
-        target_protocol_info.keepers[i] = k.into();
+    for (i, k) in transmitters.into_iter().enumerate() {
+        target_protocol_info.transmitters[i] = k.into();
     }
     // Propose handleAddAllowedProtocol
     let nonce = config.nonce;
@@ -274,11 +274,11 @@ fn add_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> 
         calldata,
         ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // keepers
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
     )?;
 
-    let keepers: Vec<EthAddress> = params[1]
+    let transmitters: Vec<EthAddress> = params[1]
         .clone()
         .into_array()
         .ok_or(CustomError::InvalidGovMsg)?
@@ -286,17 +286,17 @@ fn add_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> 
         .filter_map(|x| x.into_address().map(|x| x.to_fixed_bytes()))
         .filter(|x| x != &EthAddress::default())
         .collect();
-    require!(!keepers.is_empty(), CustomError::NoKeepersAllowed);
-    let mut total_keepers = target_protocol_info.keepers();
-    total_keepers.extend_from_slice(&keepers);
-    total_keepers.dedup();
-    if total_keepers.len() <= MAX_KEEPERS {
-        target_protocol_info.keepers = Default::default();
-        for (i, k) in total_keepers.into_iter().enumerate() {
-            target_protocol_info.keepers[i] = k;
+    require!(!transmitters.is_empty(), CustomError::NoTransmittersAllowed);
+    let mut total_transmitters = target_protocol_info.transmitters();
+    total_transmitters.extend_from_slice(&transmitters);
+    total_transmitters.dedup();
+    if total_transmitters.len() <= MAX_TRANSMITTERS {
+        target_protocol_info.transmitters = Default::default();
+        for (i, k) in total_transmitters.into_iter().enumerate() {
+            target_protocol_info.transmitters[i] = k;
         }
     } else {
-        return Err(CustomError::MaxKeepersExceeded.into());
+        return Err(CustomError::MaxTransmittersExceeded.into());
     }
     Ok(())
 }
@@ -306,22 +306,25 @@ fn remove_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) 
         calldata,
         ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // keepers
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
     )?;
-    let keepers: std::result::Result<Vec<EthAddress>, CustomError> = params[1]
+    let transmitters: std::result::Result<Vec<EthAddress>, CustomError> = params[1]
         .clone()
         .into_array()
         .ok_or(CustomError::InvalidGovMsg)?
         .into_iter()
         .map(|x| x.into_address().map(|x| x.to_fixed_bytes()).ok_or(CustomError::InvalidGovMsg))
         .collect();
-    let to_remove = keepers?;
-    let total_keepers: Vec<_> =
-        target_protocol_info.keepers().into_iter().filter(|x| !to_remove.contains(x)).collect();
-    target_protocol_info.keepers = Default::default();
-    for (i, k) in total_keepers.into_iter().enumerate() {
-        target_protocol_info.keepers[i] = k;
+    let to_remove = transmitters?;
+    let total_transmitters: Vec<_> = target_protocol_info
+        .transmitters()
+        .into_iter()
+        .filter(|x| !to_remove.contains(x))
+        .collect();
+    target_protocol_info.transmitters = Default::default();
+    for (i, k) in total_transmitters.into_iter().enumerate() {
+        target_protocol_info.transmitters[i] = k;
     }
     Ok(())
 }
@@ -417,11 +420,11 @@ pub fn abi_decode_scheme(gov_operation: GovOperation) -> ParamType {
         ]),
         GovOperation::AddTransmitter => ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // keepers
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
         GovOperation::RemoveTransmitter => ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // keepers
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
         GovOperation::SetConsensusTargetRate => ParamType::Tuple(vec![
             ParamType::FixedBytes(32), // protocolId

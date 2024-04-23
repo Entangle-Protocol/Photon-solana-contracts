@@ -97,13 +97,13 @@ export function opHashFull(opData: AnchorOpData): Buffer {
   return Buffer.from(hexToBytes(_opHashFull(convertOpData(opData))));
 }
 
-export async function signOp(keeper: Wallet, op: AnchorOpData) {
+export async function signOp(transmitter: Wallet, op: AnchorOpData) {
   const msgHash = ethers.utils.arrayify(opHash(convertOpData(op)));
-  const sign = ethers.utils.splitSignature(await keeper.signMessage(msgHash));
+  const sign = ethers.utils.splitSignature(await transmitter.signMessage(msgHash));
   const v = sign.v;
   const r = hexToBytes(sign.r);
   const s = hexToBytes(sign.s);
-  expect(keeper.address).eq(ethers.utils.verifyMessage(msgHash, sign));
+  expect(transmitter.address).eq(ethers.utils.verifyMessage(msgHash, sign));
   return { v, r, s };
 }
 
@@ -120,7 +120,7 @@ export function predefinedSigners(amount: number): Wallet[] {
   assert(amount <= 3, "Unexpected number of signers");
   for (let i = 1; i <= amount; i++) {
     let signer = new Wallet(
-      readFileSync("tests/accounts/keeper_" + i, "utf-8"),
+      readFileSync("tests/accounts/transmitter_" + i, "utf-8"),
     );
     signers.push(signer);
   }
@@ -139,7 +139,7 @@ export function sleep(ms) {
 
 export function addAllowedProtocol(
   protocolId: Buffer,
-  keepersRaw: number[][],
+  transmittersRaw: number[][],
   consensusTargetRate: number,
 ): Buffer {
   return hexToBytes(
@@ -148,7 +148,7 @@ export function addAllowedProtocol(
       [[
         protocolId,
         consensusTargetRate,
-        keepersRaw.map((x) => Buffer.from(x).toString("hex")),
+        transmittersRaw.map((x) => Buffer.from(x).toString("hex")),
       ]],
     ),
   );

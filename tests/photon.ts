@@ -25,10 +25,10 @@ const ROOT = utf8.encode("root-0");
 const EOB_CHAIN_ID = 33133;
 const SOLANA_CHAIN_ID = "100000000000000000000";
 const CONSENSUS_TARGET_RATE = 6000;
-const KEEPERS = 3;
-const KEEPERS_PER_CALL = 4;
+const TRANSMITTERS = 3;
+const TRANSMITTERS_PER_CALL = 4;
 const GOV_PROTOCOL_ID = Buffer.from(
-  utf8.encode("gov-protocol\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
+  utf8.encode("photon-gov\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 );
 const ONE_FUNC_ID = Buffer.from(
   utf8.encode("onefunc_________________________"),
@@ -53,8 +53,8 @@ describe("photon", () => {
   let proposer;
   let callAuthority;
   let govCallAuthority;
-  let keepers: Wallet[];
-  let keepersRaw = [];
+  let transmitters: Wallet[];
+  let transmittersRaw = [];
   let nonce = 0;
   let onefuncProtocol;
 
@@ -79,10 +79,10 @@ describe("photon", () => {
       program.programId,
     )[0];
     console.log("Executor", executor.publicKey.toBase58());
-    keepers = predefinedSigners(KEEPERS);
-    for (var i = 0; i < keepers.length; i++) {
-      console.log("Keeper", i, keepers[i].address);
-      keepersRaw.push(hexToBytes(keepers[i].address));
+    transmitters = predefinedSigners(TRANSMITTERS);
+    for (var i = 0; i < transmitters.length; i++) {
+      console.log("Transmitter", i, transmitters[i].address);
+      transmittersRaw.push(hexToBytes(transmitters[i].address));
     }
     callAuthority = web3.PublicKey.findProgramAddressSync(
       [ROOT, utf8.encode("CALL_AUTHORITY"), ONE_FUNC_ID],
@@ -167,11 +167,11 @@ describe("photon", () => {
       .rpc();
     console.log("load_operation:", signature);
     // Sign
-    const chunkSize = KEEPERS_PER_CALL;
+    const chunkSize = TRANSMITTERS_PER_CALL;
     // console.debug("load_operation:", signature);
     let signatures = [];
-    for (let i = 0; i < keepers.length; i++) {
-      const sig = await signOp(keepers[i], op);
+    for (let i = 0; i < transmitters.length; i++) {
+      const sig = await signOp(transmitters[i], op);
       signatures.push(sig);
     }
     for (let i = 0; i < signatures.length; i += chunkSize) {
@@ -246,7 +246,7 @@ describe("photon", () => {
         new anchor.BN(EOB_CHAIN_ID),
         Buffer.alloc(32, 0),
         new anchor.BN(CONSENSUS_TARGET_RATE),
-        [keepersRaw[0]],
+        [transmittersRaw[0]],
         [executor.publicKey],
       )
       .accounts({
@@ -257,9 +257,9 @@ describe("photon", () => {
       })
       .signers([owner])
       .rpc();
-    const chunkSize = KEEPERS_PER_CALL;
-    for (let i = 1; i < keepersRaw.length; i += chunkSize) {
-      const chunk = keepersRaw.slice(i, i + chunkSize);
+    const chunkSize = TRANSMITTERS_PER_CALL;
+    for (let i = 1; i < transmittersRaw.length; i += chunkSize) {
+      const chunk = transmittersRaw.slice(i, i + chunkSize);
       const params = addTransmitter(GOV_PROTOCOL_ID, chunk);
       await executeOperation(
         GOV_PROTOCOL_ID,
@@ -384,14 +384,14 @@ describe("photon", () => {
     );
   });
 
-  it("addKeepers", async () => {
+  it("addTransmitters", async () => {
     if (TEST_REMOVE_FUNCS) {
-      let keepers2 = randomSigners(3);
-      let keepersRaw2 = [];
-      for (var i = 0; i < keepers2.length; i++) {
-        keepersRaw2.push(hexToBytes(keepers2[i].address));
+      let transmitters2 = randomSigners(3);
+      let transmittersRaw2 = [];
+      for (var i = 0; i < transmitters2.length; i++) {
+        transmittersRaw2.push(hexToBytes(transmitters2[i].address));
       }
-      let params = addTransmitter(ONE_FUNC_ID, keepersRaw2);
+      let params = addTransmitter(ONE_FUNC_ID, transmittersRaw2);
       await executeOperation(
         GOV_PROTOCOL_ID,
         program.programId,
@@ -407,9 +407,9 @@ describe("photon", () => {
         ONE_FUNC_ID,
       );
     }
-    const chunkSize = KEEPERS_PER_CALL;
-    for (let i = 0; i < keepersRaw.length; i += chunkSize) {
-      const chunk = keepersRaw.slice(i, i + chunkSize);
+    const chunkSize = TRANSMITTERS_PER_CALL;
+    for (let i = 0; i < transmittersRaw.length; i += chunkSize) {
+      const chunk = transmittersRaw.slice(i, i + chunkSize);
       let params = addTransmitter(ONE_FUNC_ID, chunk);
       await executeOperation(
         GOV_PROTOCOL_ID,

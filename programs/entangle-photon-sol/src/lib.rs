@@ -18,7 +18,7 @@ pub mod photon {
     pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
     pub const RATE_DECIMALS: u64 = 10000;
     pub const ROOT: &[u8] = b"root-0";
-    pub const MAX_KEEPERS: usize = 20;
+    pub const MAX_TRANSMITTERS: usize = 20;
     pub const MAX_EXECUTORS: usize = 20;
     pub const MAX_PROPOSERS: usize = 20;
 
@@ -37,7 +37,7 @@ pub mod photon {
         eob_chain_id: u64,
         eob_master_smart_contract: Vec<u8>,
         consensus_target_rate: u64,
-        gov_keepers: Vec<EthAddress>,
+        gov_transmitters: Vec<EthAddress>,
         gov_executors: Vec<Pubkey>,
     ) -> Result<()> {
         ctx.accounts.config.admin = ctx.accounts.admin.key();
@@ -47,9 +47,9 @@ pub mod photon {
         ctx.accounts.protocol_info.is_init = true;
         ctx.accounts.protocol_info.protocol_address = photon::ID;
         ctx.accounts.protocol_info.consensus_target_rate = consensus_target_rate;
-        ctx.accounts.protocol_info.keepers = Default::default();
-        for (i, k) in gov_keepers.into_iter().enumerate() {
-            ctx.accounts.protocol_info.keepers[i] = k;
+        ctx.accounts.protocol_info.transmitters = Default::default();
+        for (i, k) in gov_transmitters.into_iter().enumerate() {
+            ctx.accounts.protocol_info.transmitters[i] = k;
         }
         ctx.accounts.protocol_info.executors = Default::default();
         for (i, e) in gov_executors.into_iter().enumerate() {
@@ -89,8 +89,8 @@ pub mod photon {
         op_hash: Vec<u8>,
         signatures: Vec<TransmitterSignature>,
     ) -> Result<bool> {
-        let allowed_keepers = &ctx.accounts.protocol_info.keepers();
-        require_gt!(allowed_keepers.len(), 0, CustomError::NoKeepersAllowed);
+        let allowed_transmitters = &ctx.accounts.protocol_info.transmitters();
+        require_gt!(allowed_transmitters.len(), 0, CustomError::NoTransmittersAllowed);
         let mut unique_signers: Vec<EthAddress> = ctx
             .accounts
             .op_info
@@ -99,17 +99,18 @@ pub mod photon {
             .filter(|x| x != &EthAddress::default())
             .collect();
         let consensus =
-            ((unique_signers.len() as u64) * RATE_DECIMALS) / (allowed_keepers.len() as u64);
+            ((unique_signers.len() as u64) * RATE_DECIMALS) / (allowed_transmitters.len() as u64);
         let mut consensus_reached = consensus >= ctx.accounts.protocol_info.consensus_target_rate;
         if consensus_reached {
             return Ok(true);
         }
         for sig in signatures {
-            let keeper = ecrecover(&op_hash, &sig)?;
-            if allowed_keepers.contains(&keeper) && !unique_signers.contains(&keeper) {
-                unique_signers.push(keeper);
+            let transmitter = ecrecover(&op_hash, &sig)?;
+            if allowed_transmitters.contains(&transmitter) && !unique_signers.contains(&transmitter)
+            {
+                unique_signers.push(transmitter);
                 let consensus_rate = ((unique_signers.len() as u64) * RATE_DECIMALS)
-                    / (allowed_keepers.len() as u64);
+                    / (allowed_transmitters.len() as u64);
                 if consensus_rate >= ctx.accounts.protocol_info.consensus_target_rate {
                     consensus_reached = true;
                     ctx.accounts.op_info.status = OpStatus::Signed;
@@ -472,17 +473,17 @@ pub struct ProtocolInfo {
     is_init: bool,
     consensus_target_rate: u64,
     protocol_address: Pubkey,
-    keepers: Box<[EthAddress; 20]>, // cannot use const with anchor
+    transmitters: Box<[EthAddress; 20]>, // cannot use const with anchor
     executors: Box<[Pubkey; 20]>,
     proposers: Box<[Pubkey; 20]>,
 }
 
 impl ProtocolInfo {
     pub const LEN: usize =
-        8 + 1 + 8 + 32 + (20 * MAX_KEEPERS) + (32 * MAX_EXECUTORS) + (32 * MAX_PROPOSERS);
+        8 + 1 + 8 + 32 + (20 * MAX_TRANSMITTERS) + (32 * MAX_EXECUTORS) + (32 * MAX_PROPOSERS);
 
-    pub fn keepers(&self) -> Vec<EthAddress> {
-        self.keepers.into_iter().take_while(|k| k != &EthAddress::default()).collect()
+    pub fn transmitters(&self) -> Vec<EthAddress> {
+        self.transmitters.into_iter().take_while(|k| k != &EthAddress::default()).collect()
     }
 
     pub fn executors(&self) -> Vec<Pubkey> {
@@ -576,10 +577,10 @@ pub enum CustomError {
     InvalidAddress,
     #[msg("ProtocolAddressNotProvided")]
     ProtocolAddressNotProvided,
-    #[msg("NoKeepersAllowed")]
-    NoKeepersAllowed,
-    #[msg("MaxKeepersExceeded")]
-    MaxKeepersExceeded,
+    #[msg("NoTransmittersAllowed")]
+    NoTransmittersAllowed,
+    #[msg("MaxTransmittersExceeded")]
+    MaxTransmittersExceeded,
     #[msg("MaxExecutorsExceeded")]
     MaxExecutorsExceeded,
     #[msg("MaxProposersExceeded")]

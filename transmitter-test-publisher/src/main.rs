@@ -10,7 +10,7 @@ extern crate photon;
 use config::{Config, File};
 use ethabi::{ethereum_types, Address, Token, Uint};
 use libsecp256k1::sign;
-use log::{debug, error, info};
+use log::{error, info};
 use rand::{distributions::Alphanumeric, random, Rng, RngCore};
 use serde::Deserialize;
 use std::{env, time::Duration};
@@ -153,7 +153,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
             }
         };
         let predefined_signers = predefined_signers(3);
-        let keepers = predefined_signers
+        let transmitters = predefined_signers
             .iter()
             .map(|wallet| {
                 let op_hash = op_data.op_hash_with_message();
@@ -171,7 +171,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 
         let eob_block_number: u64 = random();
         publisher
-            .publish_operation_data(op_data.clone(), keepers, eob_block_number)
+            .publish_operation_data(op_data.clone(), transmitters, eob_block_number)
             .await
             .expect("Expected signed op_data be published");
     }
@@ -182,7 +182,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 #[cfg(test)]
 mod test {
     use super::OperationData;
-    use crate::util::{predefined_signers, KeeperSignature};
+    use crate::util::{predefined_signers, TransmitterSignature};
     use libsecp256k1::{sign, PublicKey};
     use rand::RngCore;
     use solana_program::secp256k1_recover::{secp256k1_recover, Secp256k1Pubkey};
@@ -191,27 +191,27 @@ mod test {
     #[test]
     fn test_signature() {
         env_logger::init();
-        let keepers = predefined_signers(3);
+        let transmitters = predefined_signers(3);
 
-        let public_key = PublicKey::from_secret_key(&keepers[0].0);
+        let public_key = PublicKey::from_secret_key(&transmitters[0].0);
 
         const TEST_OP_HASH: &str =
             "c9382d122da415500ff93d62be8ea03b68d564beeaba159004cd2c62f48c5e17";
         let op_hash = hex::decode(TEST_OP_HASH).expect("Expected op_hash be decoded");
         let message =
             libsecp256k1::Message::parse_slice(&op_hash).expect("Expected secp256k1 be built");
-        let (sig, recover_id) = sign(&message, &keepers[0].0);
+        let (sig, recover_id) = sign(&message, &transmitters[0].0);
         let serialized_sig = sig.serialize();
-        let keeper_signature = KeeperSignature {
+        let transmitter_signature = TransmitterSignature {
             r: serialized_sig[..32].to_vec(),
             s: serialized_sig[32..].to_vec(),
             v: recover_id.serialize(),
         };
-        let ecrecover_recovered_pubkey = ecrecover(&op_hash, &keeper_signature);
+        let ecrecover_recovered_pubkey = ecrecover(&op_hash, &transmitter_signature);
         assert_eq!(&ecrecover_recovered_pubkey.0, &public_key.serialize()[1..]);
     }
 
-    pub(crate) fn ecrecover(op_hash: &[u8], sig: &KeeperSignature) -> Secp256k1Pubkey {
+    pub(crate) fn ecrecover(op_hash: &[u8], sig: &TransmitterSignature) -> Secp256k1Pubkey {
         let signature = [&sig.r[..], &sig.s[..]].concat();
         let v = sig.v % 27;
         assert_eq!(signature.len(), 64);
