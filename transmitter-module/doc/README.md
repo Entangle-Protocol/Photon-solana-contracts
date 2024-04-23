@@ -1,7 +1,7 @@
 # Test
 
 The following instructions describe how to create a test environment to verify that the photon messaging events
-are captured and passed on to the keeper base module
+are captured and passed on to the transmitter base module
 
 ## Build
 
@@ -11,7 +11,7 @@ are captured and passed on to the keeper base module
 anchor build
 ```
 
-### Build solana-keeper-module
+### Build solana-transmitter-module
 
 ```
 cargo build --bin transmitter_module
@@ -48,10 +48,10 @@ or if rabbitmq container has been initialized before
 docker start rabbitmq 
 ```
 
-### Solana keeper module
+### Solana transmitter module
 
 ```sh
-RUST_LOG=debug ENTANGLE_RABBITMQ_USER=guest ENTANGLE_RABBITMQ_PASSWORD=guest target/release/solana_keeper_module listener --config transmitter-common-module/doc/listener-config.yml
+RUST_LOG=debug ENTANGLE_RABBITMQ_USER=guest ENTANGLE_RABBITMQ_PASSWORD=guest target/release/transmitter-module listener --config transmitter-common-module/doc/listener-config.yml
 ```
 
 ### Run executor

@@ -7,7 +7,9 @@ use async_trait::async_trait;
 use log::{debug, error, info};
 use serde::Deserialize;
 use transmitter_common::{
-    data::{KeeperMsg, OperationData, SignedOperation, TransmitterMsgImpl, TransmitterSignature},
+    data::{
+        OperationData, SignedOperation, TransmitterMsg, TransmitterMsgImpl, TransmitterSignature,
+    },
     rabbitmq_client::{RabbitmqBindingConfig, RabbitmqClient, RabbitmqConnectConfig},
 };
 
@@ -44,7 +46,7 @@ impl RabbitmqPublisher {
             self.config.binding.exchange, self.config.binding.routing_key
         );
 
-        let msg = KeeperMsg::V1(TransmitterMsgImpl::SignedOperationData(SignedOperation {
+        let msg = TransmitterMsg::V1(TransmitterMsgImpl::SignedOperationData(SignedOperation {
             operation_data,
             signatures,
             eob_block_number,

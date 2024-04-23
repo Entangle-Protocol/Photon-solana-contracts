@@ -21,7 +21,7 @@ impl Display for ProtocolId {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "version")]
-pub enum KeeperMsg {
+pub enum TransmitterMsg {
     #[serde(rename = "1.0")]
     V1(TransmitterMsgImpl),
 }
