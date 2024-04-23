@@ -5,11 +5,10 @@ pub mod interface;
 pub mod signature;
 pub mod util;
 
-mod gov;
+pub mod gov;
 
 use anchor_lang::prelude::*;
-use ethabi::{ParamType, Token};
-use signature::{KeeperSignature, OperationData};
+use signature::{OperationData, TransmitterSignature};
 use util::{gov_protocol_id, EthAddress, OpStatus};
 
 declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
@@ -88,7 +87,7 @@ pub mod photon {
     pub fn sign_operation(
         ctx: Context<SignOperation>,
         op_hash: Vec<u8>,
-        signatures: Vec<KeeperSignature>,
+        signatures: Vec<TransmitterSignature>,
     ) -> Result<bool> {
         let allowed_keepers = &ctx.accounts.protocol_info.keepers();
         require_gt!(allowed_keepers.len(), 0, CustomError::NoKeepersAllowed);
@@ -445,25 +444,13 @@ pub struct ReceivePhotonMsg<'info> {
         init_if_needed,
         space = ProtocolInfo::LEN,
         payer = executor,
-        seeds = [ROOT, b"PROTOCOL", &target_protocol(&op_info.op_data.params)],
+        seeds = [ROOT, b"PROTOCOL", &gov::target_protocol(&op_info.op_data.function_selector, &op_info.op_data.params)],
         bump
     )]
     target_protocol_info: Box<Account<'info, ProtocolInfo>>,
 
     /// System program
     system_program: Program<'info, System>,
-}
-
-pub fn protocol_params(params: &[u8]) -> std::result::Result<Vec<Token>, ethabi::Error> {
-    ethabi::decode(&[ParamType::FixedBytes(32)], params)
-}
-
-fn target_protocol(params: &[u8]) -> Vec<u8> {
-    let add_protocol_params = protocol_params(params).expect("Expected eth params be extracted");
-    add_protocol_params[0]
-        .clone()
-        .into_fixed_bytes()
-        .expect("Expected first param be available as fixed bytes")
 }
 
 #[account]

@@ -14,7 +14,7 @@ use tokio::sync::{mpsc::UnboundedSender, Notify};
 
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{KeeperMsg, KeeperMsgImpl, SignedOperation},
+    data::{KeeperMsg, SignedOperation, TransmitterMsgImpl},
     rabbitmq_client::RabbitmqClient,
 };
 
@@ -126,7 +126,7 @@ impl AsyncConsumer for Consumer {
             return;
         };
         let signed_operation = match serde_json::from_str(&data) {
-            Ok(KeeperMsg::V1(KeeperMsgImpl::SignedOperationData(signed_operation))) => {
+            Ok(KeeperMsg::V1(TransmitterMsgImpl::SignedOperationData(signed_operation))) => {
                 signed_operation
             }
             Ok(msg) => {

@@ -23,12 +23,12 @@ impl Display for ProtocolId {
 #[serde(tag = "version")]
 pub enum KeeperMsg {
     #[serde(rename = "1.0")]
-    V1(KeeperMsgImpl),
+    V1(TransmitterMsgImpl),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
-pub enum KeeperMsgImpl {
+pub enum TransmitterMsgImpl {
     Propose(Propose),
     #[serde(rename = "signedOperation")]
     SignedOperationData(SignedOperation),
@@ -39,20 +39,20 @@ pub enum KeeperMsgImpl {
 pub struct SignedOperation {
     #[serde(rename = "operation")]
     pub operation_data: OperationData,
-    pub signatures: Vec<KeeperSignature>,
+    pub signatures: Vec<TransmitterSignature>,
     pub eob_block_number: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct KeeperSignature {
+pub struct TransmitterSignature {
     pub v: u8,
     pub r: Vec<u8>,
     pub s: Vec<u8>,
 }
 
-impl From<KeeperSignature> for photon::signature::KeeperSignature {
-    fn from(value: KeeperSignature) -> Self {
-        photon::signature::KeeperSignature {
+impl From<TransmitterSignature> for photon::signature::TransmitterSignature {
+    fn from(value: TransmitterSignature) -> Self {
+        photon::signature::TransmitterSignature {
             r: value.r,
             s: value.s,
             v: value.v,

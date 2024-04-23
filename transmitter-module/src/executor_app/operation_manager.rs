@@ -12,7 +12,7 @@ use tokio::{
 };
 
 use transmitter_common::data::{
-    KeeperSignature, OpHash, OperationData, ProtocolId, SignedOperation,
+    OpHash, OperationData, ProtocolId, SignedOperation, TransmitterSignature,
 };
 
 use super::{error::ExecutorError, OperationStatus};
@@ -22,7 +22,7 @@ pub(super) struct OperationStateMng {
     op_data_receiver: Mutex<UnboundedReceiver<SignedOperation>>,
     op_status_receiver: Mutex<UnboundedReceiver<OperationStatus>>,
     load_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
-    sign_operation_builder_sender: UnboundedSender<(OpHash, ProtocolId, Vec<KeeperSignature>)>,
+    sign_operation_builder_sender: UnboundedSender<(OpHash, ProtocolId, Vec<TransmitterSignature>)>,
     exec_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
     last_block_sender: UnboundedSender<u64>,
 }
@@ -43,7 +43,11 @@ impl OperationStateMng {
         op_data_receiver: UnboundedReceiver<SignedOperation>,
         status_receiver: UnboundedReceiver<OperationStatus>,
         load_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
-        sign_operation_builder_sender: UnboundedSender<(OpHash, ProtocolId, Vec<KeeperSignature>)>,
+        sign_operation_builder_sender: UnboundedSender<(
+            OpHash,
+            ProtocolId,
+            Vec<TransmitterSignature>,
+        )>,
         exec_operation_builder_sender: UnboundedSender<(OpHash, OperationData)>,
         last_block_sender: UnboundedSender<u64>,
     ) -> OperationStateMng {

@@ -10,7 +10,7 @@ pub type Meta = [u8; 32];
 const MSG: &str = "\x19Ethereum Signed Message:\n32";
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
-pub struct KeeperSignature {
+pub struct TransmitterSignature {
     pub v: u8,
     pub r: Vec<u8>,
     pub s: Vec<u8>,
@@ -118,7 +118,7 @@ pub fn derive_eth_address(public_key: &[u8]) -> EthAddress {
     bytes
 }
 
-pub(crate) fn ecrecover(op_hash: &[u8], sig: &KeeperSignature) -> Result<EthAddress> {
+pub(crate) fn ecrecover(op_hash: &[u8], sig: &TransmitterSignature) -> Result<EthAddress> {
     let signature = [&sig.r[..], &sig.s[..]].concat();
     let v = sig.v % 27;
     require_eq!(signature.len(), 64);

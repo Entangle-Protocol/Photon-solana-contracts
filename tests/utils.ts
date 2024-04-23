@@ -144,12 +144,12 @@ export function addAllowedProtocol(
 ): Buffer {
   return hexToBytes(
     ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "uint", "address[]"],
-      [
+      ["tuple(bytes32, uint, address[])"],
+      [[
         protocolId,
         consensusTargetRate,
         keepersRaw.map((x) => Buffer.from(x).toString("hex")),
-      ],
+      ]],
     ),
   );
 }
@@ -160,8 +160,8 @@ export function addAllowedProtocolAddress(
 ): Buffer {
   return hexToBytes(
     ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "bytes"],
-      [protocolId, protocolAddr.toBuffer()],
+      ["tuple(bytes32, bytes)"],
+      [[protocolId, protocolAddr.toBuffer()]],
     ),
   );
 }
@@ -172,18 +172,19 @@ export function addExecutor(
 ): Buffer {
   return hexToBytes(
     ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "bytes"],
-      [protocolId, executor.toBuffer()],
+      ["tuple(bytes32, bytes)"],
+      [[protocolId, executor.toBuffer()]],
     ),
   );
 }
 
-export function addKeepers(protocolId: Buffer, keepersRaw: number[][]): Buffer {
+export function addTransmitter(protocolId: Buffer, transmitterRaw: number[][]): Buffer {
+  let hex = ethers.utils.defaultAbiCoder.encode(
+    ["tuple(bytes32, address[])"],
+    [[protocolId, transmitterRaw.map((x) => Buffer.from(x).toString("hex"))]],
+  );
   return hexToBytes(
-    ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "address[]"],
-      [protocolId, keepersRaw.map((x) => Buffer.from(x).toString("hex"))],
-    ),
+    hex
   );
 }
 
@@ -191,10 +192,11 @@ export function setConsensusTargetRate(
   protocolId: Buffer,
   targetRate: number,
 ): Buffer {
+  let hex = ethers.utils.defaultAbiCoder.encode(
+    ["tuple(bytes32, uint256)"],
+    [[protocolId, targetRate]],
+  );
   return hexToBytes(
-    ethers.utils.defaultAbiCoder.encode(
-      ["bytes32", "uint256"],
-      [protocolId, targetRate],
-    ),
+    hex
   );
 }

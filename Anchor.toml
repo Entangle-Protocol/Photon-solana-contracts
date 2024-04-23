@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-photon = "3cAFEXstVzff2dXH8PFMgm81h8sQgpdskFGZqqoDgQkJ"
+photon = "JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT"
 onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
 [registry]

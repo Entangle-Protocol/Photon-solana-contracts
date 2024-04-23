@@ -13,7 +13,7 @@ use tokio::{
 
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{KeeperMsg, KeeperMsgImpl, Propose},
+    data::{KeeperMsg, Propose, TransmitterMsgImpl},
     rabbitmq_client::RabbitmqClient,
 };
 
@@ -67,7 +67,7 @@ impl RabbitmqPublisher {
     }
 
     async fn publish_propose(&mut self, propose: Propose) {
-        let keeper_msg = KeeperMsg::V1(KeeperMsgImpl::Propose(propose.clone()));
+        let keeper_msg = KeeperMsg::V1(TransmitterMsgImpl::Propose(propose.clone()));
         debug!("operation_data to be sent: {:?}", keeper_msg);
         let Ok(json_data) = serde_json::to_vec(&keeper_msg).map_err(|err| {
             error!("Failed to encode operation_data message: {:?}, error: {}", keeper_msg, err);
