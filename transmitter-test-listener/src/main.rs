@@ -19,7 +19,7 @@ use rabbitmq::RabbitmqConsumer;
 use std::env;
 
 use transmitter_common::{
-    data::KeeperMsgImpl::Propose,
+    data::TransmitterMsgImpl::Propose,
     mongodb::{mdb_solana_chain_id, MongodbConfig, MDB_LAST_BLOCK_COLLECTION},
     utils::get_time_ms,
 };

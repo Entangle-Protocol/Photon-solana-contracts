@@ -12,13 +12,13 @@ use tokio::sync::{
     Mutex,
 };
 
-use transmitter_common::data::{KeeperSignature, OpHash, ProtocolId};
+use transmitter_common::data::{OpHash, ProtocolId, TransmitterSignature};
 
 use super::{error::ExecutorError, OperationStatus, TransactionSet};
 
 pub(super) struct SignOpTxBuilder {
     payer: Pubkey,
-    signed_op_receiver: Mutex<UnboundedReceiver<(OpHash, ProtocolId, Vec<KeeperSignature>)>>,
+    signed_op_receiver: Mutex<UnboundedReceiver<(OpHash, ProtocolId, Vec<TransmitterSignature>)>>,
     tx_set_sender: UnboundedSender<TransactionSet>,
     status_sender: UnboundedSender<OperationStatus>,
 }
@@ -26,7 +26,7 @@ pub(super) struct SignOpTxBuilder {
 impl SignOpTxBuilder {
     pub(super) fn new(
         payer: Pubkey,
-        signed_op_receiver: UnboundedReceiver<(OpHash, ProtocolId, Vec<KeeperSignature>)>,
+        signed_op_receiver: UnboundedReceiver<(OpHash, ProtocolId, Vec<TransmitterSignature>)>,
         tx_set_sender: UnboundedSender<TransactionSet>,
         status_sender: UnboundedSender<OperationStatus>,
     ) -> Self {
@@ -58,7 +58,7 @@ impl SignOpTxBuilder {
         &self,
         op_hash: OpHash,
         protocol_id: ProtocolId,
-        mut signatures: Vec<KeeperSignature>,
+        mut signatures: Vec<TransmitterSignature>,
     ) -> Result<TransactionSet, ExecutorError> {
         let (op_info_pda, _bump) =
             Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
@@ -77,7 +77,7 @@ impl SignOpTxBuilder {
             op_hash: op_hash.to_vec(),
             signatures: signatures
                 .drain(..)
-                .map(photon::signature::KeeperSignature::from)
+                .map(photon::signature::TransmitterSignature::from)
                 .collect(),
         }
         .data();

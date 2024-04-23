@@ -13,7 +13,7 @@ import {
   randomSigners,
   predefinedSigners,
   signOp,
-  addKeepers,
+  addTransmitter,
   setConsensusTargetRate,
   sleep,
 } from "./utils";
@@ -260,7 +260,7 @@ describe("photon", () => {
     const chunkSize = KEEPERS_PER_CALL;
     for (let i = 1; i < keepersRaw.length; i += chunkSize) {
       const chunk = keepersRaw.slice(i, i + chunkSize);
-      const params = addKeepers(GOV_PROTOCOL_ID, chunk);
+      const params = addTransmitter(GOV_PROTOCOL_ID, chunk);
       await executeOperation(
         GOV_PROTOCOL_ID,
         program.programId,
@@ -391,7 +391,7 @@ describe("photon", () => {
       for (var i = 0; i < keepers2.length; i++) {
         keepersRaw2.push(hexToBytes(keepers2[i].address));
       }
-      let params = addKeepers(ONE_FUNC_ID, keepersRaw2);
+      let params = addTransmitter(ONE_FUNC_ID, keepersRaw2);
       await executeOperation(
         GOV_PROTOCOL_ID,
         program.programId,
@@ -410,7 +410,7 @@ describe("photon", () => {
     const chunkSize = KEEPERS_PER_CALL;
     for (let i = 0; i < keepersRaw.length; i += chunkSize) {
       const chunk = keepersRaw.slice(i, i + chunkSize);
-      let params = addKeepers(ONE_FUNC_ID, chunk);
+      let params = addTransmitter(ONE_FUNC_ID, chunk);
       await executeOperation(
         GOV_PROTOCOL_ID,
         program.programId,

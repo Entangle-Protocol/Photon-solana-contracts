@@ -10,7 +10,7 @@ extern crate photon;
 use config::{Config, File};
 use ethabi::{ethereum_types, Address, Token, Uint};
 use libsecp256k1::sign;
-use log::{error, info};
+use log::{debug, error, info};
 use rand::{distributions::Alphanumeric, random, Rng, RngCore};
 use serde::Deserialize;
 use std::{env, time::Duration};
@@ -88,7 +88,8 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
             }
             Operation::Increment(component) => {
                 let function_selector: Vec<u8> = b"\x01\x17increment_owned_counter".to_vec();
-                let params: Vec<u8> = ethabi::encode(&[Token::Uint(Uint::from(*component))]);
+                let params: Vec<u8> =
+                    ethabi::encode(&[Token::Tuple(vec![Token::Uint(Uint::from(*component))])]);
                 OperationData {
                     protocol_id,
                     meta,
@@ -120,6 +121,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     reserved: <Vec<u8>>::default(),
                 }
             }
+
             Operation::AddProtocol => {
                 let new_program_id: String = rand::thread_rng()
                     .sample_iter(&Alphanumeric)
@@ -127,12 +129,11 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     .map(char::from)
                     .collect();
                 info!("new_program_id: {}", new_program_id);
-                let params = ethabi::encode(&[
+                let params = ethabi::encode(&[Token::Tuple(vec![
                     Token::FixedBytes(new_program_id.as_bytes().to_vec()), // protocolId
                     Token::Uint(ethereum_types::U256::from(60000u32)),     // consensusTargetRate
                     Token::Array(vec![Token::Address(Address::random())]),
-                ]);
-
+                ])]);
                 OperationData {
                     protocol_id: gov_protocol_id,
                     meta,
@@ -160,7 +161,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     .expect("Expected secp256k1 message be built from op_hash");
                 let (sig, recover_id) = sign(&message, &wallet.0);
                 let serialized_sig = sig.serialize();
-                transmitter_common::data::KeeperSignature {
+                transmitter_common::data::TransmitterSignature {
                     r: serialized_sig[..32].to_vec(),
                     s: serialized_sig[32..].to_vec(),
                     v: recover_id.serialize(),
