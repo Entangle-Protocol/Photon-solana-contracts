@@ -241,10 +241,14 @@ describe("photon", () => {
       .accounts({ owner: owner.publicKey, callAuthority, counter })
       .signers([owner])
       .rpc();
+
+    let eob_master_contract = ethers.utils.defaultAbiCoder.encode(["address"], ["0xe981b4f9580cce1ff1b87d63a9b68e53110b9aa7"]);
+    let eob_master_contract_buf: Buffer = new Buffer(eob_master_contract.substring(2), "hex");
+    
     await program.methods
       .initialize(
         new anchor.BN(EOB_CHAIN_ID),
-        Buffer.alloc(32, 0),
+        eob_master_contract_buf,
         new anchor.BN(CONSENSUS_TARGET_RATE),
         [transmittersRaw[0]],
         [executor.publicKey],
