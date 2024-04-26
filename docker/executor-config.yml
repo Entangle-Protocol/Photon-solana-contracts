@@ -20,3 +20,4 @@ extensions:
 mongodb:
     uri: mongodb://mongo:27017
     user: root
+    db: "entangle"

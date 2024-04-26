@@ -54,6 +54,8 @@ services:
         environment:
             - ENTANGLE_RABBITMQ_USER=guest
             - ENTANGLE_RABBITMQ_PASSWORD=guest
+            - ENTANGLE_MONGODB_USER=root
+            - ENTANGLE_MONGODB_PASSWORD=rootpassword
             - RUST_LOG=DEBUG
         entrypoint: /transmitter-module listener --config listener-config.yml
 
@@ -69,6 +71,8 @@ services:
             - ENTANGLE_RABBITMQ_USER=guest
             - ENTANGLE_RABBITMQ_PASSWORD=guest
             - ENTANGLE_SOLANA_PAYER=4F7NuvMHvfTAeG47WaXWUP5rkyhqbKSQPzbXQAQHj5PXg8YbQs5Dt1PspaAWeAHnQqifFvFFQjc91gcnTjRCNaeU
+            - ENTANGLE_MONGODB_USER=root
+            - ENTANGLE_MONGODB_PASSWORD=rootpassword
             - RUST_LOG=info,gov_executor=debug,transmitter_module=debug
         entrypoint: /transmitter-module executor --config executor-config.yml
 
