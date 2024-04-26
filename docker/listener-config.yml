@@ -15,4 +15,4 @@ solana:
 
 mongodb:
     uri: mongodb://mongo:27017
-    db: "executor"
+    db: "entangle"
