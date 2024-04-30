@@ -43,7 +43,7 @@ build_module:
 retag:
   stage: retag
   script:
-    - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 
+    - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
   only:
     - test-stand
   tags:
