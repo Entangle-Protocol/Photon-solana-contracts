@@ -2,6 +2,7 @@ stages:
   - checks
   - versioning
   - container_build
+  - retag
   - push
   - clean_up
   - deploy
@@ -35,10 +36,16 @@ build_solana:
 build_module:
   stage: container_build
   script:
-    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest -f ./docker/Dockerfile_module .
+    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
   tags:
     - linux
 
+retag:
+  stage: retag
+  script:
+    - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 
+  only:
+    - test-stand
 
 solana_push:
   stage: push
@@ -54,10 +61,16 @@ module_push:
   script:
     - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
     - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
   tags:
     - linux
 
+module_testnet:
+  stage: push
+  script:
+    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
+    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
+  only:
+    - test-stand
 
 clean_up_images:
   stage: clean_up
