@@ -35,7 +35,7 @@ build_solana:
 build_module:
   stage: container_build
   script:
-    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
+    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest -f ./docker/Dockerfile_module .
   tags:
     - linux
 
@@ -54,6 +54,7 @@ module_push:
   script:
     - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
     - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest
+    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
   tags:
     - linux
 
