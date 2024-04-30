@@ -46,6 +46,8 @@ retag:
     - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 
   only:
     - test-stand
+  tags:
+    - linux
 
 solana_push:
   stage: push
@@ -71,6 +73,8 @@ module_testnet:
     - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
   only:
     - test-stand
+  tags:
+    - linux
 
 clean_up_images:
   stage: clean_up
