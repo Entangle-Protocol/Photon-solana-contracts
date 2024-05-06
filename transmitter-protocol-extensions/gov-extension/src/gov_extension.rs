@@ -2,7 +2,7 @@ use log::{debug, error};
 use photon::{
     gov::{abi_decode_scheme, decode_abi_params, GovOperation},
     photon::ROOT,
-    util::{gov_protocol_id, GOV_PROTOCOL_ID},
+    protocol_data::GOV_PROTOCOL_ID,
 };
 use solana_sdk::{
     hash::Hash, instruction::AccountMeta, pubkey::Pubkey, system_program, transaction::Transaction,
@@ -35,7 +35,7 @@ impl ProtocolExtension for GovExtension {
         params: &[u8],
     ) -> Result<Vec<AccountMeta>, ExtensionError> {
         let (gov_protocol_pda, _) =
-            Pubkey::find_program_address(&[ROOT, b"PROTOCOL", gov_protocol_id()], &photon::ID);
+            Pubkey::find_program_address(&[ROOT, b"PROTOCOL", GOV_PROTOCOL_ID], &photon::ID);
 
         let code = function_selector.first_chunk::<4>().ok_or_else(|| {
             error!("Failed to get first chunk of gov selector");

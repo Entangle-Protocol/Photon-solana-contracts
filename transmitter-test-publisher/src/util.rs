@@ -1,6 +1,6 @@
 use libsecp256k1::{PublicKey, SecretKey};
 use log::debug;
-use photon::signature::derive_eth_address;
+use photon::protocol_data::derive_eth_address;
 
 #[derive(Clone, Debug)]
 pub struct TransmitterSignature {

@@ -9,7 +9,7 @@ use tokio::sync::{
 };
 
 use transmitter_common::{
-    data::{Meta, OperationData, Propose, ProtocolId},
+    data::{default_meta, OperationData, Propose, ProtocolId},
     SOLANA_CHAIN_ID,
 };
 
@@ -77,7 +77,7 @@ impl SolanaLogsProcessor {
             latest_block_id: signature.to_string(),
             operation_data: OperationData {
                 src_chain_id: SOLANA_CHAIN_ID,
-                meta: Meta::default(),
+                meta: default_meta(),
                 src_block_number: slot,
                 src_op_tx_id: signature.as_ref().to_vec(),
                 protocol_id,

@@ -86,6 +86,7 @@ pub mod onefunc {
 
     pub fn receive_photon_msg(
         _ctx: Context<ReceivePhotonMsg>,
+        _op_hash: Vec<u8>,
         code: Vec<u8>,
         _params: Vec<u8>,
     ) -> Result<()> {

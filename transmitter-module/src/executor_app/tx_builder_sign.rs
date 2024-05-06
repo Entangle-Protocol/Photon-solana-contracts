@@ -77,7 +77,7 @@ impl SignOpTxBuilder {
             op_hash: op_hash.to_vec(),
             signatures: signatures
                 .drain(..)
-                .map(photon::signature::TransmitterSignature::from)
+                .map(photon::protocol_data::TransmitterSignature::from)
                 .collect(),
         }
         .data();
