@@ -39,7 +39,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     [ROOT, utf8.encode("PROTOCOL"), GOV_PROTOCOL_ID],
     program.programId,
   )[0];
-  let eob_master_contract = ethers.utils.defaultAbiCoder.encode(["address"], ["0xe981b4f9580cce1ff1b87d63a9b68e53110b9aa7"]);
+  let eob_master_contract = ethers.utils.defaultAbiCoder.encode(["address"], ["0x3f0A86C7e1cf8883A0FbDB11B671BE849168496b"]);
   let eob_master_contract_buf: Buffer = new Buffer(eob_master_contract.substring(2), "hex");
   console.log("Transmitters:", transmitters.map((num: number[]) =>
     "0x" + num.map((x) => x.toString(16).padStart(2, '0')).join("")));

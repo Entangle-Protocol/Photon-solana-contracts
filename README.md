@@ -216,6 +216,17 @@ anchor account --provider.cluster localnet photon.ProtocolInfo Cwz8yzNL7apxnPPHd
 anchor account --provider.cluster localnet photon.OpInfo 4RGTy1KewRfAFBTCuRD5pDVYVsM8PjGU2D2Ko3VqXejC | jq -c
 ```
 
+## Generating Rust Documentation
+
+To compile the Rust documentation for deployment, use the following command. This generates the docs specifically for
+the packages that are part of this project and is intended for further distribution via crates.io and docs.rs.
+The command omits dependencies to focus solely on your packages and opens the compiled docs in your default browser for
+review.
+
+```sh
+cargo doc --no-deps -p entangle-photon-sol -p onefunc-extension -p transmitter-module -p transmitter-common -p gov-extension -p test-publisher -p onefunc --open
+```
+
 [gitbook]: https://entangle-1.gitbook.io/entangle/entangle/overview/photon-messaging-layer
 
 [image]: https://entangle-1.gitbook.io/~gitbook/image?url=https:%2F%2F758965771-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FW4hWFoOg1bsy9f1Z6FWM%252Fuploads%252FzTNtzkvpHmvi80k7Nb1p%252F1.png%3Falt=media%26token=4835b28b-cec4-46c9-8856-5110d8e3078d&width=768&dpr=1&quality=100&sign=d84c0f2a1f69e12d6b7341cac8e0f08cfe007d7405a6764ea908b70ae1508356

@@ -1,5 +1,5 @@
 use photon::{
-    signature::FunctionSelector,
+    protocol_data::FunctionSelector,
     util::{u128_to_bytes32, u64_to_bytes32},
 };
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,13 @@ pub struct ProtocolId(pub ProtocolIdImpl);
 pub type ProtocolIdImpl = [u8; 32];
 pub type OpHash = [u8; 32];
 pub type Meta = [u8; 32];
+
+pub fn default_meta() -> Meta {
+    [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1,
+    ]
+}
 
 impl Display for ProtocolId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -50,9 +57,9 @@ pub struct TransmitterSignature {
     pub s: Vec<u8>,
 }
 
-impl From<TransmitterSignature> for photon::signature::TransmitterSignature {
+impl From<TransmitterSignature> for photon::protocol_data::TransmitterSignature {
     fn from(value: TransmitterSignature) -> Self {
-        photon::signature::TransmitterSignature {
+        photon::protocol_data::TransmitterSignature {
             r: value.r,
             s: value.s,
             v: value.v,
@@ -90,7 +97,7 @@ pub struct OperationData {
 
 impl OperationData {
     pub fn op_hash_with_message(&self) -> OpHash {
-        photon::signature::hash_with_message(&self.op_hash()).as_chunks().0[0]
+        photon::protocol_data::hash_with_message(&self.op_hash()).as_chunks().0[0]
     }
 
     fn op_hash(&self) -> Vec<u8> {
@@ -115,10 +122,10 @@ impl OperationData {
     }
 }
 
-impl TryFrom<OperationData> for photon::signature::OperationData {
+impl TryFrom<OperationData> for photon::protocol_data::OperationData {
     type Error = Vec<u8>;
     fn try_from(value: OperationData) -> Result<Self, Self::Error> {
-        Ok(photon::signature::OperationData {
+        Ok(photon::protocol_data::OperationData {
             protocol_id: <Vec<u8>>::from(value.protocol_id.0),
             meta: value.meta,
             src_chain_id: value.src_chain_id,

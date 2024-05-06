@@ -19,7 +19,7 @@ use thiserror::Error;
 use transmitter_common::data::{Meta, OperationData, ProtocolId};
 
 use cli::Operation;
-use photon::util::GOV_PROTOCOL_ID;
+use photon::protocol_data::GOV_PROTOCOL_ID;
 use rabbitmq_publisher::{RabbitmqConfig, RabbitmqPublisher};
 use util::predefined_signers;
 
@@ -168,7 +168,6 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 }
             })
             .collect();
-
         let eob_block_number: u64 = random();
         publisher
             .publish_operation_data(op_data.clone(), transmitters, eob_block_number)
@@ -243,7 +242,7 @@ mod test {
             reserved: <Vec<u8>>::default(),
         };
         let op_hash_module = op_data.op_hash_with_message();
-        let op_data = photon::signature::OperationData::try_from(op_data).unwrap();
+        let op_data = photon::protocol_data::OperationData::try_from(op_data).unwrap();
         let op_hash_contract = op_data.op_hash_with_message();
         assert_eq!(op_hash_contract, op_hash_module);
     }
@@ -272,7 +271,7 @@ mod test {
             reserved: <Vec<u8>>::default(),
         };
         let op_hash_module = op_data.op_hash_with_message();
-        let op_data = photon::signature::OperationData::try_from(op_data).unwrap();
+        let op_data = photon::protocol_data::OperationData::try_from(op_data).unwrap();
         let op_hash_contract = op_data.op_hash_with_message();
         assert_eq!(op_hash_contract, op_hash_module);
     }

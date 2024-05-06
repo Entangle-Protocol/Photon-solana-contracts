@@ -84,7 +84,7 @@ impl LoadOpTxBuilder {
         );
 
         let photon_op_data =
-            photon::signature::OperationData::try_from(op_data).map_err(|err| {
+            photon::protocol_data::OperationData::try_from(op_data).map_err(|err| {
                 error!("Failed to get op_data from op_data_message: {}", hex::encode(err));
                 ExecutorError::MalformedData
             })?;

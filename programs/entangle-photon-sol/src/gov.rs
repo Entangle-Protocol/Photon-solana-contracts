@@ -1,15 +1,61 @@
+//! The `gov` module manages governance-related operations within the Photon cross-chain messaging layer.
+//! It handles operations that modify the configuration of allowed protocols, executors, transmitters, and
+//! proposers, as well as adjusting consensus rates. These capabilities are critical for maintaining the
+//! integrity and flexibility of cross-chain operations within the layer.
+//!
+//! ## Overview
+//! This module serves as the administrative backbone of the Photon messaging layer, providing functions to securely
+//! manage governance actions according to predefined rules. It supports dynamic and flexible management of
+//! governance actions through Ethereum-style ABI decoding, which interprets call data for governance operations.
+//!
+//! ## Usage
+//! Functions in this module are used during the processing of cross-chain messages that necessitate governance
+//! actions, such as adding new protocols or adjusting system parameters. These functions are typically invoked
+//! through Cross-Program Invocation (CPI) from other parts of the Photon layer when executing operations that
+//! require governance-level permissions and checks.
+//!
+//! ## Key Features
+//! - **Dynamic Configuration**: Allows adding and removing configurations related to cross-chain operations.
+//! - **Secure Governance Actions**: Ensures that all modifications to the layer's configuration are executed
+//!   securely and only by authorized entities, preventing unauthorized changes.
+//! - **Consensus Management**: Facilitates adjustments to consensus parameters, ensuring the layer adapts to
+//!   evolving operational needs.
+//!
+//! ## Public Interfaces
+//! - **Propose Event Emission**: Supports the broadcasting of propose events to signal changes in governance
+//!   to external systems and participants.
+//!
+//! ## Examples
+//! Usage examples of this module include adding a new allowed protocol, which involves ABI-encoded data to
+//! specify the details of the protocol being added, checked, and then integrated into the layer's configuration.
+//!
+//! ## Related Modules
+//! - `protocol_data`: Manages data structures related to protocols such as their identifiers and operational
+//!   parameters.
+//! - `error`: Defines custom errors used across the Photon layer, providing clear error messages for failed
+//!   governance operations.
+//!
+//! This documentation focuses on the public aspects of the `gov` module that are relevant to users interacting
+//! with or building on top of the Photon cross-chain messaging layer. It abstracts away internal implementations
+//! to provide a clear view of the module's capabilities and use cases
 use anchor_lang::prelude::*;
 use ethabi::{ethereum_types::U256, ParamType, Token};
 use num_enum::TryFromPrimitive;
 
 use crate::{
-    gov_protocol_id, require_ok,
-    signature::{FunctionSelector, OperationData},
+    error::CustomError,
+    protocol_data::{FunctionSelector, OperationData, GOV_PROTOCOL_ID},
+    require_ok,
     util::EthAddress,
-    Config, CustomError, ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_PROPOSERS,
-    MAX_TRANSMITTERS, SOLANA_CHAIN_ID,
+    Config, ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_PROPOSERS, MAX_TRANSMITTERS,
+    SOLANA_CHAIN_ID,
 };
 
+/// Enumerates government operations with their corresponding unique operation codes,
+/// providing a structured way to serialize and match governance operations rather than relying on magic constants.
+///
+/// This approach enables clearer and more maintainable code by replacing arbitrary numerical codes
+/// with descriptive enum variants, each associated with a specific governance action.
 #[derive(TryFromPrimitive)]
 #[repr(u32)]
 pub enum GovOperation {
@@ -74,7 +120,7 @@ pub(super) fn handle_gov_operation(
     Ok(())
 }
 
-fn add_allowed_protocol(
+pub(super) fn add_allowed_protocol(
     calldata: &[u8],
     target_protocol_info: &mut ProtocolInfo,
     config: &mut Config,
@@ -115,7 +161,7 @@ fn add_allowed_protocol(
         Token::Uint(U256::from(SOLANA_CHAIN_ID)),
     ])]);
     emit!(ProposeEvent {
-        protocol_id: gov_protocol_id().to_vec(),
+        protocol_id: GOV_PROTOCOL_ID.to_vec(),
         nonce,
         dst_chain_id: config.eob_chain_id as u128,
         protocol_address: config.eob_master_smart_contract.to_vec(),
@@ -356,7 +402,10 @@ pub(super) fn target_protocol(function_selector: &FunctionSelector, params: &[u8
     target_protocol
 }
 
-pub fn target_protocol_by_code(code: &[u8], params: &[u8]) -> std::result::Result<Vec<u8>, String> {
+pub(super) fn target_protocol_by_code(
+    code: &[u8],
+    params: &[u8],
+) -> std::result::Result<Vec<u8>, String> {
     let code = code
         .first_chunk::<4>()
         .ok_or_else(|| "Failed to get first chunk of gov selector".to_string())?;
@@ -373,6 +422,7 @@ pub fn target_protocol_by_code(code: &[u8], params: &[u8]) -> std::result::Resul
         .ok_or_else(|| "Failed to convert first decoded abi param as fixed_bytes".to_string())
 }
 
+/// Commonly used in the `gov-extension` to extract accounts from encoded `calldata` based on the `param_type`.
 pub fn decode_abi_params(calldata: &[u8], param_type: ParamType) -> Result<Vec<Token>> {
     let decoded =
         ethabi::decode(&[param_type], calldata).map_err(|_| CustomError::InvalidProtoMsg)?;
@@ -385,6 +435,7 @@ pub fn decode_abi_params(calldata: &[u8], param_type: ParamType) -> Result<Vec<T
         .ok_or(CustomError::InvalidProtoMsg)?)
 }
 
+/// A shortcut to retrieve the decoding schema based on the provided GovOperation.
 pub fn abi_decode_scheme(gov_operation: GovOperation) -> ParamType {
     match gov_operation {
         GovOperation::AddAllowedProtocol => {
