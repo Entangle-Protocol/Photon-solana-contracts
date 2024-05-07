@@ -884,12 +884,14 @@ dependencies = [
 name = "bridge-extension"
 version = "0.1.0"
 dependencies = [
- "dotenvy",
+ "config",
  "entangle-photon-sol",
  "env_logger 0.11.2",
  "ethabi",
+ "hex",
  "lazy_static",
  "log",
+ "serde",
  "solana-sdk",
  "spl-associated-token-account 1.1.3",
  "spl-token 2.0.8",
@@ -1607,12 +1609,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenvy"
-version = "0.15.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
-
-[[package]]
 name = "eager"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2175,6 +2171,9 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "histogram"

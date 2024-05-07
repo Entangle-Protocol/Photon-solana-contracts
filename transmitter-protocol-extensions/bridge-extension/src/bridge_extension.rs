@@ -1,5 +1,7 @@
+use config::Config;
 use ethabi::ParamType;
 use log::{error, warn};
+use serde::Deserialize;
 use solana_sdk::{
     hash::Hash, instruction::AccountMeta, pubkey::Pubkey, system_program, transaction::Transaction,
 };
@@ -8,7 +10,7 @@ use transmitter_common::{error::ExtensionError, protocol_extension::ProtocolExte
 lazy_static::lazy_static! {
     static ref BRIDGE_EXTENTION: BridgeExtension = {
         env_logger::init();
-        BridgeExtension::from_env("NGL")
+        BridgeExtension::from_config("NGL")
     };
 }
 
@@ -17,10 +19,21 @@ pub fn get_extension() -> &'static dyn ProtocolExtension {
     &*BRIDGE_EXTENTION
 }
 
+#[derive(Deserialize)]
+struct BridgeConfig {
+    #[serde(deserialize_with = "hex::serde::deserialize")]
+    protocol_id: Vec<u8>,
+    bridge_program: Pubkey,
+    core_program: Pubkey,
+    seed_root: String,
+    mint: Pubkey,
+    use_token2022: bool,
+}
+
 struct BridgeExtension {
     protocol_id: &'static [u8; 32],
     bridge_program: Pubkey,
-    bridge_root: Vec<u8>,
+    seed_root: Vec<u8>,
     mint: Pubkey,
     core_program: Pubkey,
     use_token2022: bool,
@@ -62,20 +75,38 @@ impl ProtocolExtension for BridgeExtension {
 }
 
 impl BridgeExtension {
-    fn from_env(prefix: &str) -> Self {
-        let _ = dotenvy::dotenv();
-        todo!()
+    fn from_config(prefix: &str) -> Self {
+        let settings: BridgeConfig = Config::builder()
+            .add_source(config::File::with_name(&format!(
+                "ext_config/bridge-{}",
+                prefix.to_lowercase()
+            )))
+            .add_source(config::Environment::with_prefix(&format!("BRIDGE_{}", prefix)))
+            .build()
+            .expect("Failed to build config for bridge")
+            .try_deserialize()
+            .expect("Failed to deserialize config for bridge");
+        let protocol_id: &'static mut [u8; 32] =
+            settings.protocol_id.leak().try_into().expect("Invalid protocol id");
+        Self {
+            protocol_id,
+            bridge_program: settings.bridge_program,
+            seed_root: settings.seed_root.into_bytes(),
+            mint: settings.mint,
+            core_program: settings.core_program,
+            use_token2022: settings.use_token2022,
+        }
     }
 
     fn get_accounts_redeem(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let (authority, _) =
-            Pubkey::find_program_address(&[&self.bridge_root, b"AUTHORITY"], &self.bridge_program);
+            Pubkey::find_program_address(&[&self.seed_root, b"AUTHORITY"], &self.bridge_program);
         let (config, _) =
-            Pubkey::find_program_address(&[&self.bridge_root, b"CONFIG"], &self.bridge_program);
+            Pubkey::find_program_address(&[&self.seed_root, b"CONFIG"], &self.bridge_program);
         let (core_authority, _) =
-            Pubkey::find_program_address(&[&self.bridge_root, b"AUTHORITY"], &self.core_program);
+            Pubkey::find_program_address(&[&self.seed_root, b"AUTHORITY"], &self.core_program);
         let (core_config, _) =
-            Pubkey::find_program_address(&[&self.bridge_root, b"CONFIG"], &self.core_program);
+            Pubkey::find_program_address(&[&self.seed_root, b"CONFIG"], &self.core_program);
         let params = ethabi::decode(
             &[
                 ParamType::Bytes,          // bytes memory to
