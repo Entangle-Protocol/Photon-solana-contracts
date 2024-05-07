@@ -981,7 +981,7 @@ impl ProtocolInfo {
 pub struct OpInfo {
     status: OpStatus,
     unique_signers: [EthAddress; 16],
-    op_data: OperationData,
+    pub op_data: OperationData,
 }
 
 impl OpInfo {
