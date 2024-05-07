@@ -2,7 +2,6 @@
 name = "transmitter-module"
 version = "0.1.0"
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -12,19 +11,19 @@ async-signal = "0.2"
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 config = "0.14"
-env_logger = "0.11"
 entangle-photon-sol = { path = "../programs/entangle-photon-sol" }
-hex = "0.4"
+env_logger = "0.11"
 futures-util = "0.3"
-log = "0.4"
+hex = "0.4"
 libloading = "0.8"
+log = "0.4"
 mongodb = "2.8"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha3 = "0.10"
-solana-sdk = "1.16"
 solana-client = "1.16"
+solana-sdk = "1.16"
 solana-transaction-status = "1.16"
 thiserror = "1.0"
 tokio = { version = "1.36" }

@@ -1,11 +1,11 @@
 [workspace]
 members = [
     "programs/*",
-    "transmitter-module",
-    "transmitter-test-publisher",
     "transmitter-common",
+    "transmitter-module",
+    "transmitter-protocol-extensions/*",
     "transmitter-test-listener",
-    "transmitter-protocol-extensions/*"
+    "transmitter-test-publisher",
 ]
 resolver = "1"
 
