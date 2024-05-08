@@ -1,14 +1,15 @@
+use crate::common::solana_logs::solana_event_listener::SolanaEventListener;
 use tokio::sync::mpsc::unbounded_channel;
 
 use super::{
     config::ListenConfig, rabbitmq_publisher::RabbitmqPublisher,
-    solana_event_listener::SolanaEventListener, solana_logs_processor::SolanaLogsProcessor,
+    solana_logs_processor::ProposalEventProcessor,
 };
 
 pub(crate) struct ListenerApp {
     solana_listener: SolanaEventListener,
     rabbitmq_sender: RabbitmqPublisher,
-    solana_logs_proc: SolanaLogsProcessor,
+    solana_logs_proc: ProposalEventProcessor,
 }
 
 impl ListenerApp {
@@ -27,7 +28,7 @@ impl ListenerApp {
         ListenerApp {
             solana_listener: SolanaEventListener::new(config.solana, config.mongodb, logs_sender),
             rabbitmq_sender: RabbitmqPublisher::new(config.rabbitmq, propose_receiver),
-            solana_logs_proc: SolanaLogsProcessor::new(logs_receiver, propose_sender),
+            solana_logs_proc: ProposalEventProcessor::new(logs_receiver, propose_sender),
         }
     }
 

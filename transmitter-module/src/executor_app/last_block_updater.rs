@@ -14,6 +14,7 @@ pub(super) struct LastBlockUpdater {
     client: Client,
     last_block_receiver: Mutex<UnboundedReceiver<u64>>,
     db: String,
+    last_block_key: String,
 }
 
 impl LastBlockUpdater {
@@ -43,6 +44,7 @@ impl LastBlockUpdater {
             client,
             last_block_receiver: Mutex::new(tx_receiver),
             db: mongodb_config.db,
+            last_block_key: mongodb_config.key,
         })
     }
 
@@ -58,7 +60,7 @@ impl LastBlockUpdater {
             collection
                 .update_one(
                     doc! { "direction": "to", "chain": &chain_id },
-                    doc! { "$set": { "last_processed_block": block_number, "updated_at": in_ms as i64 }  },
+                    doc! { "$set": { & self.last_block_key: block_number, "updated_at": in_ms as i64 }  },
                     update_options.clone(),
                 )
                 .await

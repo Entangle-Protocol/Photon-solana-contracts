@@ -37,6 +37,7 @@ pub enum TransmitterMsg {
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
 pub enum TransmitterMsgImpl {
     Propose(Propose),
+    OperationStatus(OperationExecuted),
     #[serde(rename = "signedOperation")]
     SignedOperationData(SignedOperation),
 }
@@ -65,14 +66,6 @@ impl From<TransmitterSignature> for photon::protocol_data::TransmitterSignature 
             v: value.v,
         }
     }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Propose {
-    pub latest_block_id: String,
-    #[serde(flatten)]
-    pub operation_data: OperationData,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -141,6 +134,14 @@ impl TryFrom<OperationData> for photon::protocol_data::OperationData {
             reserved: value.reserved,
         })
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Propose {
+    pub latest_block_id: String,
+    #[serde(flatten)]
+    pub operation_data: OperationData,
 }
 
 mod u128_serialization {
@@ -215,4 +216,12 @@ mod protocol_id_serialization {
         let data = ProtocolIdImpl::deserialize(deserializer)?;
         Ok(ProtocolId(data))
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OperationExecuted {
+    pub last_watched_block: String,
+    pub op_hash: OpHash,
+    pub executor: Pubkey,
 }

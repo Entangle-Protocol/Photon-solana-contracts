@@ -59,6 +59,22 @@ services:
             - RUST_LOG=DEBUG
         entrypoint: /transmitter-module listener --config listener-config.yml
 
+    watcher:
+        image: "entangle:solana-module"
+        container_name: "watcher"
+        depends_on:
+            solana:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+        environment:
+            - ENTANGLE_RABBITMQ_USER=guest
+            - ENTANGLE_RABBITMQ_PASSWORD=guest
+            - ENTANGLE_MONGODB_USER=root
+            - ENTANGLE_MONGODB_PASSWORD=rootpassword
+            - RUST_LOG=DEBUG
+        entrypoint: /transmitter-module watcher --config watcher-config.yml
+
     executor:
         image: "entangle:solana-module"
         container_name: "executor"

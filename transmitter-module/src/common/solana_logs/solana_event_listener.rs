@@ -7,39 +7,36 @@ use solana_client::{
 };
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-
 use transmitter_common::{config::ReconnectConfig, mongodb::MongodbConfig};
 
-use super::{
-    config::SolanaListenerConfig, error::ListenError, solana_events_reader::SolanaEventsReader,
-    LogsBunch,
-};
+use super::{solana_retro_reader::SolanaRetroReader, EventListenerError};
+use crate::common::config::SolanaListenerConfig;
 
-pub(super) struct SolanaEventListener {
+pub(crate) struct SolanaEventListener {
     solana_config: SolanaListenerConfig,
     mongodb_config: MongodbConfig,
     logs_sender: UnboundedSender<LogsBunch>,
-    events_reader: SolanaEventsReader,
+    logs_retro_reader: SolanaRetroReader,
 }
 
 impl SolanaEventListener {
-    pub(super) fn new(
+    pub(crate) fn new(
         solana_config: SolanaListenerConfig,
         mongodb_config: MongodbConfig,
         logs_sender: UnboundedSender<LogsBunch>,
     ) -> Self {
         SolanaEventListener {
             solana_config,
-            mongodb_config,
+            mongodb_config: mongodb_config.clone(),
             logs_sender: logs_sender.clone(),
-            events_reader: SolanaEventsReader::new(logs_sender),
+            logs_retro_reader: SolanaRetroReader::new(mongodb_config, logs_sender),
         }
     }
 
-    pub(super) async fn listen_to_solana(&self) -> Result<(), ListenError> {
+    pub(crate) async fn listen_to_solana(&self) -> Result<(), EventListenerError> {
         let websocket_url = self.solana_config.client.web_socket_url.clone().ok_or_else(|| {
             error!("web_socket_url is not configured");
-            ListenError::Config
+            EventListenerError::Config
         })?;
         let commitment = self.solana_config.client.commitment;
         info!(
@@ -60,10 +57,10 @@ impl SolanaEventListener {
             let (mut notifications, unsubscribe) =
                 client.logs_subscribe(filter.clone(), config.clone()).await.map_err(|err| {
                     error!("Failed to subscribe for logs: {}, error: {}", program_id_str, err);
-                    ListenError::SolanaClient
+                    EventListenerError::SolanaClient
                 })?;
             // logs are collected in the pubsub client's internal channel asynchronously meanwhile
-            self.events_reader
+            self.logs_retro_reader
                 .read_events_backward(&self.solana_config.client, &self.mongodb_config)
                 .await?;
             // for finalized commitment solana duplicates messages
@@ -95,7 +92,7 @@ impl SolanaEventListener {
         &self,
         solana_rpc_url: &str,
         reconnect: &ReconnectConfig,
-    ) -> Result<PubsubClient, ListenError> {
+    ) -> Result<PubsubClient, EventListenerError> {
         let mut attemts = 0;
         Ok(loop {
             match PubsubClient::new(solana_rpc_url).await {
@@ -106,7 +103,7 @@ impl SolanaEventListener {
                         attemts, err
                     );
                     if attemts == reconnect.attempts {
-                        return Err(ListenError::SolanaClient);
+                        return Err(EventListenerError::SolanaClient);
                     }
                     tokio::time::sleep(Duration::from_millis(reconnect.timeout_ms)).await;
                 }
@@ -114,4 +111,10 @@ impl SolanaEventListener {
             }
         })
     }
+}
+
+pub(crate) struct LogsBunch {
+    pub tx_signature: String,
+    pub logs: Vec<String>,
+    pub slot: u64,
 }

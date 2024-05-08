@@ -1,5 +1,6 @@
 use serde::{de::Error, Deserialize, Deserializer};
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use transmitter_common::config::ReconnectConfig;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct SolanaClientConfig {
@@ -14,4 +15,12 @@ where D: Deserializer<'de> {
     let commitment = CommitmentLevel::deserialize(deserializer)
         .map_err(|err| Error::custom(format!("Malformed commitment: {}", err)))?;
     Ok(CommitmentConfig { commitment })
+}
+
+#[derive(Deserialize)]
+pub(crate) struct SolanaListenerConfig {
+    #[serde(flatten)]
+    pub(crate) client: SolanaClientConfig,
+    #[serde(flatten)]
+    pub(crate) reconnect: ReconnectConfig,
 }

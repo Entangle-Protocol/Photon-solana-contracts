@@ -2,23 +2,18 @@ rabbitmq:
     host: rabbitmq
     port: 5672
     exchange: entangle
-    routing_key: to_solana
-    consumer_tag: solana
-    queue: "to_solana"
+    routing_key: from_solana
     reconnect_attempts: 100
     reconnect_timeout_ms: 200
 
 solana:
     web_socket_url: ws://solana:8900
     rpc_url: http://solana:8899
-    commitment: confirmed
-
-extensions:
-    - /libonefunc_extension.so
-    - /libgov_extension.so
+    commitment: finalized
+    reconnect_attempts: 100
+    reconnect_timeout_ms: 200
 
 mongodb:
     uri: mongodb://mongo:27017
-    user: root
     db: "entangle"
-    key: "last_processed_block"
+    key: "last_watched_block"

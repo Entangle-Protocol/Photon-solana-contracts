@@ -13,17 +13,18 @@ use tokio::{
 
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{Propose, TransmitterMsg, TransmitterMsgImpl},
+    data::{TransmitterMsg, TransmitterMsgImpl},
     rabbitmq_client::RabbitmqClient,
 };
 
-use super::error::ListenError;
+use super::error::WatcherError;
 use crate::common::rabbitmq::{ChannelControl, ConnectionControl, RabbitmqListenConfig};
+use transmitter_common::data::OperationExecuted;
 
 pub(super) struct RabbitmqPublisher {
     config: RabbitmqListenConfig,
-    propose_receiver: UnboundedReceiver<Propose>,
-    buffered_propose: Option<Propose>,
+    op_status_receiver: UnboundedReceiver<OperationExecuted>,
+    buffered_op_status: Option<OperationExecuted>,
     close_notify: Arc<Notify>,
     connection: Option<Connection>,
     channel: Option<Channel>,
@@ -32,19 +33,19 @@ pub(super) struct RabbitmqPublisher {
 impl RabbitmqPublisher {
     pub(super) fn new(
         config: RabbitmqListenConfig,
-        propose_receiver: UnboundedReceiver<Propose>,
+        propose_receiver: UnboundedReceiver<OperationExecuted>,
     ) -> RabbitmqPublisher {
         RabbitmqPublisher {
             config,
-            propose_receiver,
-            buffered_propose: None,
+            op_status_receiver: propose_receiver,
+            buffered_op_status: None,
             close_notify: Arc::new(Notify::new()),
             connection: None,
             channel: None,
         }
     }
 
-    pub(super) async fn publish_to_rabbitmq(&mut self) -> Result<(), ListenError> {
+    pub(super) async fn publish_to_rabbitmq(&mut self) -> Result<(), WatcherError> {
         info!(
             "Rabbitmq messaging arguments are: exchange: {}, routing_key: {}",
             self.config.binding.exchange, self.config.binding.routing_key
@@ -52,23 +53,24 @@ impl RabbitmqPublisher {
         self.init_connection().await?;
         let notify = self.close_notify.clone();
         loop {
-            let propose = select! {
+            let operation_status = select! {
                 _ = notify.notified() => {
                     self.init_connection().await?;
                     continue
                 },
                 op_data = self.propose_to_progress() => op_data
             };
-            let Some(propose) = propose else {
+            let Some(operation_status) = operation_status else {
                 return Ok(());
             };
-            self.publish_propose(propose).await;
+            self.publish_propose(operation_status).await;
         }
     }
 
-    async fn publish_propose(&mut self, propose: Propose) {
-        let transmitter_msg = TransmitterMsg::V1(TransmitterMsgImpl::Propose(propose.clone()));
-        debug!("operation_data to be sent: {:?}", transmitter_msg);
+    async fn publish_propose(&mut self, operation_executed: OperationExecuted) {
+        let transmitter_msg =
+            TransmitterMsg::V1(TransmitterMsgImpl::OperationStatus(operation_executed.clone()));
+        debug!("operation_status to be sent: {:?}", transmitter_msg);
         let Ok(json_data) = serde_json::to_vec(&transmitter_msg).map_err(|err| {
             error!(
                 "Failed to encode operation_data message: {:?}, error: {}",
@@ -81,24 +83,24 @@ impl RabbitmqPublisher {
         let channel = self.channel.as_ref().expect("Expected rabbitmq channel to be set");
         let res = channel.basic_publish(BasicProperties::default(), json_data, args.clone()).await;
         let _ = res.map_err(|err| {
-            self.buffered_propose = Some(propose);
+            self.buffered_op_status = Some(operation_executed);
             error!("Failed to publish operation_data message, error: {}", err);
         });
     }
 
-    async fn propose_to_progress(&mut self) -> Option<Propose> {
-        if self.buffered_propose.is_some() {
-            self.buffered_propose.take()
+    async fn propose_to_progress(&mut self) -> Option<OperationExecuted> {
+        if self.buffered_op_status.is_some() {
+            self.buffered_op_status.take()
         } else {
-            self.propose_receiver.recv().await
+            self.op_status_receiver.recv().await
         }
     }
 }
 
 #[async_trait]
 impl RabbitmqClient for RabbitmqPublisher {
-    type Error = ListenError;
-    async fn reconnect(&mut self) -> Result<(), ListenError> {
+    type Error = WatcherError;
+    async fn reconnect(&mut self) -> Result<(), WatcherError> {
         let conn_control = ConnectionControl::new(self.close_notify.clone());
         let conn = self.connect(&self.config.connect, conn_control).await?;
         let chann_control = ChannelControl::new(self.close_notify.clone());

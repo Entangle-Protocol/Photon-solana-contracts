@@ -1,21 +1,22 @@
 use config::{Config, File};
 use log::{error, info};
 use serde::Deserialize;
-
 use transmitter_common::mongodb::MongodbConfig;
 
-use super::error::ListenError;
-use crate::common::{config::SolanaListenerConfig, rabbitmq::RabbitmqListenConfig};
+use crate::{
+    common::{config::SolanaListenerConfig, rabbitmq::RabbitmqListenConfig},
+    watcher_app::error::WatcherError,
+};
 
 #[derive(Deserialize)]
-pub(super) struct ListenConfig {
+pub(super) struct WatcherConfig {
     pub(super) rabbitmq: RabbitmqListenConfig,
     pub(super) solana: SolanaListenerConfig,
     pub(super) mongodb: MongodbConfig,
 }
 
-impl ListenConfig {
-    pub(super) fn try_from_path(config: &str) -> Result<ListenConfig, ListenError> {
+impl WatcherConfig {
+    pub(super) fn try_from_path(config: &str) -> Result<WatcherConfig, WatcherError> {
         info!("Read config from path: {}", config);
         let config = Config::builder()
             .add_source(File::with_name(config))
@@ -23,12 +24,12 @@ impl ListenConfig {
             .build()
             .map_err(|err| {
                 error!("Failed to build envs due to the error: {}", err);
-                ListenError::Config
+                WatcherError::Config
             })?;
 
         config.try_deserialize().map_err(|err| {
             error!("Failed to deserialize config: {}", err);
-            ListenError::Config
+            WatcherError::Config
         })
     }
 }

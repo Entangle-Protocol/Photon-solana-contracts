@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use super::{executor_app::ExecutorApp, listener_app::ListenerApp};
+use super::{executor_app::ExecutorApp, listener_app::ListenerApp, watcher_app::WatcherApp};
 
 #[derive(Subcommand)]
 enum Command {
@@ -11,9 +11,14 @@ enum Command {
         #[arg(long, help = "Listener module config path")]
         config: String,
     },
-    #[command(about = "Starts conducting operation data to the solana photon messaging circuit")]
+    #[command(about = "Starts executing operation data to the solana photon messaging circuit")]
     Executor {
-        #[arg(long, help = "Conductor module config path")]
+        #[arg(long, help = "Executor module config path")]
+        config: String,
+    },
+    #[command(about = "Starts conducting operation data to the solana photon messaging circuit")]
+    Watcher {
+        #[arg(long, help = "Watcher config path")]
         config: String,
     },
 }
@@ -31,6 +36,7 @@ impl Cli {
         match &mut parsed_cli.command {
             Command::Listener { config } => ListenerApp::execute(config).await,
             Command::Executor { config } => ExecutorApp::execute(config).await,
+            Command::Watcher { config } => WatcherApp::execute(config).await,
         }
     }
 }
