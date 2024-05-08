@@ -1,5 +1,3 @@
-#![feature(slice_first_last_chunk)]
-
 mod cli;
 mod common;
 mod executor_app;

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use libsecp256k1::{PublicKey, SecretKey};
 use log::debug;
 use photon::protocol_data::derive_eth_address;

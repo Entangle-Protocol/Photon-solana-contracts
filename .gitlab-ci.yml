@@ -9,10 +9,9 @@ stages:
 
 clippy:
   stage: checks
-  image: rust:1.76.0
+  image: rust:1.78.0
   script:
-    - rustup toolchain install nightly-2023-12-11-x86_64-unknown-linux-gnu
-    - rustup default nightly-2023-12-11-x86_64-unknown-linux-gnu
+    - rustup default 1.78.0
     - rustup component add clippy
     - cargo clippy --all-targets --all-features -- -Dwarnings
   tags:
@@ -31,7 +30,6 @@ build_solana:
     - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest -f ./docker/Dockerfile_solana .
   tags:
     - linux
-
 
 build_module:
   stage: container_build
@@ -56,7 +54,6 @@ solana_push:
     - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest
   tags:
     - linux
-
 
 module_push:
   stage: push
@@ -85,4 +82,3 @@ clean_up_images:
     - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest || true
   tags:
     - linux
-

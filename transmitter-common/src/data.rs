@@ -97,7 +97,9 @@ pub struct OperationData {
 
 impl OperationData {
     pub fn op_hash_with_message(&self) -> OpHash {
-        photon::protocol_data::hash_with_message(&self.op_hash()).as_chunks().0[0]
+        photon::protocol_data::hash_with_message(&self.op_hash())[..32]
+            .try_into()
+            .expect("Invalid ophash")
     }
 
     fn op_hash(&self) -> Vec<u8> {
@@ -145,12 +147,16 @@ mod u128_serialization {
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub(super) fn serialize<S>(chain_id: &u128, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+    where
+        S: Serializer,
+    {
         serializer.serialize_bytes(&chain_id.to_be_bytes())
     }
 
     pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<u128, D::Error>
-    where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let data = <[u8; 16]>::deserialize(deserializer)?;
         Ok(u128::from_be_bytes(data))
     }
@@ -164,7 +170,9 @@ mod tx_id_serialization {
     };
 
     pub(super) fn serialize<S>(tx_id: &[u8], serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+    where
+        S: Serializer,
+    {
         let mut chunks = tx_id.chunks(32);
         let first = chunks.next().ok_or_else(|| {
             error!("Failed to get first tx id chunk");
@@ -181,9 +189,11 @@ mod tx_id_serialization {
     }
 
     pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let chunks = <Vec<[u8; 32]>>::deserialize(deserializer)?;
-        Ok(chunks.flatten().to_vec())
+        Ok(chunks.into_iter().flatten().collect())
     }
 }
 
@@ -192,12 +202,16 @@ mod protocol_id_serialization {
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub(super) fn serialize<S>(protocol_id: &ProtocolId, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+    where
+        S: Serializer,
+    {
         serializer.serialize_bytes(&protocol_id.0)
     }
 
     pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<ProtocolId, D::Error>
-    where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let data = ProtocolIdImpl::deserialize(deserializer)?;
         Ok(ProtocolId(data))
     }

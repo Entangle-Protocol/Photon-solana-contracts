@@ -73,7 +73,7 @@ impl SolanaEventListener {
                 if logs.value.signature == last_tx_workaround {
                     continue;
                 }
-                last_tx_workaround = logs.value.signature.clone();
+                last_tx_workaround.clone_from(&logs.value.signature);
                 self.on_logs(logs);
             }
             unsubscribe().await;

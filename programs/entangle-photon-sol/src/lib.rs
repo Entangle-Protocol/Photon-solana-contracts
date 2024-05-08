@@ -182,9 +182,6 @@
 //! ```
 //!
 
-#![feature(extend_one)]
-#![feature(slice_first_last_chunk)]
-
 pub mod error;
 pub mod gov;
 mod interface;

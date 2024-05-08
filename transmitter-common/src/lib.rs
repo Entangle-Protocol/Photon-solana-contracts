@@ -1,7 +1,3 @@
-#![feature(slice_first_last_chunk)]
-#![feature(slice_as_chunks)]
-#![feature(slice_flatten)]
-
 pub mod config;
 pub mod data;
 pub mod error;
