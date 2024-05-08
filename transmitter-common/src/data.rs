@@ -37,7 +37,7 @@ pub enum TransmitterMsg {
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
 pub enum TransmitterMsgImpl {
     Propose(Propose),
-    OperationStatus(OperationExecuted),
+    ProposalExecuted(ProposalExecuted),
     #[serde(rename = "signedOperation")]
     SignedOperationData(SignedOperation),
 }
@@ -220,7 +220,7 @@ mod protocol_id_serialization {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OperationExecuted {
+pub struct ProposalExecuted {
     pub last_watched_block: String,
     pub op_hash: OpHash,
     pub executor: Pubkey,
