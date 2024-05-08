@@ -10,6 +10,7 @@ COPY --from=builder /photon-messaging-solana/target/release/transmitter-module \
                     /photon-messaging-solana/target/release/libgov_extension.so \
                     /photon-messaging-solana/docker/publisher-config.yml \
                     /photon-messaging-solana/docker/listener-config.yml \
+                    /photon-messaging-solana/docker/watcher-config.yml \
                     /photon-messaging-solana/docker/executor-config.yml /
 
 # Listener

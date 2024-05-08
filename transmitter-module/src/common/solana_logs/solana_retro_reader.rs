@@ -15,23 +15,32 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use transmitter_common::mongodb::{mdb_solana_chain_id, MongodbConfig, MDB_LAST_BLOCK_COLLECTION};
 
-use super::{error::ListenError, LogsBunch};
-use crate::common::config::SolanaClientConfig;
+use crate::common::{
+    config::SolanaClientConfig,
+    solana_logs::{solana_event_listener::LogsBunch, EventListenerError},
+};
 
-pub(super) struct SolanaEventsReader {
+pub(super) struct SolanaRetroReader {
+    mongodb_config: MongodbConfig,
     logs_sender: UnboundedSender<LogsBunch>,
 }
 
-impl SolanaEventsReader {
-    pub(super) fn new(logs_sender: UnboundedSender<LogsBunch>) -> SolanaEventsReader {
-        SolanaEventsReader { logs_sender }
+impl SolanaRetroReader {
+    pub(super) fn new(
+        mongodb_config: MongodbConfig,
+        logs_sender: UnboundedSender<LogsBunch>,
+    ) -> SolanaRetroReader {
+        SolanaRetroReader {
+            mongodb_config,
+            logs_sender,
+        }
     }
 
     pub(super) async fn read_events_backward(
         &self,
         solana_config: &SolanaClientConfig,
         mongodb_config: &MongodbConfig,
-    ) -> Result<(), ListenError> {
+    ) -> Result<(), EventListenerError> {
         let Ok(Some(tx_start_from)) = self.get_last_processed_block(mongodb_config).await else {
             debug!("No latest_processed_block found, skip retrospective reading");
             return Ok(());
@@ -41,7 +50,7 @@ impl SolanaEventsReader {
             RpcClient::new_with_commitment(solana_config.rpc_url.clone(), solana_config.commitment);
         let until = Some(Signature::from_str(&tx_start_from).map_err(|err| {
             error!("Failed to decode tx_start_from: {}", err);
-            ListenError::SolanaClient
+            EventListenerError::SolanaClient
         })?);
 
         let mut before = None;
@@ -114,7 +123,7 @@ impl SolanaEventsReader {
         client: &RpcClient,
         until: Option<Signature>,
         before: Option<Signature>,
-    ) -> Result<Vec<RpcConfirmedTransactionStatusWithSignature>, ListenError> {
+    ) -> Result<Vec<RpcConfirmedTransactionStatusWithSignature>, EventListenerError> {
         let args = GetConfirmedSignaturesForAddress2Config {
             before,
             until,
@@ -127,7 +136,7 @@ impl SolanaEventsReader {
             .await
             .map_err(|err| {
                 error!("Failed to get signatures for address: {}", err);
-                ListenError::SolanaClient
+                EventListenerError::SolanaClient
             })?;
         Ok(signatures_backward)
     }
@@ -135,11 +144,11 @@ impl SolanaEventsReader {
     async fn get_last_processed_block(
         &self,
         mongodb_config: &MongodbConfig,
-    ) -> Result<Option<String>, ListenError> {
+    ) -> Result<Option<String>, EventListenerError> {
         let mut client_options =
             ClientOptions::parse_async(&mongodb_config.uri).await.map_err(|err| {
                 error!("Failed to parse mongodb uri: {}", err);
-                ListenError::from(err)
+                EventListenerError::from(err)
             })?;
         let server_api = ServerApi::builder().version(ServerApiVersion::V1).build();
         client_options.server_api = Some(server_api);
@@ -151,25 +160,26 @@ impl SolanaEventsReader {
         );
         let client = Client::with_options(client_options).map_err(|err| {
             error!("Failed to build mondodb client: {}", err);
-            ListenError::from(err)
+            EventListenerError::from(err)
         })?;
         let db = client.database(&mongodb_config.db);
         let collection = db.collection::<Document>(MDB_LAST_BLOCK_COLLECTION);
 
+        let last_block: &str = &self.mongodb_config.key;
         let chain_id = mdb_solana_chain_id();
         let doc = collection
             .find_one(doc! { "direction": "from", "chain": chain_id }, FindOneOptions::default())
             .await
             .map_err(|err| {
-                error!("Failed to request last_processed_block: {}", err);
-                ListenError::from(err)
+                error!("Failed to request {}: {}", last_block, err);
+                EventListenerError::from(err)
             })?;
         let Some(doc) = doc else {
-            warn!("last_processed_block not found");
+            warn!("{}: not found", last_block);
             return Ok(None);
         };
-        let Some(Bson::String(tx_signature)) = doc.get("last_processed_block").cloned() else {
-            warn!("Failed to get last_processed_block from document");
+        let Some(Bson::String(tx_signature)) = doc.get(last_block).cloned() else {
+            warn!("Failed to get {} from document", last_block);
             return Ok(None);
         };
         debug!("doc: {}", tx_signature);

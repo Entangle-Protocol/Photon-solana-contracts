@@ -16,3 +16,4 @@ solana:
 mongodb:
     uri: mongodb://mongo:27017
     db: "entangle"
+    key: "last_processed_block"

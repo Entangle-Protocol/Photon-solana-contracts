@@ -6,8 +6,13 @@ use amqprs::{
 };
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Notify;
+use transmitter_common::{
+    config::ReconnectConfig,
+    rabbitmq_client::{RabbitmqBindingConfig, RabbitmqConnectConfig},
+};
 
 #[derive(Default)]
 pub(crate) struct ConnectionControl {
@@ -107,4 +112,14 @@ impl ChannelCallback for ChannelControl {
     ) {
         info!("Publish return: {} on channel: {}, content size: {}", ret, channel, content.len());
     }
+}
+
+#[derive(Deserialize)]
+pub(crate) struct RabbitmqListenConfig {
+    #[serde(flatten)]
+    pub(crate) connect: RabbitmqConnectConfig,
+    #[serde(flatten)]
+    pub(crate) binding: RabbitmqBindingConfig,
+    #[serde(flatten)]
+    pub(crate) reconnect: ReconnectConfig,
 }

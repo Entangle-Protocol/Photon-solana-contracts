@@ -46,23 +46,28 @@ async fn execute(config_path: &str) {
 }
 
 struct Consumer {
+    config: MongodbConfig,
     collection: Collection<Document>,
 }
 
 impl Consumer {
     async fn new(config: MongodbConfig) -> Consumer {
-        let mut client_options = ClientOptions::parse_async(config.uri)
+        let mut client_options = ClientOptions::parse_async(config.uri.clone())
             .await
             .expect("Expected mongo client_options be parsed");
         let server_api = ServerApi::builder().version(ServerApiVersion::V1).build();
         client_options.server_api = Some(server_api);
-        client_options.credential =
-            Some(Credential::builder().username(config.user).password(config.password).build());
+        client_options.credential = Some(
+            Credential::builder()
+                .username(config.user.clone())
+                .password(config.password.clone())
+                .build(),
+        );
         let client =
             Client::with_options(client_options).expect("Expected client be created with options");
         let db = client.database("entangle");
         let collection = db.collection::<Document>(MDB_LAST_BLOCK_COLLECTION);
-        Consumer { collection }
+        Consumer { config, collection }
     }
 }
 
@@ -82,10 +87,11 @@ impl AsyncConsumer for Consumer {
             return;
         };
         let chain_id = mdb_solana_chain_id();
+
         self.collection
             .update_one(
                 doc! { "direction": "from", "chain": chain_id },
-                doc! { "$set": { "last_processed_block": &proposal.latest_block_id, "updated_at": get_time_ms() as i64 } },
+                doc! { "$set": { &self.config.key: &proposal.latest_block_id, "updated_at": get_time_ms() as i64 } },
                 UpdateOptions::builder().upsert(true).build(),
             )
             .await

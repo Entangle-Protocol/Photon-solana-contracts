@@ -2,6 +2,7 @@ mod cli;
 mod common;
 mod executor_app;
 mod listener_app;
+mod watcher_app;
 
 extern crate photon;
 

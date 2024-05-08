@@ -50,3 +50,5 @@ mongodb:
     password: rootpassword
     # Database that is used to get last_processed_block during the retrospective proposal reading
     db: "entangle"
+    # The value to update to make the retrospective reading possible in the core transmitter process
+    key: "last_processed_block"

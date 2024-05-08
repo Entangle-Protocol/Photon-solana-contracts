@@ -39,4 +39,4 @@ mongodb:
     # Database that is used to get last_processed_block during the retrospective proposal reading
     db: "entangle"
     # The value to read until within the retrospective reading
-    key: "last_processed_block"
+    key: "last_watched_block"

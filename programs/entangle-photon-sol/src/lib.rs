@@ -471,7 +471,7 @@ pub mod photon {
 
         let data = [&sighash("global", &method)[..], &payload[..]].concat();
         let instr = Instruction::new_with_bytes(op_data.protocol_addr, &data, metas);
-        let err = invoke_signed(
+        invoke_signed(
             &instr,
             &accounts,
             &[&[
@@ -480,15 +480,12 @@ pub mod photon {
                 &op_data.protocol_id,
                 &[ctx.bumps.call_authority],
             ]],
-        )
-        .map_err(|e| format!("{}", e))
-        .err();
+        )?;
 
         ctx.accounts.op_info.status = OpStatus::Executed;
 
         emit!(OperationExecuted {
             op_hash,
-            err,
             executor: ctx.accounts.executor.key()
         });
         Ok(())
@@ -556,7 +553,7 @@ pub mod photon {
     ///
     pub fn receive_photon_msg(
         ctx: Context<ReceivePhotonMsg>,
-        op_hash: Vec<u8>,
+        _op_hash: Vec<u8>,
         code: Vec<u8>,
         _params: Vec<u8>,
     ) -> Result<()> {
@@ -565,23 +562,12 @@ pub mod photon {
             op_data.protocol_id == gov_protocol_id() && op_data.protocol_addr == ID,
             CustomError::InvalidEndpoint
         );
-        let executor = ctx.accounts.executor.key();
-        let err = handle_gov_operation(
+        handle_gov_operation(
             &mut ctx.accounts.config,
             &mut ctx.accounts.target_protocol_info,
             code,
             op_data,
         )
-        .map_err(|e| format!("{}", e))
-        .err();
-
-        emit!(OperationExecuted {
-            op_hash,
-            err,
-            executor
-        });
-
-        Ok(())
     }
 }
 
@@ -1031,11 +1017,12 @@ pub struct OperationApproved {
 /// * `err` - An optional string describing any error that occurred during the execution, if applicable.
 /// * `executor` - The public key of the account that executed the operation.
 ///
+
+#[derive(Debug)]
 #[event]
 pub struct OperationExecuted {
-    op_hash: Vec<u8>,
-    err: Option<String>,
-    executor: Pubkey,
+    pub op_hash: Vec<u8>,
+    pub executor: Pubkey,
 }
 /// Represents an event emitted when an associated program, registered in the protocol
 /// info as a proposer, proposes an operation.
