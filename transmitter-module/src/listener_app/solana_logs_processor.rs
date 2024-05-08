@@ -42,8 +42,8 @@ impl EventProcessor for ProposalEventProcessor {
     type Event = ProposeEvent;
 
     fn on_event(&self, event: ProposeEvent, signature: &str, slot: u64) {
-        let Ok(protocol_id) = event.protocol_id.first_chunk().copied().ok_or_else(|| {
-            error!("Failed to get 32 bytes protocol_id chunk from event data, skip event")
+        let Ok(protocol_id) = <[u8; 32]>::try_from(event.protocol_id.clone()).map_err(|_| {
+            error!("Failed to get 32 bytes protocol_id chunk from event data, skip event");
         }) else {
             return;
         };

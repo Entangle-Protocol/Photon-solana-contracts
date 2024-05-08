@@ -37,12 +37,12 @@ impl ProtocolExtension for GovExtension {
         let (gov_protocol_pda, _) =
             Pubkey::find_program_address(&[ROOT, b"PROTOCOL", GOV_PROTOCOL_ID], &photon::ID);
 
-        let code = function_selector.first_chunk::<4>().ok_or_else(|| {
+        let code = <[u8; 4]>::try_from(function_selector).map_err(|_| {
             error!("Failed to get first chunk of gov selector");
             ExtensionError::Extension
         })?;
 
-        let selector_u32 = u32::from_be_bytes(*code);
+        let selector_u32 = u32::from_be_bytes(code);
         let gov_operation = GovOperation::try_from(selector_u32).map_err(|err| {
             error!("Failed to get gov_operation from selector: {}", err);
             ExtensionError::Extension

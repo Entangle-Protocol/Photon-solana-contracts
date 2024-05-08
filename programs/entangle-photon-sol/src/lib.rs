@@ -352,7 +352,7 @@ pub mod photon {
         );
         ctx.accounts.op_info.op_data = op_data;
         ctx.accounts.op_info.status = OpStatus::Init;
-        emit!(OperationLoaded {
+        emit!(ProposalLoaded {
             op_hash,
             executor: ctx.accounts.executor.key()
         });
@@ -403,7 +403,7 @@ pub mod photon {
                 if consensus_rate >= ctx.accounts.protocol_info.consensus_target_rate {
                     consensus_reached = true;
                     ctx.accounts.op_info.status = OpStatus::Signed;
-                    emit!(OperationApproved {
+                    emit!(ProposalApproved {
                         op_hash,
                         executor: ctx.accounts.executor.key()
                     });
@@ -484,7 +484,7 @@ pub mod photon {
 
         ctx.accounts.op_info.status = OpStatus::Executed;
 
-        emit!(OperationExecuted {
+        emit!(ProposalExecuted {
             op_hash,
             executor: ctx.accounts.executor.key()
         });
@@ -983,7 +983,7 @@ impl OpInfo {
 /// * `op_hash` - The hash of the operation that has been loaded.
 /// * `executor` - The public key of the account that loaded the operation.
 #[event]
-pub struct OperationLoaded {
+pub struct ProposalLoaded {
     op_hash: Vec<u8>,
     executor: Pubkey,
 }
@@ -1000,7 +1000,7 @@ pub struct OperationLoaded {
 /// * `executor` - The public key of the account that approved the operation.
 ///
 #[event]
-pub struct OperationApproved {
+pub struct ProposalApproved {
     op_hash: Vec<u8>,
     executor: Pubkey,
 }
@@ -1020,7 +1020,7 @@ pub struct OperationApproved {
 
 #[derive(Debug)]
 #[event]
-pub struct OperationExecuted {
+pub struct ProposalExecuted {
     pub op_hash: Vec<u8>,
     pub executor: Pubkey,
 }
