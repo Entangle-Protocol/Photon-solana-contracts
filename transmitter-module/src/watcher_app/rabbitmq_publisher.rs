@@ -19,12 +19,12 @@ use transmitter_common::{
 
 use super::error::WatcherError;
 use crate::common::rabbitmq::{ChannelControl, ConnectionControl, RabbitmqListenConfig};
-use transmitter_common::data::OperationExecuted;
+use transmitter_common::data::ProposalExecuted;
 
 pub(super) struct RabbitmqPublisher {
     config: RabbitmqListenConfig,
-    op_status_receiver: UnboundedReceiver<OperationExecuted>,
-    buffered_op_status: Option<OperationExecuted>,
+    op_status_receiver: UnboundedReceiver<ProposalExecuted>,
+    buffered_op_status: Option<ProposalExecuted>,
     close_notify: Arc<Notify>,
     connection: Option<Connection>,
     channel: Option<Channel>,
@@ -33,7 +33,7 @@ pub(super) struct RabbitmqPublisher {
 impl RabbitmqPublisher {
     pub(super) fn new(
         config: RabbitmqListenConfig,
-        propose_receiver: UnboundedReceiver<OperationExecuted>,
+        propose_receiver: UnboundedReceiver<ProposalExecuted>,
     ) -> RabbitmqPublisher {
         RabbitmqPublisher {
             config,
@@ -53,23 +53,23 @@ impl RabbitmqPublisher {
         self.init_connection().await?;
         let notify = self.close_notify.clone();
         loop {
-            let operation_status = select! {
+            let proposal_executed = select! {
                 _ = notify.notified() => {
                     self.init_connection().await?;
                     continue
                 },
                 op_data = self.propose_to_progress() => op_data
             };
-            let Some(operation_status) = operation_status else {
+            let Some(operation_status) = proposal_executed else {
                 return Ok(());
             };
             self.publish_propose(operation_status).await;
         }
     }
 
-    async fn publish_propose(&mut self, operation_executed: OperationExecuted) {
+    async fn publish_propose(&mut self, operation_executed: ProposalExecuted) {
         let transmitter_msg =
-            TransmitterMsg::V1(TransmitterMsgImpl::OperationStatus(operation_executed.clone()));
+            TransmitterMsg::V1(TransmitterMsgImpl::ProposalExecuted(operation_executed.clone()));
         debug!("operation_status to be sent: {:?}", transmitter_msg);
         let Ok(json_data) = serde_json::to_vec(&transmitter_msg).map_err(|err| {
             error!(
@@ -88,7 +88,7 @@ impl RabbitmqPublisher {
         });
     }
 
-    async fn propose_to_progress(&mut self) -> Option<OperationExecuted> {
+    async fn propose_to_progress(&mut self) -> Option<ProposalExecuted> {
         if self.buffered_op_status.is_some() {
             self.buffered_op_status.take()
         } else {

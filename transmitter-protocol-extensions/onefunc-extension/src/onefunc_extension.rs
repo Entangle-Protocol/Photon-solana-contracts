@@ -29,9 +29,7 @@ struct OnefuncExtension {
 
 impl ProtocolExtension for OnefuncExtension {
     fn get_protocol_id(&self) -> &'static [u8; 32] {
-        "onefunc_________________________"
-            .as_bytes()
-            .first_chunk()
+        <&[u8; 32]>::try_from("onefunc_________________________".as_bytes())
             .expect("Expected onefunc-extension protocol_id be converted well")
     }
 
