@@ -2,7 +2,6 @@
 name = "onefunc-extension"
 version = "0.1.0"
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -10,10 +9,10 @@ crate-type = ["dylib"]
 name = "onefunc_extension"
 
 [dependencies]
-env_logger = "0.11"
 entangle-photon-sol = { path = "../../programs/entangle-photon-sol" }
+env_logger = "0.11"
 lazy_static = "1.4"
 log = "0.4"
 onefunc = { path = "../../programs/onefunc" }
-transmitter-common = { path = "../../transmitter-common" }
 solana-sdk = "1.16"
+transmitter-common = { path = "../../transmitter-common" }

@@ -1,5 +1,3 @@
-#![feature(slice_first_last_chunk)]
-
 mod cli;
 mod rabbitmq_publisher;
 mod util;

@@ -182,9 +182,6 @@
 //! ```
 //!
 
-#![feature(extend_one)]
-#![feature(slice_first_last_chunk)]
-
 pub mod error;
 pub mod gov;
 mod interface;
@@ -981,7 +978,7 @@ impl ProtocolInfo {
 pub struct OpInfo {
     status: OpStatus,
     unique_signers: [EthAddress; 16],
-    op_data: OperationData,
+    pub op_data: OperationData,
 }
 
 impl OpInfo {

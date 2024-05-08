@@ -83,11 +83,10 @@ pub(super) fn handle_gov_operation(
     code: Vec<u8>,
     op_data: &OperationData,
 ) -> Result<()> {
-    let Some(code) = code.first_chunk::<U32_SIZE>() else {
-        panic!("Failed to get first chunk of gov selector")
-    };
-
-    let selector_u32 = u32::from_be_bytes(*code);
+    if code.len() < U32_SIZE {
+        return Err(CustomError::InvalidMethodSelector.into());
+    }
+    let selector_u32 = u32::from_be_bytes(code[..U32_SIZE].try_into().expect("Checked above"));
 
     let gov_operation =
         require_ok!(GovOperation::try_from(selector_u32), CustomError::InvalidMethodSelector);
@@ -406,10 +405,11 @@ pub(super) fn target_protocol_by_code(
     code: &[u8],
     params: &[u8],
 ) -> std::result::Result<Vec<u8>, String> {
-    let code = code
-        .first_chunk::<4>()
-        .ok_or_else(|| "Failed to get first chunk of gov selector".to_string())?;
-    let selector_u32 = u32::from_be_bytes(*code);
+    if code.len() < U32_SIZE {
+        return Err("Selector to short".to_string());
+    }
+    let selector_u32 =
+        u32::from_be_bytes(code[..U32_SIZE].try_into().map_err(|_| "Checked above".to_string())?);
     let gov_operation = GovOperation::try_from(selector_u32)
         .map_err(|_| "Failed to get gov_operation from selector".to_string())?;
     let params = decode_abi_params(params, abi_decode_scheme(gov_operation))

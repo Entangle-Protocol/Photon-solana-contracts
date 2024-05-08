@@ -1,12 +1,11 @@
 [workspace]
 members = [
-    "transmitter-protocol-extensions/onefunc-extension",
     "programs/*",
-    "transmitter-module",
-    "transmitter-test-publisher",
     "transmitter-common",
+    "transmitter-module",
+    "transmitter-protocol-extensions/*",
     "transmitter-test-listener",
-    "transmitter-protocol-extensions/gov-extension"
+    "transmitter-test-publisher",
 ]
 resolver = "1"
 
