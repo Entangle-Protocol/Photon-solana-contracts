@@ -109,7 +109,7 @@ pub(super) fn handle_gov_operation(
             remove_allowed_proposer_address(calldata, target_protocol_info)?
         }
         GovOperation::AddExecutor => add_executor(calldata, target_protocol_info)?,
-        GovOperation::RemoveExecutor => remove_executor(calldata, target_protocol_info)?,
+        GovOperation::RemoveExecutor => remove_executor(calldata, &op_data.protocol_id, target_protocol_info)?,
         GovOperation::AddTransmitter => add_transmitter(calldata, target_protocol_info)?,
         GovOperation::RemoveTransmitter => remove_transmitter(calldata, target_protocol_info)?,
         GovOperation::SetConsensusTargetRate => {
@@ -273,22 +273,28 @@ fn add_executor(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Res
             .try_into()
             .map_err(|_| CustomError::InvalidGovMsg)?,
     );
+
+    if executor == Pubkey::default() {
+        return Err(CustomError::InvalidExecutorAddress.into());
+    }
+
     let mut executors: Vec<_> = target_protocol_info.executors();
-    if !executors.contains(&executor) && executor != Pubkey::default() {
-        if executors.len() < MAX_EXECUTORS {
-            executors.push(executor);
-            target_protocol_info.executors = Default::default();
-            for (i, k) in executors.into_iter().enumerate() {
-                target_protocol_info.executors[i] = k;
-            }
-        } else {
-            return Err(CustomError::MaxExecutorsExceeded.into());
-        }
+    if executors.contains(&executor) {
+        return Err(CustomError::ExecutorIsAlreadyAllowed.into());
+    }
+    if executors.len() >= MAX_EXECUTORS {
+        return Err(CustomError::MaxExecutorsExceeded.into());
+    }
+
+    executors.push(executor);
+    target_protocol_info.executors = Default::default();
+    for (i, k) in executors.into_iter().enumerate() {
+        target_protocol_info.executors[i] = k;
     }
     Ok(())
 }
 
-fn remove_executor(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
+fn remove_executor(calldata: &[u8], protocol_id: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
     let params = decode_abi_params(
         calldata,
         ParamType::Tuple(vec![
@@ -307,6 +313,11 @@ fn remove_executor(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> 
     );
     let executors: Vec<_> =
         target_protocol_info.executors().into_iter().filter(|x| x != &executor).collect();
+
+    if executors.is_empty() && protocol_id == GOV_PROTOCOL_ID {
+        return Err(CustomError::TryingToRemoveLastGovExecutor.into());
+    }
+
     target_protocol_info.executors = Default::default();
     for (i, k) in executors.into_iter().enumerate() {
         target_protocol_info.executors[i] = k;
