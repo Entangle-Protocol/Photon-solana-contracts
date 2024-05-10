@@ -1,7 +1,7 @@
 use config::Config;
 use ethabi::ParamType;
 use log::{error, warn};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use solana_sdk::{
     hash::Hash, instruction::AccountMeta, pubkey::Pubkey, system_program, transaction::Transaction,
 };
@@ -19,13 +19,24 @@ pub fn get_extension() -> &'static dyn ProtocolExtension {
     &*BRIDGE_EXTENTION
 }
 
+fn deserialize_pubkey<'de, D>(deserializer: D) -> Result<Pubkey, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    s.parse().map_err(serde::de::Error::custom)
+}
+
 #[derive(Deserialize)]
 struct BridgeConfig {
     #[serde(deserialize_with = "hex::serde::deserialize")]
     protocol_id: Vec<u8>,
+    #[serde(deserialize_with = "deserialize_pubkey")]
     bridge_program: Pubkey,
+    #[serde(deserialize_with = "deserialize_pubkey")]
     core_program: Pubkey,
     seed_root: String,
+    #[serde(deserialize_with = "deserialize_pubkey")]
     mint: Pubkey,
     use_token2022: bool,
 }
@@ -78,7 +89,7 @@ impl BridgeExtension {
     fn from_config(prefix: &str) -> Self {
         let settings: BridgeConfig = Config::builder()
             .add_source(config::File::with_name(&format!(
-                "ext_config/bridge-{}",
+                "extensions/bridge-{}.toml",
                 prefix.to_lowercase()
             )))
             .add_source(config::Environment::with_prefix(&format!("BRIDGE_{}", prefix)))
@@ -88,6 +99,7 @@ impl BridgeExtension {
             .expect("Failed to deserialize config for bridge");
         let protocol_id: &'static mut [u8; 32] =
             settings.protocol_id.leak().try_into().expect("Invalid protocol id");
+        log::info!("Bridge extension initialized");
         Self {
             protocol_id,
             bridge_program: settings.bridge_program,

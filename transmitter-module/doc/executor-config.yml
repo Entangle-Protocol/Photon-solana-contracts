@@ -38,6 +38,7 @@ solana:
 extensions:
     - target/release/libonefunc_extension.so
     - target/release/libgov_extension.so
+    - target/release/libbridge_extension.so
 
 # mongodb is used to store last_processed_block in a persistent way
 mongodb:

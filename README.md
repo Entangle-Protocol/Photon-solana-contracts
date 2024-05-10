@@ -9,23 +9,23 @@ Here are the key components of the current implementation for the Solana blockch
 
 ### The mentioned set of components for the Solana blockchain
 
-- [photon messaging endpoint](programs/entangle-photon-sol) - implements the messaging protocol.
-- [listener service](transmitter-module/src/listener_app) - listens to the endpoint for incoming proposal events.
-- [executor service](transmitter-module/src/executor_app) - processes signed transactions as prescribed by the Solana
-  blockchain.
+-   [photon messaging endpoint](programs/entangle-photon-sol) - implements the messaging protocol.
+-   [listener service](transmitter-module/src/listener_app) - listens to the endpoint for incoming proposal events.
+-   [executor service](transmitter-module/src/executor_app) - processes signed transactions as prescribed by the Solana
+    blockchain.
 
 ### User protocol example and testing facilities
 
-- [onefunc solana program](programs/onefunc) - can be registered at the endpoint contract as a protocol address and may
-  function as a called program or a proposer program.
-- [onefunc extension](transmitter-protocol-extensions/onefunc-extension) - provides an opportunity to extend the
-  operation execution stage with additional accounts and signatures
-- [test transmitter](transmitter-test-listener) - serves as a core transmitter to process proposals and relay them to
-  the entangle oracle blockchain. It is designed to emulate a transmitter in testing scenarios and sets the
-  last_processed_block value for failure recovery.
-- [test publisher](transmitter-test-publisher) - a small CLI tool that offers two commands, init-owned-counter and
-  increment-owned-counter, to showcase the invocation of on-chain functions through an endpoint contract, as used in
-  cross-chain messaging.
+-   [onefunc solana program](programs/onefunc) - can be registered at the endpoint contract as a protocol address and may
+    function as a called program or a proposer program.
+-   [onefunc extension](transmitter-protocol-extensions/onefunc-extension) - provides an opportunity to extend the
+    operation execution stage with additional accounts and signatures
+-   [test transmitter](transmitter-test-listener) - serves as a core transmitter to process proposals and relay them to
+    the entangle oracle blockchain. It is designed to emulate a transmitter in testing scenarios and sets the
+    last_processed_block value for failure recovery.
+-   [test publisher](transmitter-test-publisher) - a small CLI tool that offers two commands, init-owned-counter and
+    increment-owned-counter, to showcase the invocation of on-chain functions through an endpoint contract, as used in
+    cross-chain messaging.
 
 ## Testing the photon cross-chain messaging functionality in the local environment
 
@@ -44,7 +44,7 @@ anchor build
 
 To run the solana test validator with previously compiled solana programs, you can use the following command
 
-```sh 
+```sh
 solana-test-validator --reset --bpf-program keys/onefunc-keypair.json target/deploy/onefunc.so --bpf-program keys/photon-keypair.json target/deploy/photon.so
 ```
 
@@ -75,7 +75,7 @@ RabbitMQ and MongoDB are important components of interprocess communication duri
 be started before the other components of a local environment to establish queues and provide last_processed_block
 for retrospective event analysis. It's recommended to use the following command to up them
 
-```sh 
+```sh
 docker compose -f docker/docker-compose.yml up rabbitmq mongo -d
 ```
 
@@ -117,7 +117,7 @@ compiled and configured for dynamic linking. A list of these extensions can be f
 the [executor configuration file](transmitter-module/doc/executor-config.yml).
 
 ```sh
-cargo build --release -p gov-extension -p onefunc-extension
+cargo build --release -p gov-extension -p onefunc-extension -p bridge-extension
 ```
 
 ```sh
@@ -185,7 +185,7 @@ The docker-compose file outlines a set of containers that includes a Solana test
 and listener. The environment can be started as follows:
 
 ```sh
-docker-compose -f docker/docker-compose.yml up 
+docker-compose -f docker/docker-compose.yml up
 ```
 
 ### Produce an operation with test publisher
@@ -228,5 +228,4 @@ cargo doc --no-deps -p entangle-photon-sol -p onefunc-extension -p transmitter-m
 ```
 
 [gitbook]: https://entangle-1.gitbook.io/entangle/entangle/overview/photon-messaging-layer
-
 [image]: https://entangle-1.gitbook.io/~gitbook/image?url=https:%2F%2F758965771-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FW4hWFoOg1bsy9f1Z6FWM%252Fuploads%252FzTNtzkvpHmvi80k7Nb1p%252F1.png%3Falt=media%26token=4835b28b-cec4-46c9-8856-5110d8e3078d&width=768&dpr=1&quality=100&sign=d84c0f2a1f69e12d6b7341cac8e0f08cfe007d7405a6764ea908b70ae1508356

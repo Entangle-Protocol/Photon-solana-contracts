@@ -2,17 +2,21 @@ FROM rust:1.78.0 as builder
 COPY . /photon-messaging-solana/
 RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package transmitter-test-listener --package test-publisher --release
 RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package onefunc-extension --package gov-extension --package transmitter-module --release
+RUN cargo build --manifest-path=photon-messaging-solana/Cargo.toml --package bridge-extension --package bridge-extension --package transmitter-module --release
 
 FROM ubuntu
 COPY --from=builder /photon-messaging-solana/target/release/transmitter-module \
                     /photon-messaging-solana/target/release/test-publisher \
                     /photon-messaging-solana/target/release/libonefunc_extension.so \
                     /photon-messaging-solana/target/release/libgov_extension.so \
+                    /photon-messaging-solana/target/release/libbridge_extension.so \
                     /photon-messaging-solana/docker/publisher-config.yml \
                     /photon-messaging-solana/docker/listener-config.yml \
                     /photon-messaging-solana/docker/watcher-config.yml \
+                    /photon-messaging-solana/extensions/bridge-ngl.toml \
                     /photon-messaging-solana/docker/executor-config.yml /
-
+RUN mkdir extensions
+RUN cp bridge-ngl.toml extensions
 # Listener
 #ENTRYPOINT ["/transmitter-module", "listener", "--config", "listener-config.yml"]
 # Executor
