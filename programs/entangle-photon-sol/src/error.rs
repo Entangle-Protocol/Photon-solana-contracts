@@ -80,6 +80,13 @@ pub enum CustomError {
     MaxTransmittersExceeded,
     #[msg("MaxExecutorsExceeded")]
     MaxExecutorsExceeded,
+    #[msg("ExecutorIsAlreadyAllowed")]
+    ExecutorIsAlreadyAllowed,
+    #[msg("TryingToRemoveLastGovExecutor")]
+    TryingToRemoveLastGovExecutor,
+    #[msg("InvalidExecutorAddress")]
+    InvalidExecutorAddress,
     #[msg("MaxProposersExceeded")]
     MaxProposersExceeded,
 }
+

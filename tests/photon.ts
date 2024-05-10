@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { BorshCoder, EventParser, Program, web3 } from "@coral-xyz/anchor";
+import { AnchorError, BorshCoder, EventParser, Program, web3 } from "@coral-xyz/anchor";
 import { Photon } from "../target/types/photon";
 import { Onefunc } from "../target/types/onefunc";
 import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -244,7 +244,7 @@ describe("photon", () => {
 
     let eob_master_contract = ethers.utils.defaultAbiCoder.encode(["address"], ["0xe981b4f9580cce1ff1b87d63a9b68e53110b9aa7"]);
     let eob_master_contract_buf: Buffer = new Buffer(eob_master_contract.substring(2), "hex");
-    
+
     await program.methods
       .initialize(
         new anchor.BN(EOB_CHAIN_ID),
@@ -328,26 +328,9 @@ describe("photon", () => {
   });
 
   it("addExecutor", async () => {
-    if (TEST_REMOVE_FUNCS) {
-      let addr = anchor.web3.Keypair.generate().publicKey;
-      let params = addExecutor(ONE_FUNC_ID, addr);
-      await executeOperation(
-        GOV_PROTOCOL_ID,
-        program.programId,
-        0xe0aafb68,
-        params,
-        ONE_FUNC_ID,
-      );
-      // removeExecutor(bytes)
-      await executeOperation(
-        GOV_PROTOCOL_ID,
-        program.programId,
-        0x04fa384a,
-        params,
-        ONE_FUNC_ID,
-      );
-    }
-    let params = addExecutor(ONE_FUNC_ID, executor.publicKey);
+
+    let addr = anchor.web3.Keypair.generate().publicKey;
+    let params = addExecutor(ONE_FUNC_ID, addr);
     await executeOperation(
       GOV_PROTOCOL_ID,
       program.programId,
@@ -355,6 +338,33 @@ describe("photon", () => {
       params,
       ONE_FUNC_ID,
     );
+    try {
+      await executeOperation(
+        GOV_PROTOCOL_ID,
+        program.programId,
+        0x04fa384a, // removeExecutor(bytes)
+        params,
+        ONE_FUNC_ID,
+      );
+    } catch (error) {
+      const errMsg = "TryingToRemoveLastGovExecutor";
+      assert.equal((error as AnchorError).error.errorMessage, errMsg)
+    }
+
+    try {
+      let params = addExecutor(ONE_FUNC_ID, executor.publicKey);
+      await executeOperation(
+        GOV_PROTOCOL_ID,
+        program.programId,
+        0xe0aafb68,
+        params,
+        ONE_FUNC_ID,
+      );
+    } catch (error) {
+      const errMsg = "ExecutorIsAlreadyAllowed";
+      assert.equal((error as AnchorError).error.errorMessage, errMsg)
+    }
+
   });
 
   it("addProposer", async () => {
