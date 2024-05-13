@@ -76,6 +76,7 @@ const HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR: &[u8] = &[
     0xba, 0x96, 0x6e, 0x5f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0,
 ];
+const RATE_DECIMALS: u64 = 10000;
 
 pub(super) fn handle_gov_operation(
     config: &mut Config,
@@ -109,7 +110,9 @@ pub(super) fn handle_gov_operation(
             remove_allowed_proposer_address(calldata, target_protocol_info)?
         }
         GovOperation::AddExecutor => add_executor(calldata, target_protocol_info)?,
-        GovOperation::RemoveExecutor => remove_executor(calldata, &op_data.protocol_id, target_protocol_info)?,
+        GovOperation::RemoveExecutor => {
+            remove_executor(calldata, &op_data.protocol_id, target_protocol_info)?
+        }
         GovOperation::AddTransmitter => add_transmitter(calldata, target_protocol_info)?,
         GovOperation::RemoveTransmitter => remove_transmitter(calldata, target_protocol_info)?,
         GovOperation::SetConsensusTargetRate => {
@@ -127,13 +130,17 @@ pub(super) fn add_allowed_protocol(
     let params = decode_abi_params(
         calldata,
         ParamType::Tuple(vec![
-            ParamType::FixedBytes(32), // protocolId
-            ParamType::Uint(256),      // consensusTargetRate
-            ParamType::Array(Box::new(ParamType::Address)),
+            ParamType::FixedBytes(32),                      // protocolId
+            ParamType::Uint(256),                           // consensusTargetRate
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
     )?;
 
-    let consensus_target_rate = params[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
+    let consensus_target_rate =
+        params[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?.as_u64();
+
+    check_consensus_target_rate(consensus_target_rate)?;
+
     let transmitters: Vec<ethabi::Address> = params[2]
         .clone()
         .into_array()
@@ -142,15 +149,18 @@ pub(super) fn add_allowed_protocol(
         .map(|x| x.into_address().expect("always address"))
         .collect();
     target_protocol_info.is_init = true;
-    target_protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
+    target_protocol_info.consensus_target_rate = consensus_target_rate;
     for (i, k) in transmitters.into_iter().enumerate() {
         target_protocol_info.transmitters[i] = k.into();
     }
-    // Propose handleAddAllowedProtocol
+    propose_handle_add_allowed_protocol(params, config)?;
+    Ok(())
+}
+
+fn propose_handle_add_allowed_protocol(params: Vec<Token>, config: &mut Config) -> Result<()> {
     let nonce = config.nonce;
     config.nonce += 1;
     let mut function_selector = vec![0_u8, 32];
-
     function_selector.extend_from_slice(&ethabi::encode(&[Token::FixedBytes(
         HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR.to_vec(),
     )]));
@@ -170,10 +180,7 @@ pub(super) fn add_allowed_protocol(
     Ok(())
 }
 
-fn add_allowed_protocol_address(
-    calldata: &[u8],
-    target_protocol_info: &mut ProtocolInfo,
-) -> Result<()> {
+fn add_allowed_protocol_address(calldata: &[u8], protocol_info: &mut ProtocolInfo) -> Result<()> {
     let params = decode_abi_params(
         calldata,
         ParamType::Tuple(vec![
@@ -182,7 +189,7 @@ fn add_allowed_protocol_address(
         ]),
     )?;
     let protocol_address = params[1].clone().into_bytes().ok_or(CustomError::InvalidGovMsg)?;
-    target_protocol_info.protocol_address = Pubkey::new_from_array(
+    protocol_info.protocol_address = Pubkey::new_from_array(
         protocol_address.try_into().map_err(|_| CustomError::InvalidGovMsg)?,
     );
     Ok(())
@@ -213,17 +220,25 @@ fn add_allowed_proposer_address(
             .map_err(|_| CustomError::InvalidGovMsg)?,
     );
     let mut proposers: Vec<_> = target_protocol_info.proposers();
-    if !proposers.contains(&proposer) && proposer != Pubkey::default() {
-        if proposers.len() < MAX_PROPOSERS {
-            proposers.push(proposer);
-            target_protocol_info.proposers = Default::default();
-            for (i, k) in proposers.into_iter().enumerate() {
-                target_protocol_info.proposers[i] = k;
-            }
-        } else {
-            return Err(CustomError::MaxExecutorsExceeded.into());
-        }
+
+    if proposer == Pubkey::default() {
+        return Err(CustomError::InvalidProposerAddress.into());
     }
+
+    if proposers.contains(&proposer) {
+        return Err(CustomError::ProposerIsAlreadyAllowed.into());
+    }
+
+    if proposers.len() >= MAX_PROPOSERS {
+        return Err(CustomError::MaxProposersExceeded.into());
+    }
+
+    proposers.push(proposer);
+    target_protocol_info.proposers = Default::default();
+    for (i, k) in proposers.into_iter().enumerate() {
+        target_protocol_info.proposers[i] = k;
+    }
+
     Ok(())
 }
 
@@ -294,7 +309,11 @@ fn add_executor(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Res
     Ok(())
 }
 
-fn remove_executor(calldata: &[u8], protocol_id: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
+fn remove_executor(
+    calldata: &[u8],
+    protocol_id: &[u8],
+    target_protocol_info: &mut ProtocolInfo,
+) -> Result<()> {
     let params = decode_abi_params(
         calldata,
         ParamType::Tuple(vec![
@@ -346,14 +365,16 @@ fn add_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> 
     let mut total_transmitters = target_protocol_info.transmitters();
     total_transmitters.extend_from_slice(&transmitters);
     total_transmitters.dedup();
-    if total_transmitters.len() <= MAX_TRANSMITTERS {
-        target_protocol_info.transmitters = Default::default();
-        for (i, k) in total_transmitters.into_iter().enumerate() {
-            target_protocol_info.transmitters[i] = k;
-        }
-    } else {
+
+    if total_transmitters.len() >= MAX_TRANSMITTERS {
         return Err(CustomError::MaxTransmittersExceeded.into());
     }
+
+    target_protocol_info.transmitters = Default::default();
+    for (i, k) in total_transmitters.into_iter().enumerate() {
+        target_protocol_info.transmitters[i] = k;
+    }
+
     Ok(())
 }
 
@@ -396,8 +417,22 @@ fn set_consensus_target_rate(
             ParamType::Uint(256),      // target rate
         ]),
     )?;
-    let consensus_target_rate = params[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?;
-    target_protocol_info.consensus_target_rate = consensus_target_rate.as_u64();
+
+    let consensus_target_rate =
+        params[1].clone().into_uint().ok_or(CustomError::InvalidGovMsg)?.as_u64();
+    check_consensus_target_rate(consensus_target_rate)?;
+    target_protocol_info.consensus_target_rate = consensus_target_rate;
+    Ok(())
+}
+
+fn check_consensus_target_rate(consensus_target_rate: u64) -> Result<()> {
+    if consensus_target_rate == 0 {
+        return Err(CustomError::ConsensusTargetRateTooLow.into());
+    }
+
+    if consensus_target_rate > RATE_DECIMALS {
+        return Err(CustomError::ConsensusTargetRateTooHigh.into());
+    }
     Ok(())
 }
 
