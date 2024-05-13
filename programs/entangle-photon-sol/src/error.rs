@@ -82,11 +82,18 @@ pub enum CustomError {
     MaxExecutorsExceeded,
     #[msg("ExecutorIsAlreadyAllowed")]
     ExecutorIsAlreadyAllowed,
+    #[msg("ProposerIsAlreadyAllowed")]
+    ProposerIsAlreadyAllowed,
     #[msg("TryingToRemoveLastGovExecutor")]
     TryingToRemoveLastGovExecutor,
     #[msg("InvalidExecutorAddress")]
     InvalidExecutorAddress,
+    #[msg("InvalidProposerAddress")]
+    InvalidProposerAddress,
     #[msg("MaxProposersExceeded")]
     MaxProposersExceeded,
+    #[msg("ConsensusTargetRateTooLow")]
+    ConsensusTargetRateTooLow,
+    #[msg("ConsensusTargetRateTooHigh")]
+    ConsensusTargetRateTooHigh,
 }
-
