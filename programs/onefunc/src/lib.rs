@@ -16,6 +16,8 @@ pub struct PhotonMsgWithSelector {
 
 #[program]
 pub mod onefunc {
+    use photon::protocol_data::FunctionSelector;
+
     use super::*;
 
     pub static PROTOCOL_ID: &[u8] = b"onefunc_________________________";
@@ -58,7 +60,38 @@ pub mod onefunc {
         let protocol_id: Vec<u8> = PROTOCOL_ID.to_vec();
         let dst_chain_id = 33133_u128;
         let protocol_address: Vec<u8> = vec![1; 20];
-        let function_selector: Vec<u8> = b"ask1234mkl;1mklasdfasm;lkasdmf__".to_vec();
+        let function_selector =
+            FunctionSelector::ByName("ask1234mkl;1mklasdfasm;lkasdmf__".to_owned());
+        let params: Vec<u8> = b"an arbitrary data".to_vec();
+
+        let cpi_program = ctx.accounts.photon_program.to_account_info();
+        let cpi_accounts = Propose {
+            proposer: ctx.accounts.proposer.to_account_info(),
+            config: ctx.accounts.config.to_account_info(),
+            protocol_info: ctx.accounts.protocol_info.to_account_info(),
+        };
+        let bump = [ctx.bumps.proposer];
+        let proposer_seeds = [ROOT, b"PROPOSER", &bump[..]];
+        let bindings = &[&proposer_seeds[..]][..];
+        let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, bindings);
+
+        photon::cpi::propose(
+            ctx,
+            protocol_id,
+            dst_chain_id,
+            protocol_address,
+            function_selector,
+            params,
+        )
+
+        // TODO: implement the `receive_photon_msg` to check if the code based function_selector works well
+    }
+
+    pub fn propose_to_other_chain_big_selector(ctx: Context<ProposeToOtherChain>) -> Result<()> {
+        let protocol_id: Vec<u8> = PROTOCOL_ID.to_vec();
+        let dst_chain_id = 33133_u128;
+        let protocol_address: Vec<u8> = vec![1; 20];
+        let function_selector = FunctionSelector::ByCode(vec![1_u8; 33]);
         let params: Vec<u8> = b"an arbitrary data".to_vec();
 
         let cpi_program = ctx.accounts.photon_program.to_account_info();

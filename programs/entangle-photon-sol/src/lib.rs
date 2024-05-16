@@ -190,7 +190,9 @@ pub mod util;
 
 use anchor_lang::prelude::*;
 use error::CustomError;
-use protocol_data::{gov_protocol_id, OpStatus, OperationData, TransmitterSignature};
+use protocol_data::{
+    gov_protocol_id, FunctionSelector, OpStatus, OperationData, TransmitterSignature,
+};
 use util::EthAddress;
 
 declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
@@ -269,7 +271,7 @@ pub mod photon {
     use self::{
         gov::handle_gov_operation,
         interface::{PhotonMsg, PhotonMsgWithSelector},
-        protocol_data::{ecrecover, FunctionSelector},
+        protocol_data::ecrecover,
         util::sighash,
     };
     use super::*;
@@ -504,7 +506,7 @@ pub mod photon {
     /// * `protocol_id` - The identifier of the protocol.
     /// * `dst_chain_id` - The identifier of the destination chain where the proposal will be executed.
     /// * `protocol_address` - The address of the protocol on the destination chain, represented as a vector of bytes.
-    /// * `function_selector` - The function selector for the proposal, represented as a vector of bytes.
+    /// * `function_selector` - The function selector for the proposal.
     /// * `params` - The parameters for the proposed function, represented as a vector of bytes.
     ///
     /// # Returns
@@ -515,11 +517,10 @@ pub mod photon {
         protocol_id: Vec<u8>,
         dst_chain_id: u128,
         protocol_address: Vec<u8>,
-        function_selector: Vec<u8>,
+        function_selector: FunctionSelector,
         params: Vec<u8>,
     ) -> Result<()> {
         // TODO: check if all requirements are satisfied
-        require!(function_selector.len() <= 32, CustomError::InvalidMethodSelector);
         let nonce = ctx.accounts.config.nonce;
         ctx.accounts.config.nonce += 1;
         emit!(ProposeEvent {
@@ -527,7 +528,7 @@ pub mod photon {
             nonce,
             dst_chain_id,
             protocol_address,
-            function_selector,
+            function_selector: function_selector.to_bytes()?,
             params
         });
         Ok(())
