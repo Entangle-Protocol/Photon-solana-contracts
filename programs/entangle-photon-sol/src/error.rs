@@ -96,4 +96,6 @@ pub enum CustomError {
     ConsensusTargetRateTooLow,
     #[msg("ConsensusTargetRateTooHigh")]
     ConsensusTargetRateTooHigh,
+    #[msg("SelectorTooBig")]
+    SelectorTooBig,
 }

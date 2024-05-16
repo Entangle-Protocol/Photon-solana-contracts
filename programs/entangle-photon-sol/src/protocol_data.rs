@@ -92,6 +92,26 @@ pub enum FunctionSelector {
     Dummy,
 }
 
+impl FunctionSelector {
+    pub fn to_bytes(&self) -> std::result::Result<Vec<u8>, CustomError> {
+        match self {
+            FunctionSelector::ByCode(code) => {
+                if code.len() > 32 {
+                    return Err(CustomError::SelectorTooBig);
+                }
+                Ok([&[0_u8, code.len() as u8][..], code].concat())
+            }
+            FunctionSelector::ByName(name) => {
+                if name.as_bytes().len() > 32 {
+                    return Err(CustomError::SelectorTooBig);
+                }
+                Ok([&[1_u8, name.as_bytes().len() as u8][..], name.as_bytes()].concat())
+            }
+            FunctionSelector::Dummy => Ok(vec![2_u8, 0]),
+        }
+    }
+}
+
 impl TryFrom<&[u8]> for FunctionSelector {
     type Error = Vec<u8>;
     fn try_from(value: &[u8]) -> std::result::Result<Self, Vec<u8>> {
