@@ -149,6 +149,7 @@ impl BridgeExtension {
             },
         );
         Ok(vec![
+            AccountMeta::new_readonly(self.bridge_program, false),
             AccountMeta::new_readonly(authority, false),
             AccountMeta::new(self.mint, false),
             AccountMeta::new_readonly(user, false),
