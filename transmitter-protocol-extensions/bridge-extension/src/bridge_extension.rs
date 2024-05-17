@@ -1,3 +1,4 @@
+use anchor_spl::associated_token;
 use config::Config;
 use ethabi::ParamType;
 use log::{error, warn};
@@ -166,6 +167,7 @@ impl BridgeExtension {
                 },
                 false,
             ),
+            AccountMeta::new_readonly(associated_token::ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ])
     }
