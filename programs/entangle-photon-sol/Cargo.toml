@@ -12,6 +12,7 @@ name = "photon"
 no-entrypoint = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
+devnet = []
 default = []
 
 [dependencies]
