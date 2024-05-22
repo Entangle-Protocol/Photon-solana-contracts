@@ -2,6 +2,6 @@ protocol_id = "456e74616e676c65000000000000000000000000000000000000000000000000"
 bridge_program = "FT8sHnhzbaV7bcdfX5bcdXFm2csdZLQj7YeAw4qjkX6R"
 core_program = "JDMdirSN5VxymBiM19EDDJyDULQrP1WAQEVv7HKYzu77"
 seed_root = "r8"
-mint = "3DegGp2ztatewhydmG76JeWXcQkAyDQjkVARhbqwDKpf"
+mint = "752NSX8azkteNQG8ABotfNsae96arn8irPHvUrcTXtnT"
 fee_collector_vault = "BdGxRXeTbexjZCHw7Kkhr9bgZ1iHC9bx3wMf1rEkxaYM"
 use_token2022 = false
