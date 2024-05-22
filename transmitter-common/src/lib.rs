@@ -8,4 +8,4 @@ pub mod utils;
 
 extern crate photon;
 
-pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
+pub const SOLANA_CHAIN_ID: u128 = 11000000000000000501;
