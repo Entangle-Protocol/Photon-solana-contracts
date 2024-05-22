@@ -61,10 +61,7 @@ impl ProtocolExtension for BridgeExtension {
         function_selector: &[u8],
         params: &[u8],
     ) -> Result<Vec<AccountMeta>, ExtensionError> {
-        let code = function_selector.first_chunk::<4>().ok_or_else(|| {
-            error!("Failed to get first chunk of bridge selector");
-            ExtensionError::Extension
-        })?;
+        let code = &function_selector[..4];
         Ok(match code {
             &[0x99, 0x45, 0xe3, 0xd3] => self.get_accounts_redeem(params)?,
             _ => {

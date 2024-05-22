@@ -13,7 +13,7 @@ no-entrypoint = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 devnet = []
-default = []
+default = ["devnet"]
 
 [dependencies]
 ahash = "=0.8.4"

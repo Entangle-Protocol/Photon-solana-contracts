@@ -60,7 +60,8 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     );
     console.log("Network:", DEVNET ? "Devnet" : "Mainnet");
     console.log("Owner account:", owner.publicKey.toBase58());
-    console.log("Gov executor account:", govExecutor2.publicKey.toBase58());
+    console.log("Gov executor account 1:", govExecutor1.publicKey.toBase58());
+    console.log("Gov executor account 2:", govExecutor2.publicKey.toBase58());
     console.log("Config account:", config.toBase58());
     console.log("Protocol info:", protocolInfo.toBase58());
     console.log("Photon program account:", program.programId.toBase58());
