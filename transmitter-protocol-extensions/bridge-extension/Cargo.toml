@@ -29,3 +29,4 @@ spl-token-2022 = { version = "1.0.0", features = [
     "zk-ops",
 ], default-features = false }
 transmitter-common = { path = "../../transmitter-common" }
+anchor-spl = "0.29.0"

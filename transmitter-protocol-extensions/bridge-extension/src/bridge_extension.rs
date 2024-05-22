@@ -1,3 +1,4 @@
+use anchor_spl::associated_token;
 use config::Config;
 use ethabi::ParamType;
 use log::{error, warn};
@@ -149,6 +150,7 @@ impl BridgeExtension {
             },
         );
         Ok(vec![
+            AccountMeta::new_readonly(self.bridge_program, false),
             AccountMeta::new_readonly(authority, false),
             AccountMeta::new(self.mint, false),
             AccountMeta::new_readonly(user, false),
@@ -165,6 +167,7 @@ impl BridgeExtension {
                 },
                 false,
             ),
+            AccountMeta::new_readonly(associated_token::ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ])
     }
