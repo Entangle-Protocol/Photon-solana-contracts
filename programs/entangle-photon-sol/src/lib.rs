@@ -251,7 +251,7 @@ pub mod photon {
     /// Unique identifier for the Solana chain used within the Photon cross-chain messaging layer.
     /// This constant helps ensure operations are validated specifically for the Solana blockchain.
     #[cfg(feature = "devnet")]
-    pub const SOLANA_CHAIN_ID: u128 = 11000000000000000501;
+    pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
     #[cfg(not(feature = "devnet"))]
     pub const SOLANA_CHAIN_ID: u128 = 11100000000000000501;
 
