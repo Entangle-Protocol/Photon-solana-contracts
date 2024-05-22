@@ -39,6 +39,8 @@ struct BridgeConfig {
     seed_root: String,
     #[serde(deserialize_with = "deserialize_pubkey")]
     mint: Pubkey,
+    #[serde(deserialize_with = "deserialize_pubkey")]
+    fee_collector_vault: Pubkey,
     use_token2022: bool,
 }
 
@@ -48,6 +50,7 @@ struct BridgeExtension {
     seed_root: Vec<u8>,
     mint: Pubkey,
     core_program: Pubkey,
+    fee_collector_vault: Pubkey,
     use_token2022: bool,
 }
 
@@ -104,6 +107,7 @@ impl BridgeExtension {
             seed_root: settings.seed_root.into_bytes(),
             mint: settings.mint,
             core_program: settings.core_program,
+            fee_collector_vault: settings.fee_collector_vault,
             use_token2022: settings.use_token2022,
         }
     }
@@ -152,6 +156,7 @@ impl BridgeExtension {
             AccountMeta::new(self.mint, false),
             AccountMeta::new_readonly(user, false),
             AccountMeta::new(user_vault, false),
+            AccountMeta::new(self.fee_collector_vault, false),
             AccountMeta::new_readonly(config, false),
             AccountMeta::new_readonly(core_config, false),
             AccountMeta::new_readonly(core_authority, false),
