@@ -195,7 +195,11 @@ use protocol_data::{
 };
 use util::EthAddress;
 
+#[cfg(feature = "devnet")]
 declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
+
+#[cfg(not(feature = "devnet"))]
+declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
 /// The `photon` module encapsulates all operations related to cross-chain messaging on the Solana blockchain,
 /// leveraging the capabilities of the Photon cross-chain messaging layer. It defines the governance and
@@ -246,7 +250,10 @@ declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
 pub mod photon {
     /// Unique identifier for the Solana chain used within the Photon cross-chain messaging layer.
     /// This constant helps ensure operations are validated specifically for the Solana blockchain.
+    #[cfg(feature = "devnet")]
     pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
+    #[cfg(not(feature = "devnet"))]
+    pub const SOLANA_CHAIN_ID: u128 = 11100000000000000501;
 
     /// Represents the number of decimal places used in rate calculations for consensus mechanisms.
     /// This precision is necessary for accurate calculations when determining the consensus rate.
@@ -254,7 +261,10 @@ pub mod photon {
 
     /// A base seed used for deriving program-specific addresses within the system.
     /// This root seed acts as a foundational element for generating deterministic account addresses.
+    #[cfg(feature = "devnet")]
     pub const ROOT: &[u8] = b"root-0";
+    #[cfg(not(feature = "devnet"))]
+    pub const ROOT: &[u8] = b"r0";
 
     /// The maximum number of transmitters that can be registered in the system.
     /// Transmitters are critical for the dissemination and signing of cross-chain messages.

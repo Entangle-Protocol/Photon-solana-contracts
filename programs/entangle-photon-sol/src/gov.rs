@@ -48,7 +48,7 @@ use crate::{
     require_ok,
     util::EthAddress,
     Config, ProposeEvent, ProtocolInfo, MAX_EXECUTORS, MAX_PROPOSERS, MAX_TRANSMITTERS,
-    SOLANA_CHAIN_ID,
+    RATE_DECIMALS, SOLANA_CHAIN_ID,
 };
 
 /// Enumerates government operations with their corresponding unique operation codes,
@@ -76,7 +76,6 @@ const HANDLE_ADD_ALLOWED_PROTOCOL_SELECTOR: &[u8] = &[
     0xba, 0x96, 0x6e, 0x5f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0,
 ];
-const RATE_DECIMALS: u64 = 10000;
 
 pub(super) fn handle_gov_operation(
     config: &mut Config,

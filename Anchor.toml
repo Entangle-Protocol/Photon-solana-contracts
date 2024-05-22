@@ -8,6 +8,9 @@ skip-lint = false
 photon = "JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT"
 onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
+[programs.mainnet]
+photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
+
 [registry]
 url = "https://api.apr.dev"
 
