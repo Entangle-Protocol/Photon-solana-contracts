@@ -8,4 +8,8 @@ pub mod utils;
 
 extern crate photon;
 
+#[cfg(feature = "devnet")]
 pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
+
+#[cfg(not(feature = "devnet"))]
+pub const SOLANA_CHAIN_ID: u128 = 11100000000000000501;
