@@ -263,7 +263,7 @@ pub mod photon {
     /// A base seed used for deriving program-specific addresses within the system.
     /// This root seed acts as a foundational element for generating deterministic account addresses.
     #[cfg(feature = "devnet")]
-    pub const ROOT: &[u8] = b"root-0";
+    pub const ROOT: &[u8] = b"r0";
     #[cfg(not(feature = "devnet"))]
     pub const ROOT: &[u8] = b"r0";
 
