@@ -3,6 +3,7 @@
 [features]
 seeds = false
 skip-lint = false
+default = []
 
 [programs.localnet]
 photon = "JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT"
