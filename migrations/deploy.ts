@@ -67,7 +67,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     console.log("Photon program account:", program.programId.toBase58());
     console.log("eob_master_contract:", eob_master_contract);
 
-    await askAndExecute();
+    //await askAndExecute();
 
     let tx_signature = await program.methods
         .initialize(
