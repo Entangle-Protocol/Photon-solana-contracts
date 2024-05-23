@@ -7,7 +7,7 @@ rabbitmq:
     reconnect_timeout_ms: 200
 
 solana:
-    web_socket_url: wss://https://api.mainnet-beta.solana.com
+    web_socket_url: wss://api.mainnet-beta.solana.com
     rpc_url: https://api.mainnet-beta.solana.com
     commitment: finalized
     reconnect_attempts: 100
