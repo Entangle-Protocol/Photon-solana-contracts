@@ -201,6 +201,11 @@ declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
 #[cfg(not(feature = "devnet"))]
 declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
+#[cfg(feature = "devnet")]
+pub const DEPLOYER: &str = "J85q2bNo4FadDqDmUYPLKav14QRexShwEQXxhbkuvEP2";
+#[cfg(not(feature = "devnet"))]
+pub const DEPLOYER: &str = "571CNVwVcpH1pERjfz7Tr6fMAuwsNCccByKoQLw7dEhk";
+
 /// The `photon` module encapsulates all operations related to cross-chain messaging on the Solana blockchain,
 /// leveraging the capabilities of the Photon cross-chain messaging layer. It defines the governance and
 /// operational structure necessary to initiate, approve, and execute operations across blockchains.
@@ -580,6 +585,22 @@ pub mod photon {
             op_data,
         )
     }
+
+    /// Updates global admin. Can only be called by deployer address.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - The context containing the necessary accounts.
+    /// * `admin` - New global admin address.
+    ///
+    /// # Returns
+    ///
+    /// Returns a result with always Ok(()) status.
+    ///
+    pub fn set_admin(ctx: Context<SetAdmin>, admin: Pubkey) -> Result<()> {
+        ctx.accounts.config.admin = admin;
+        Ok(())
+    }
 }
 
 /// Represents the accounts required for initializing the Solana program.
@@ -600,7 +621,12 @@ pub mod photon {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     /// Admin account
-    #[account(signer, mut, constraint = (admin.key() == config.admin || config.admin == Pubkey::default()) @ CustomError::IsNotAdmin)]
+    #[account(
+        signer,
+        mut,
+        constraint = (admin.key() == config.admin || admin.key() == DEPLOYER.parse().expect("Deployer key not set"))
+            @ CustomError::IsNotAdmin
+    )]
     admin: Signer<'info>,
 
     /// Protocol info
@@ -884,6 +910,17 @@ pub struct ReceivePhotonMsg<'info> {
 
     /// System program
     system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetAdmin<'info> {
+    /// Deployer address
+    #[account(signer, address = DEPLOYER.parse().expect("Deployer key not set"))]
+    pub deployer: Signer<'info>,
+
+    /// Config address
+    #[account(mut, seeds = [ROOT, b"CONFIG"], bump)]
+    pub config: Box<Account<'info, Config>>,
 }
 
 /// Represents the photon cross-chain messaging configuration stored in a Solana account.
