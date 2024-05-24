@@ -5,7 +5,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
@@ -118,25 +118,36 @@ impl SolanaTransactor {
         mut transaction: Transaction,
         client: Arc<RpcClient>,
     ) -> Result<(), ExecutorError> {
-        transaction.try_partial_sign(&[&payer], latest_blockhash).map_err(|err| {
-            error!("Failed to sign transaction with payer secret key: {}", err);
-            ExecutorError::SolanaClient
-        })?;
+        let n: usize = 1024;
+        for i in 0..n {
+            let latest_blockhash = client.get_latest_blockhash().await.unwrap_or(latest_blockhash);
+            log::debug!("Signing with blockhash ({}/{}): {}", i, n, hex::encode(latest_blockhash));
+            transaction.try_partial_sign(&[&payer], latest_blockhash).map_err(|err| {
+                error!("Failed to sign transaction with payer secret key: {}", err);
+                ExecutorError::SolanaClient
+            })?;
 
-        if !transaction.is_signed() {
-            error!("Transaction is not fully signed: {}", hex::encode(op_hash));
-            return Err(ExecutorError::SolanaClient);
+            if !transaction.is_signed() {
+                error!("Transaction is not fully signed: {}", hex::encode(op_hash));
+                return Err(ExecutorError::SolanaClient);
+            }
+            match client.send_and_confirm_transaction(&transaction).await {
+                Ok(signature) => {
+                    debug!(
+                        "Transaction sent, solana tx_signature ({}/{}): {}, op_hash: {}, ",
+                        i,
+                        n,
+                        signature,
+                        hex::encode(op_hash),
+                    );
+                    break;
+                }
+                Err(err) => {
+                    error!("Failed to send transaction ({}/{}): {:?}", i, n, err);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
         }
-        let signature = client.send_and_confirm_transaction(&transaction).await.map_err(|err| {
-            error!("Failed to send transaction: {:?}", err);
-            ExecutorError::SolanaClient
-        })?;
-
-        debug!(
-            "Transaction sent, solana tx_signature: {}, op_hash: {}, ",
-            signature,
-            hex::encode(op_hash),
-        );
         Ok(())
     }
 }
