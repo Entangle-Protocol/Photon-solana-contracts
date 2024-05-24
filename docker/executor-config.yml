@@ -9,8 +9,8 @@ rabbitmq:
     reconnect_timeout_ms: 200
 
 solana:
-    web_socket_url: wss://api.mainnet-beta.solana.com
-    rpc_url: https://api.mainnet-beta.solana.com
+    web_socket_url: wss://rpc.ankr.com/solana/ws/bd53c71861ec986f1d40e84d82d327d181fb61c6057f5fbb4fd01c93d6389c97
+    rpc_url: https://rpc.ankr.com/solana/bd53c71861ec986f1d40e84d82d327d181fb61c6057f5fbb4fd01c93d6389c97
     commitment: confirmed
 
 extensions:
