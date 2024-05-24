@@ -21,7 +21,7 @@ use crate::common::{
 };
 
 pub(super) struct SolanaRetroReader {
-    mongodb_config: MongodbConfig,
+    _mongodb_config: MongodbConfig,
     logs_sender: UnboundedSender<LogsBunch>,
 }
 
@@ -31,7 +31,7 @@ impl SolanaRetroReader {
         logs_sender: UnboundedSender<LogsBunch>,
     ) -> SolanaRetroReader {
         SolanaRetroReader {
-            mongodb_config,
+            _mongodb_config: mongodb_config,
             logs_sender,
         }
     }
@@ -39,7 +39,7 @@ impl SolanaRetroReader {
     pub(super) async fn read_events_backward(
         &self,
         solana_config: &SolanaClientConfig,
-        mongodb_config: &MongodbConfig,
+        _mongodb_config: &MongodbConfig,
     ) -> Result<(), EventListenerError> {
         // let Ok(Some(tx_start_from)) = self.get_last_processed_block(mongodb_config).await else {
         //     debug!("No latest_processed_block found, skip retrospective reading");
@@ -142,7 +142,7 @@ impl SolanaRetroReader {
         Ok(signatures_backward)
     }
 
-    async fn get_last_processed_block(
+    async fn _get_last_processed_block(
         &self,
         mongodb_config: &MongodbConfig,
     ) -> Result<Option<String>, EventListenerError> {
@@ -166,7 +166,7 @@ impl SolanaRetroReader {
         let db = client.database(&mongodb_config.db);
         let collection = db.collection::<Document>(MDB_LAST_BLOCK_COLLECTION);
 
-        let last_block: &str = &self.mongodb_config.key;
+        let last_block: &str = &self._mongodb_config.key;
         let chain_id = mdb_solana_chain_id();
         let doc = collection
             .find_one(doc! { "direction": "from", "chain": chain_id }, FindOneOptions::default())
