@@ -41,10 +41,11 @@ impl SolanaRetroReader {
         solana_config: &SolanaClientConfig,
         mongodb_config: &MongodbConfig,
     ) -> Result<(), EventListenerError> {
-        let Ok(Some(tx_start_from)) = self.get_last_processed_block(mongodb_config).await else {
-            debug!("No latest_processed_block found, skip retrospective reading");
-            return Ok(());
-        };
+        // let Ok(Some(tx_start_from)) = self.get_last_processed_block(mongodb_config).await else {
+        //     debug!("No latest_processed_block found, skip retrospective reading");
+        //     return Ok(());
+        // };
+        let tx_start_from = String::from("Tb5PK9d1kMMZnvDVCMGXLiHWtXDvefNGxC3DBsGxLhH8f2zbecwqTQpi5DMLK5C4cyR4uotKxNiEp3SnsEiayUz");
         debug!("Found latest_processed_block, start retrospective reading from: {}", tx_start_from);
         let client =
             RpcClient::new_with_commitment(solana_config.rpc_url.clone(), solana_config.commitment);
