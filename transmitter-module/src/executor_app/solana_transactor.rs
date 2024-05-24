@@ -118,7 +118,7 @@ impl SolanaTransactor {
         mut transaction: Transaction,
         client: Arc<RpcClient>,
     ) -> Result<(), ExecutorError> {
-        let n: usize = 1024;
+        let n: usize = 32;
         for i in 0..n {
             let latest_blockhash = client.get_latest_blockhash().await.unwrap_or(latest_blockhash);
             log::debug!("Signing with blockhash ({}/{}): {}", i, n, hex::encode(latest_blockhash));
@@ -131,7 +131,7 @@ impl SolanaTransactor {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            match client.send_and_confirm_transaction(&transaction).await {
+            match client.send_transaction(&transaction).await {
                 Ok(signature) => {
                     debug!(
                         "Transaction sent, solana tx_signature ({}/{}): {}, op_hash: {}, ",
@@ -140,13 +140,12 @@ impl SolanaTransactor {
                         signature,
                         hex::encode(op_hash),
                     );
-                    break;
                 }
                 Err(err) => {
                     error!("Failed to send transaction ({}/{}): {:?}", i, n, err);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             }
+            tokio::time::sleep(Duration::from_secs(3)).await;
         }
         Ok(())
     }
