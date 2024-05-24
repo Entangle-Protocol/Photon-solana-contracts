@@ -7,8 +7,8 @@ rabbitmq:
     reconnect_timeout_ms: 200
 
 solana:
-    web_socket_url: wss://rpc.ankr.com/solana/ws/bd53c71861ec986f1d40e84d82d327d181fb61c6057f5fbb4fd01c93d6389c97
-    rpc_url: https://rpc.ankr.com/solana/bd53c71861ec986f1d40e84d82d327d181fb61c6057f5fbb4fd01c93d6389c97
+    web_socket_url: wss://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
+    rpc_url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
     commitment: finalized
     reconnect_attempts: 100
     reconnect_timeout_ms: 200
