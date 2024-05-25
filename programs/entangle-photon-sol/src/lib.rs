@@ -195,10 +195,6 @@ use protocol_data::{
 };
 use util::EthAddress;
 
-#[cfg(feature = "devnet")]
-declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
-
-#[cfg(not(feature = "devnet"))]
 declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
 #[cfg(feature = "devnet")]
@@ -267,7 +263,7 @@ pub mod photon {
     /// A base seed used for deriving program-specific addresses within the system.
     /// This root seed acts as a foundational element for generating deterministic account addresses.
     #[cfg(feature = "devnet")]
-    pub const ROOT: &[u8] = b"root-0";
+    pub const ROOT: &[u8] = b"r0";
     #[cfg(not(feature = "devnet"))]
     pub const ROOT: &[u8] = b"r0";
 
