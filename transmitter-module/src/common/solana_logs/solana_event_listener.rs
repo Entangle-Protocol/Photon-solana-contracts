@@ -1,16 +1,19 @@
-use futures_util::StreamExt;
-use log::{error, info};
+use log::error;
 use solana_client::{
-    nonblocking::pubsub_client::PubsubClient,
-    rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter},
-    rpc_response::{Response, RpcLogsResponse},
+    nonblocking::rpc_client::RpcClient, rpc_client::GetConfirmedSignaturesForAddress2Config,
+    rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
-use std::time::Duration;
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
+use solana_transaction_status::UiTransactionEncoding;
+use std::{collections::VecDeque, str::FromStr, time::Duration};
 use tokio::sync::mpsc::UnboundedSender;
-use transmitter_common::{config::ReconnectConfig, mongodb::MongodbConfig};
+
+use transmitter_common::mongodb::MongodbConfig;
 
 use super::{solana_retro_reader::SolanaRetroReader, EventListenerError};
-use crate::common::config::SolanaListenerConfig;
+use crate::common::config::{SolanaClientConfig, SolanaListenerConfig};
+
+const LOGS_TIMEOUT_SEC: u64 = 1;
 
 pub(crate) struct SolanaEventListener {
     solana_config: SolanaListenerConfig,
@@ -34,82 +37,131 @@ impl SolanaEventListener {
     }
 
     pub(crate) async fn listen_to_solana(&self) -> Result<(), EventListenerError> {
-        let websocket_url = self.solana_config.client.web_socket_url.clone().ok_or_else(|| {
-            error!("web_socket_url is not configured");
-            EventListenerError::Config
-        })?;
-        let commitment = self.solana_config.client.commitment;
-        info!(
-            "Start listening for new solana events, url: {}, commitment: {}, program_id: {}",
-            websocket_url,
-            commitment.commitment,
-            photon::ID
-        );
+        let config = &self.solana_config.client;
+        let client = RpcClient::new_with_commitment(config.rpc_url.clone(), config.commitment);
 
-        let program_id_str = photon::ID.to_string();
-        let filter = RpcTransactionLogsFilter::Mentions(vec![program_id_str.clone()]);
-        let config = RpcTransactionLogsConfig {
-            commitment: Some(commitment),
-        };
-        let reconnect = &self.solana_config.reconnect;
-        while let Ok(client) = self.init_connection(websocket_url.as_str(), reconnect).await {
-            info!("Solana logs subscription is done");
-            let (mut notifications, unsubscribe) =
-                client.logs_subscribe(filter.clone(), config.clone()).await.map_err(|err| {
-                    error!("Failed to subscribe for logs: {}, error: {}", program_id_str, err);
-                    EventListenerError::SolanaClient
-                })?;
-            // logs are collected in the pubsub client's internal channel asynchronously meanwhile
-            self.logs_retro_reader
-                .read_events_backward(&self.solana_config.client, &self.mongodb_config)
-                .await?;
-            // for finalized commitment solana duplicates messages
-            info!("Retrospective logs reading is done, start to process realtime events");
-            let mut last_tx_workaround = String::default();
-            while let Some(logs) = notifications.next().await {
-                if logs.value.signature == last_tx_workaround {
-                    continue;
-                }
-                last_tx_workaround.clone_from(&logs.value.signature);
-                self.on_logs(logs);
+        let slot = client.get_block_height().await.map_err(|err| {
+            error!("Failed to get block_height: {}", err);
+            EventListenerError::SolanaClient
+        })?;
+
+        self.logs_retro_reader
+            .read_events_backward(&self.solana_config.client, &self.mongodb_config)
+            .await?;
+
+        self.read_events_backward(&self.solana_config.client, client, slot).await
+    }
+
+    async fn read_events_backward(
+        &self,
+        solana_config: &SolanaClientConfig,
+        client: RpcClient,
+        init_slot: u64,
+    ) -> Result<(), EventListenerError> {
+        let mut slot = init_slot;
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
+            let log_bunches = self.read_event_backward_until(&client, solana_config, slot).await?;
+            for logs_bunch in log_bunches {
+                slot = logs_bunch.slot;
+                self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
             }
-            unsubscribe().await;
         }
+    }
+
+    async fn read_event_backward_until(
+        &self,
+        client: &RpcClient,
+        solana_config: &SolanaClientConfig,
+        slot: u64,
+    ) -> Result<VecDeque<LogsBunch>, EventListenerError> {
+        let until = None;
+        let mut before = None;
+        let mut log_bunches = VecDeque::new();
+        loop {
+            let signatures_backward =
+                Self::get_signatures_chunk(&photon::ID, solana_config, client, until, before, slot)
+                    .await?;
+
+            if signatures_backward.is_empty() {
+                break;
+            }
+
+            Self::process_signatures(client, &mut before, &mut log_bunches, signatures_backward)
+                .await;
+        }
+
+        Ok(log_bunches)
+    }
+
+    async fn process_signatures(
+        client: &RpcClient,
+        before: &mut Option<Signature>,
+        log_bunches: &mut VecDeque<LogsBunch>,
+        signatures_with_meta: Vec<RpcConfirmedTransactionStatusWithSignature>,
+    ) {
+        for signature_with_meta in signatures_with_meta {
+            _ = Self::process_signature(client, before, log_bunches, signature_with_meta).await;
+        }
+    }
+
+    async fn process_signature(
+        client: &RpcClient,
+        before: &mut Option<Signature>,
+        log_bunches: &mut VecDeque<LogsBunch>,
+        signature_with_meta: RpcConfirmedTransactionStatusWithSignature,
+    ) -> Result<(), ()> {
+        let signature = &Signature::from_str(&signature_with_meta.signature)
+            .map_err(|err| error!("Failed to parse signature: {}", err))?;
+        before.replace(*signature);
+        let transaction = client
+            .get_transaction(signature, UiTransactionEncoding::Json)
+            .await
+            .map_err(|_err| ())?;
+
+        let logs = transaction
+            .transaction
+            .meta
+            .map(|meta| <Option<Vec<String>>>::from(meta.log_messages))
+            .ok_or(())?
+            .ok_or(())?;
+
+        if logs.is_empty() {
+            return Ok(());
+        }
+
+        log_bunches.push_front(LogsBunch {
+            tx_signature: signature_with_meta.signature,
+            slot: transaction.slot,
+            logs,
+        });
         Ok(())
     }
 
-    fn on_logs(&self, logs: Response<RpcLogsResponse>) {
-        self.logs_sender
-            .send(LogsBunch {
-                tx_signature: logs.value.signature,
-                slot: logs.context.slot,
-                logs: logs.value.logs,
-            })
-            .expect("Expected logs_bunch to be sent");
-    }
+    async fn get_signatures_chunk(
+        program_id: &Pubkey,
+        solana_config: &SolanaClientConfig,
+        client: &RpcClient,
+        until: Option<Signature>,
+        before: Option<Signature>,
+        slot: u64,
+    ) -> Result<Vec<RpcConfirmedTransactionStatusWithSignature>, EventListenerError> {
+        let args = GetConfirmedSignaturesForAddress2Config {
+            before,
+            until,
+            limit: None,
+            commitment: Some(solana_config.commitment),
+        };
 
-    async fn init_connection(
-        &self,
-        solana_rpc_url: &str,
-        reconnect: &ReconnectConfig,
-    ) -> Result<PubsubClient, EventListenerError> {
-        let mut attemts = 0;
-        Ok(loop {
-            match PubsubClient::new(solana_rpc_url).await {
-                Err(err) => {
-                    attemts += 1;
-                    error!(
-                        "Failed to subscribe for solana logs, attempt: {}, error: {}",
-                        attemts, err
-                    );
-                    if attemts == reconnect.attempts {
-                        return Err(EventListenerError::SolanaClient);
-                    }
-                    tokio::time::sleep(Duration::from_millis(reconnect.timeout_ms)).await;
-                }
-                Ok(solana_client) => break solana_client,
-            }
-        })
+        let signatures_backward = client
+            .get_signatures_for_address_with_config(program_id, args)
+            .await
+            .map_err(|err| {
+                error!("Failed to get signatures for address: {}", err);
+                EventListenerError::SolanaClient
+            })?;
+        Ok(signatures_backward.iter().filter(|s| s.slot > slot).cloned().collect())
     }
 }
 

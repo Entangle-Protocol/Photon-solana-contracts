@@ -129,7 +129,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 info!("new_program_id: {}", new_program_id);
                 let params = ethabi::encode(&[Token::Tuple(vec![
                     Token::FixedBytes(new_program_id.as_bytes().to_vec()), // protocolId
-                    Token::Uint(ethereum_types::U256::from(60000u32)),     // consensusTargetRate
+                    Token::Uint(ethereum_types::U256::from(6000u32)),      // consensusTargetRate
                     Token::Array(vec![Token::Address(Address::random())]),
                 ])]);
                 OperationData {
