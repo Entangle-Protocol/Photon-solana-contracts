@@ -28,7 +28,11 @@ impl ListenerApp {
         ListenerApp {
             solana_listener: SolanaEventListener::new(config.solana, config.mongodb, logs_sender),
             rabbitmq_sender: RabbitmqPublisher::new(config.rabbitmq, propose_receiver),
-            solana_logs_proc: ProposalEventProcessor::new(logs_receiver, propose_sender),
+            solana_logs_proc: ProposalEventProcessor::new(
+                logs_receiver,
+                propose_sender,
+                config.allowed_protocols,
+            ),
         }
     }
 

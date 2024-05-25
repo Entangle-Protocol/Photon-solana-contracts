@@ -34,3 +34,8 @@ mongodb:
     db: "entangle"
     # The value to read until within the retrospective reading
     key: "last_processed_block"
+
+# proposals of the given protocols will be filtered by the listener, the others will be ingored
+allowed_protocols:
+    - "photon-gov"
+    - "Entangle"
