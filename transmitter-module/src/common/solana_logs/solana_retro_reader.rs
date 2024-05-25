@@ -45,7 +45,7 @@ impl SolanaRetroReader {
             debug!("No latest_processed_block found, skip retrospective reading");
             return Ok(());
         };
-        debug!("Found latest_processed_block, start retrospective reading from: {}", tx_start_from);
+        debug!("Found latest_processed_block, start backward reading until: {}", tx_start_from);
         let client =
             RpcClient::new_with_commitment(solana_config.rpc_url.clone(), solana_config.commitment);
         let until = Some(Signature::from_str(&tx_start_from).map_err(|err| {
