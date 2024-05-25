@@ -16,17 +16,11 @@ rabbitmq:
 
 # solana [pubsubclient](https://docs.rs/solana-pubsub-client/latest/solana_pubsub_client/nonblocking/pubsub_client/index.html) settings
 solana:
-    # Solana web socket address to connect to handle entangle events
-    web_socket_url: ws://127.0.0.1:8900
     # Solana http address to connect to send rpc commands
     rpc_url: http://127.0.0.1:8899
     # The solana client commitment receive only events have been happened on the given confirmation level
     # possible values: processed, confirmed, finalized
     commitment: confirmed
-    # Reconnect attempts. The count of times listener will try to recover the connection. Default: 20
-    reconnect_attempts: 100
-    # Reconnect Timeout. The time between attempts for the listener to try to reconnect. Default: 500
-    reconnect_timeout_ms: 200
 
 # mongodb is used to store last_processed_block in a persistent way
 mongodb:
