@@ -25,11 +25,8 @@ rabbitmq:
 solana:
     # Payer is recommended to set payer as env `ENTANGLE_SOLANA_PAYER` but could also be set right here
     # payer: mRazhLmdFRULW1Z6jHcQ2WR4f9eRmjiLvR7R2Yo4LQfvFj5XiN3bwPt6dSUoQfNWpey5VgJaZZWU3vkQmH9ubsY
-    # Solana web socket address to connect to handle entangle events
-    web_socket_url: http://127.0.0.1:8899
     # Solana http address to connect to send rpc commands
     rpc_url: http://127.0.0.1:8899
-
     # The solana client commitment to not continue processing until the given confirmation level happens
     # possible values: processed, confirmed, finalized
     commitment: confirmed
