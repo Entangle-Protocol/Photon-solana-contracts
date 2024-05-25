@@ -12,6 +12,7 @@ pub(super) struct ListenConfig {
     pub(super) rabbitmq: RabbitmqListenConfig,
     pub(super) solana: SolanaListenerConfig,
     pub(super) mongodb: MongodbConfig,
+    pub(super) allowed_protocols: Vec<String>,
 }
 
 impl ListenConfig {

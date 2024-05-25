@@ -14,3 +14,7 @@ mongodb:
     uri: mongodb://mongo:27017
     db: "entangle"
     key: "last_processed_block"
+
+allowed_protocols:
+    - "photon-gov"
+    - "Entangle"
