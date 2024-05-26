@@ -1,6 +1,7 @@
 use log::{debug, error, info};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     hash::Hash,
     signature::{Keypair, Signer},
     transaction::Transaction,
@@ -140,6 +141,24 @@ impl SolanaTransactor {
                         signature,
                         hex::encode(op_hash),
                     );
+                    for _ in 0..6 {
+                        match client
+                            .confirm_transaction_with_commitment(
+                                &signature,
+                                CommitmentConfig::confirmed(),
+                            )
+                            .await
+                        {
+                            Ok(_) => {
+                                log::info!("Transaction {} confirmed", signature);
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                log::debug!("Failed to confirm {}", e);
+                                tokio::time::sleep(Duration::from_secs(5)).await;
+                            }
+                        }
+                    }
                 }
                 Err(err) => {
                     error!("Failed to send transaction ({}/{}): {:?}", i, n, err);
@@ -147,6 +166,7 @@ impl SolanaTransactor {
             }
             tokio::time::sleep(Duration::from_secs(3)).await;
         }
+        tokio::time::sleep(Duration::from_secs(7)).await;
         Ok(())
     }
 }
