@@ -1,4 +1,4 @@
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -112,61 +112,84 @@ impl SolanaTransactor {
         }
     }
 
+    async fn get_blockhash_with_retry(client: Arc<RpcClient>) -> Hash {
+        loop {
+            match client.get_latest_blockhash().await {
+                Ok(x) => {
+                    return x;
+                }
+                Err(e) => {
+                    warn!("Error getting blockhash {}", e);
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+            }
+        }
+    }
+
     async fn send_transaction_impl(
         payer: Arc<Keypair>,
-        latest_blockhash: Hash,
+        _latest_blockhash: Hash,
         op_hash: OpHash,
         mut transaction: Transaction,
         client: Arc<RpcClient>,
     ) -> Result<(), ExecutorError> {
-        let n: usize = 32;
-        for i in 0..n {
-            let latest_blockhash = client.get_latest_blockhash().await.unwrap_or(latest_blockhash);
-            log::debug!("Signing with blockhash ({}/{}): {}", i, n, hex::encode(latest_blockhash));
-            transaction.try_partial_sign(&[&payer], latest_blockhash).map_err(|err| {
+        let mut current_blockhash =
+            SolanaTransactor::get_blockhash_with_retry(Arc::clone(&client)).await;
+        loop {
+            log::info!("Using blockhash {}", current_blockhash);
+            transaction.try_partial_sign(&[&payer], current_blockhash).map_err(|err| {
                 error!("Failed to sign transaction with payer secret key: {}", err);
                 ExecutorError::SolanaClient
             })?;
-
             if !transaction.is_signed() {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            match client.send_transaction(&transaction).await {
-                Ok(signature) => {
-                    debug!(
-                        "Transaction sent, solana tx_signature ({}/{}): {}, op_hash: {}, ",
-                        i,
-                        n,
-                        signature,
-                        hex::encode(op_hash),
-                    );
-                    for _ in 0..6 {
-                        match client
-                            .confirm_transaction_with_commitment(
-                                &signature,
-                                CommitmentConfig::confirmed(),
-                            )
-                            .await
-                        {
-                            Ok(_) => {
-                                log::info!("Transaction {} confirmed", signature);
-                                return Ok(());
-                            }
-                            Err(e) => {
-                                log::debug!("Failed to confirm {}", e);
-                                tokio::time::sleep(Duration::from_secs(5)).await;
+            for _ in 0..3 {
+                match client.send_transaction(&transaction).await {
+                    Ok(signature) => {
+                        info!(
+                            "Transaction sent, solana tx_signature: {}, op_hash: {}, trying to confirm...",
+                            signature,
+                            hex::encode(op_hash),
+                        );
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        for _ in 0..8 {
+                            match client
+                                .confirm_transaction_with_commitment(
+                                    &signature,
+                                    CommitmentConfig::confirmed(),
+                                )
+                                .await
+                            {
+                                Ok(_) => {
+                                    info!("Transaction {} confirmed", signature);
+                                    return Ok(());
+                                }
+                                Err(e) => {
+                                    debug!("Not confirmed {}: {}", signature, e);
+                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                }
                             }
                         }
+                        warn!("Failed to confirm {}", signature);
+                    }
+                    Err(err) => {
+                        warn!("Failed to send transaction: {:?}", err);
+                        tokio::time::sleep(Duration::from_secs(2)).await;
                     }
                 }
-                Err(err) => {
-                    error!("Failed to send transaction ({}/{}): {:?}", i, n, err);
+            }
+            loop {
+                let new_blockhash =
+                    SolanaTransactor::get_blockhash_with_retry(Arc::clone(&client)).await;
+                if new_blockhash != current_blockhash {
+                    current_blockhash = new_blockhash;
+                    break;
+                } else {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
             }
-            tokio::time::sleep(Duration::from_secs(3)).await;
         }
-        tokio::time::sleep(Duration::from_secs(7)).await;
-        Ok(())
     }
 }
