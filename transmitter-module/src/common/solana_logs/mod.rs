@@ -8,8 +8,6 @@ pub(crate) mod solana_retro_reader;
 
 #[derive(Debug, Error)]
 pub(crate) enum EventListenerError {
-    #[error("Config error")]
-    Config,
     #[error("Solana client error")]
     SolanaClient,
     #[error("Mongodb client error")]

@@ -38,7 +38,6 @@ impl EventProcessor for OperationExecutedEventProcessor {
 
     fn on_event(&self, event: Self::Event, signature: &str, _slot: u64) {
         debug!("OperationExecuted status event intercepted: {:?}", event);
-
         if let Err(err) = self.op_status_sender.send(ProposalExecuted {
             last_watched_block: signature.to_string(),
             op_hash: OpHash::try_from(event.op_hash)
