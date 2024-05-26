@@ -1,5 +1,5 @@
 use log::{debug, error, info, warn};
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::RpcError};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::Hash,
@@ -173,6 +173,20 @@ impl SolanaTransactor {
                             }
                         }
                         warn!("Failed to confirm {}", signature);
+                    }
+                    Err(solana_client::client_error::ClientError {
+                        kind:
+                            solana_client::client_error::ClientErrorKind::RpcError(
+                                RpcError::RpcResponseError {
+                                    code: -32002,
+                                    message,
+                                    data,
+                                },
+                            ),
+                        ..
+                    }) => {
+                        warn!("Transaction possibly processed {:?}, {:?}", message, data);
+                        return Ok(());
                     }
                     Err(err) => {
                         warn!("Failed to send transaction: {:?}", err);
