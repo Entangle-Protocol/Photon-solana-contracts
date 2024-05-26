@@ -154,11 +154,11 @@ impl SolanaTransactor {
                             hex::encode(op_hash),
                         );
                         tokio::time::sleep(Duration::from_secs(10)).await;
-                        for _ in 0..8 {
+                        for _ in 0..20 {
                             match client
                                 .confirm_transaction_with_commitment(
                                     &signature,
-                                    CommitmentConfig::confirmed(),
+                                    CommitmentConfig::finalized(),
                                 )
                                 .await
                             {
@@ -168,7 +168,7 @@ impl SolanaTransactor {
                                 }
                                 Err(e) => {
                                     debug!("Not confirmed {}: {}", signature, e);
-                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                    tokio::time::sleep(Duration::from_secs(5)).await;
                                 }
                             }
                         }
