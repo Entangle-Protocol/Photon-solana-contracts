@@ -1,5 +1,5 @@
 use log::{debug, error, info, warn};
-use solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::RpcError};
+use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::Hash,
@@ -146,7 +146,16 @@ impl SolanaTransactor {
                 return Err(ExecutorError::SolanaClient);
             }
             for _ in 0..3 {
-                match client.send_transaction(&transaction).await {
+                match client
+                    .send_transaction_with_config(
+                        &transaction,
+                        RpcSendTransactionConfig {
+                            skip_preflight: true,
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                {
                     Ok(signature) => {
                         info!(
                             "Transaction sent, solana tx_signature: {}, op_hash: {}, trying to confirm...",
@@ -173,20 +182,6 @@ impl SolanaTransactor {
                             }
                         }
                         warn!("Failed to confirm {}", signature);
-                    }
-                    Err(solana_client::client_error::ClientError {
-                        kind:
-                            solana_client::client_error::ClientErrorKind::RpcError(
-                                RpcError::RpcResponseError {
-                                    code: -32002,
-                                    message,
-                                    data,
-                                },
-                            ),
-                        ..
-                    }) => {
-                        warn!("Transaction possibly processed {:?}, {:?}", message, data);
-                        return Ok(());
                     }
                     Err(err) => {
                         warn!("Failed to send transaction: {:?}", err);
