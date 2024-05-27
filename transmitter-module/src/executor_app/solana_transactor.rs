@@ -146,63 +146,61 @@ impl SolanaTransactor {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            for _ in 0..3 {
-                match client.send_transaction(&transaction).await {
-                    Ok(signature) => {
-                        info!(
+            match client.send_transaction(&transaction).await {
+                Ok(signature) => {
+                    info!(
                             "Transaction sent, solana tx_signature: {}, op_hash: {}, trying to confirm...",
                             signature,
                             hex::encode(op_hash),
                         );
-                        tokio::time::sleep(Duration::from_secs(10)).await;
-                        for _ in 0..20 {
-                            match client
-                                .confirm_transaction_with_commitment(
-                                    &signature,
-                                    CommitmentConfig::finalized(),
-                                )
-                                .await
-                            {
-                                Ok(r) if r.value => {
-                                    info!("Transaction {} confirmed", signature);
-                                    return Ok(());
-                                }
-                                Ok(_) => {
-                                    debug!("{} Not yet confirmed", signature);
-                                }
-                                Err(e) => {
-                                    debug!("Not confirmed {}: {}", signature, e);
-                                }
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    for _ in 0..20 {
+                        match client
+                            .confirm_transaction_with_commitment(
+                                &signature,
+                                CommitmentConfig::finalized(),
+                            )
+                            .await
+                        {
+                            Ok(r) if r.value => {
+                                info!("Transaction {} confirmed", signature);
+                                return Ok(());
                             }
-                            tokio::time::sleep(Duration::from_secs(5)).await;
+                            Ok(_) => {
+                                debug!("{} Not yet confirmed", signature);
+                            }
+                            Err(e) => {
+                                debug!("Not confirmed {}: {}", signature, e);
+                            }
                         }
-                        warn!("Failed to confirm {}", signature);
+                        tokio::time::sleep(Duration::from_secs(5)).await;
                     }
-                    Err(solana_client::client_error::ClientError {
-                        kind:
-                            solana_client::client_error::ClientErrorKind::RpcError(
-                                RpcError::RpcResponseError {
-                                    code: -32002,
-                                    message,
-                                    data,
-                                },
-                            ),
-                        ..
-                    }) => {
-                        if message.contains("Blockhash not found") {
-                            warn!("Transaction failed because blockhash not found, retrying");
-                            break;
-                        } else {
-                            warn!("Transaction possibly processed {:?}, {:?}", message, data);
-                            return Ok(());
-                        }
-                    }
-                    Err(err) => {
-                        warn!("Failed to send transaction: {:?}", err);
+                    warn!("Failed to confirm {}", signature);
+                }
+                Err(solana_client::client_error::ClientError {
+                    kind:
+                        solana_client::client_error::ClientErrorKind::RpcError(
+                            RpcError::RpcResponseError {
+                                code: -32002,
+                                message,
+                                data,
+                            },
+                        ),
+                    ..
+                }) => {
+                    if message.contains("Blockhash not found") {
+                        warn!("Transaction failed because blockhash not found, retrying");
+                    } else {
+                        warn!("Transaction possibly processed {:?}, {:?}", message, data);
+                        return Ok(());
                     }
                 }
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                Err(err) => {
+                    warn!("Failed to send transaction: {:?}", err);
+                }
             }
+            tokio::time::sleep(Duration::from_secs(3)).await;
+
             loop {
                 let new_blockhash =
                     SolanaTransactor::get_blockhash_with_retry(Arc::clone(&client)).await;
