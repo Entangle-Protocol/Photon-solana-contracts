@@ -1,5 +1,7 @@
 use log::{debug, error, info, warn};
-use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig};
+use solana_client::{
+    nonblocking::rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig, rpc_request::RpcError,
+};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::Hash,
@@ -135,6 +137,7 @@ impl SolanaTransactor {
     ) -> Result<(), ExecutorError> {
         let mut current_blockhash =
             SolanaTransactor::get_blockhash_with_retry(Arc::clone(&client)).await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
         loop {
             log::info!("Using blockhash {}", current_blockhash);
             transaction.try_partial_sign(&[&payer], current_blockhash).map_err(|err| {
@@ -150,7 +153,9 @@ impl SolanaTransactor {
                     .send_transaction_with_config(
                         &transaction,
                         RpcSendTransactionConfig {
-                            skip_preflight: true,
+                            preflight_commitment: Some(
+                                solana_sdk::commitment_config::CommitmentLevel::Processed,
+                            ),
                             ..Default::default()
                         },
                     )
@@ -171,65 +176,40 @@ impl SolanaTransactor {
                                 )
                                 .await
                             {
-                                Ok(r) => {
-                                    if r.value {
-                                        info!(
-                                            "Transaction {} confirmed, awaiting final confirmation...",
-                                            signature
-                                        );
-                                        tokio::time::sleep(Duration::from_secs(30)).await;
-                                        for _ in 0..3 {
-                                            match client
-                                                .confirm_transaction_with_commitment(
-                                                    &signature,
-                                                    CommitmentConfig::finalized(),
-                                                )
-                                                .await
-                                            {
-                                                Ok(r) => {
-                                                    if r.value {
-                                                        info!(
-                                                            "Transaction {} confirmed fully",
-                                                            signature
-                                                        );
-                                                        return Ok(());
-                                                    } else {
-                                                        debug!(
-                                                            "Not really confirmed (returned false) {}, retrying",
-                                                            signature
-                                                        );
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    debug!(
-                                                        "Not really confirmed {}: {}",
-                                                        signature, e
-                                                    );
-                                                    tokio::time::sleep(Duration::from_secs(5))
-                                                        .await;
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        debug!(
-                                            "Transaction {} confirmed but returned false, retrying",
-                                            signature
-                                        );
-                                    }
+                                Ok(r) if r.value => {
+                                    info!("Transaction {} confirmed", signature);
+                                    return Ok(());
+                                }
+                                Ok(_) => {
+                                    debug!("{} Not yet confirmed", signature);
                                 }
                                 Err(e) => {
                                     debug!("Not confirmed {}: {}", signature, e);
-                                    tokio::time::sleep(Duration::from_secs(5)).await;
                                 }
                             }
+                            tokio::time::sleep(Duration::from_secs(5)).await;
                         }
                         warn!("Failed to confirm {}", signature);
                     }
+                    Err(solana_client::client_error::ClientError {
+                        kind:
+                            solana_client::client_error::ClientErrorKind::RpcError(
+                                RpcError::RpcResponseError {
+                                    code: -32002,
+                                    message,
+                                    data,
+                                },
+                            ),
+                        ..
+                    }) => {
+                        warn!("Transaction possibly processed {:?}, {:?}", message, data);
+                        return Ok(());
+                    }
                     Err(err) => {
                         warn!("Failed to send transaction: {:?}", err);
-                        tokio::time::sleep(Duration::from_secs(2)).await;
                     }
                 }
+                tokio::time::sleep(Duration::from_secs(2)).await;
             }
             loop {
                 let new_blockhash =
