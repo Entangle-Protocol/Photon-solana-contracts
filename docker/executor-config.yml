@@ -9,7 +9,7 @@ rabbitmq:
     reconnect_timeout_ms: 200
 
 solana:
-    rpc_url: https://rpc.ankr.com/solana/b2717015880533388be8430381f5b7aa3cf67478932e878e19166a418495759b
+    rpc_url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
     commitment: confirmed
 
 extensions:
