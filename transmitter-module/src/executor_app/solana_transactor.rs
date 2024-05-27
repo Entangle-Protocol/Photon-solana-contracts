@@ -171,29 +171,50 @@ impl SolanaTransactor {
                                 )
                                 .await
                             {
-                                Ok(_) => {
-                                    info!(
-                                        "Transaction {} confirmed, awaiting final confirmation...",
-                                        signature
-                                    );
-                                    tokio::time::sleep(Duration::from_secs(30)).await;
-                                    for _ in 0..3 {
-                                        match client
-                                            .confirm_transaction_with_commitment(
-                                                &signature,
-                                                CommitmentConfig::finalized(),
-                                            )
-                                            .await
-                                        {
-                                            Ok(_) => {
-                                                info!("Transaction {} confirmed fully", signature);
-                                                return Ok(());
-                                            }
-                                            Err(e) => {
-                                                debug!("Not really confirmed {}: {}", signature, e);
-                                                tokio::time::sleep(Duration::from_secs(5)).await;
+                                Ok(r) => {
+                                    if r.value {
+                                        info!(
+                                            "Transaction {} confirmed, awaiting final confirmation...",
+                                            signature
+                                        );
+                                        tokio::time::sleep(Duration::from_secs(30)).await;
+                                        for _ in 0..3 {
+                                            match client
+                                                .confirm_transaction_with_commitment(
+                                                    &signature,
+                                                    CommitmentConfig::finalized(),
+                                                )
+                                                .await
+                                            {
+                                                Ok(r) => {
+                                                    if r.value {
+                                                        info!(
+                                                            "Transaction {} confirmed fully",
+                                                            signature
+                                                        );
+                                                        return Ok(());
+                                                    } else {
+                                                        debug!(
+                                                            "Not really confirmed (returned false) {}, retrying",
+                                                            signature
+                                                        );
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    debug!(
+                                                        "Not really confirmed {}: {}",
+                                                        signature, e
+                                                    );
+                                                    tokio::time::sleep(Duration::from_secs(5))
+                                                        .await;
+                                                }
                                             }
                                         }
+                                    } else {
+                                        debug!(
+                                            "Transaction {} confirmed but returned false, retrying",
+                                            signature
+                                        );
                                     }
                                 }
                                 Err(e) => {
