@@ -148,13 +148,13 @@ impl SolanaTransactor {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            for _ in 0..3 {
+            for _ in 0..6 {
                 match client
                     .send_transaction_with_config(
                         &transaction,
                         RpcSendTransactionConfig {
                             preflight_commitment: Some(
-                                solana_sdk::commitment_config::CommitmentLevel::Processed,
+                                solana_sdk::commitment_config::CommitmentLevel::Finalized,
                             ),
                             ..Default::default()
                         },
@@ -209,7 +209,7 @@ impl SolanaTransactor {
                         warn!("Failed to send transaction: {:?}", err);
                     }
                 }
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                tokio::time::sleep(Duration::from_secs(11)).await;
             }
             loop {
                 let new_blockhash =
