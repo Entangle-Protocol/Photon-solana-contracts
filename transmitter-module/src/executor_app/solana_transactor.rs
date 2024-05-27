@@ -202,8 +202,13 @@ impl SolanaTransactor {
                             ),
                         ..
                     }) => {
-                        warn!("Transaction possibly processed {:?}, {:?}", message, data);
-                        return Ok(());
+                        if message.contains("Blockhash not found") {
+                            warn!("Transaction failed because blockhash not found, retrying");
+                            break;
+                        } else {
+                            warn!("Transaction possibly processed {:?}, {:?}", message, data);
+                            return Ok(());
+                        }
                     }
                     Err(err) => {
                         warn!("Failed to send transaction: {:?}", err);
