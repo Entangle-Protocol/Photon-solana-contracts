@@ -1,7 +1,5 @@
 use log::{debug, error, info, warn};
-use solana_client::{
-    nonblocking::rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig, rpc_request::RpcError,
-};
+use solana_client::{nonblocking::rpc_client::RpcClient, rpc_request::RpcError};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     hash::Hash,
@@ -148,19 +146,8 @@ impl SolanaTransactor {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            for _ in 0..6 {
-                match client
-                    .send_transaction_with_config(
-                        &transaction,
-                        RpcSendTransactionConfig {
-                            preflight_commitment: Some(
-                                solana_sdk::commitment_config::CommitmentLevel::Finalized,
-                            ),
-                            ..Default::default()
-                        },
-                    )
-                    .await
-                {
+            for _ in 0..10 {
+                match client.send_transaction(&transaction).await {
                     Ok(signature) => {
                         info!(
                             "Transaction sent, solana tx_signature: {}, op_hash: {}, trying to confirm...",
@@ -214,7 +201,7 @@ impl SolanaTransactor {
                         warn!("Failed to send transaction: {:?}", err);
                     }
                 }
-                tokio::time::sleep(Duration::from_secs(11)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
             loop {
                 let new_blockhash =
