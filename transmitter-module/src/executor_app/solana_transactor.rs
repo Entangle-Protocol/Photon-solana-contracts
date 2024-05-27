@@ -172,8 +172,29 @@ impl SolanaTransactor {
                                 .await
                             {
                                 Ok(_) => {
-                                    info!("Transaction {} confirmed", signature);
-                                    return Ok(());
+                                    info!(
+                                        "Transaction {} confirmed, awaiting final confirmation...",
+                                        signature
+                                    );
+                                    tokio::time::sleep(Duration::from_secs(30)).await;
+                                    for _ in 0..3 {
+                                        match client
+                                            .confirm_transaction_with_commitment(
+                                                &signature,
+                                                CommitmentConfig::finalized(),
+                                            )
+                                            .await
+                                        {
+                                            Ok(_) => {
+                                                info!("Transaction {} confirmed fully", signature);
+                                                return Ok(());
+                                            }
+                                            Err(e) => {
+                                                debug!("Not really confirmed {}: {}", signature, e);
+                                                tokio::time::sleep(Duration::from_secs(5)).await;
+                                            }
+                                        }
+                                    }
                                 }
                                 Err(e) => {
                                     debug!("Not confirmed {}: {}", signature, e);
