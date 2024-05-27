@@ -146,7 +146,7 @@ impl SolanaTransactor {
                 error!("Transaction is not fully signed: {}", hex::encode(op_hash));
                 return Err(ExecutorError::SolanaClient);
             }
-            for _ in 0..10 {
+            for _ in 0..3 {
                 match client.send_transaction(&transaction).await {
                     Ok(signature) => {
                         info!(
