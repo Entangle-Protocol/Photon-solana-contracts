@@ -152,24 +152,45 @@ impl SolanaTransactor {
                             signature,
                             hex::encode(op_hash),
                         );
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-                    for _ in 0..20 {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    for _ in 0..2 {
                         match client
                             .confirm_transaction_with_commitment(
                                 &signature,
-                                CommitmentConfig::finalized(),
+                                CommitmentConfig::processed(),
                             )
                             .await
                         {
                             Ok(r) if r.value => {
-                                info!("Transaction {} confirmed", signature);
-                                return Ok(());
+                                info!("Transaction {} status Processed, confirming...", signature);
+                                for _ in 0..5 {
+                                    match client
+                                        .confirm_transaction_with_commitment(
+                                            &signature,
+                                            CommitmentConfig::finalized(),
+                                        )
+                                        .await
+                                    {
+                                        Ok(r) if r.value => {
+                                            info!("Transaction {} confirmed", signature);
+                                            return Ok(());
+                                        }
+                                        Ok(_) => {
+                                            debug!("{} Not yet confirmed", signature);
+                                        }
+                                        Err(e) => {
+                                            debug!("Not confirmed {}: {}", signature, e);
+                                        }
+                                    }
+                                    tokio::time::sleep(Duration::from_secs(20)).await;
+                                }
+                                break;
                             }
                             Ok(_) => {
-                                debug!("{} Not yet confirmed", signature);
+                                debug!("{} Not yet processed", signature);
                             }
                             Err(e) => {
-                                debug!("Not confirmed {}: {}", signature, e);
+                                debug!("Not processed {}: {}", signature, e);
                             }
                         }
                         tokio::time::sleep(Duration::from_secs(5)).await;
