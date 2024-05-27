@@ -152,7 +152,7 @@ impl SolanaTransactor {
                             signature,
                             hex::encode(op_hash),
                         );
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(Duration::from_secs(10)).await;
                     for _ in 0..2 {
                         match client
                             .confirm_transaction_with_commitment(
