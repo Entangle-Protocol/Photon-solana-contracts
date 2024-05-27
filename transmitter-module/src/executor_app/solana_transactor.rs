@@ -135,7 +135,6 @@ impl SolanaTransactor {
     ) -> Result<(), ExecutorError> {
         let mut current_blockhash =
             SolanaTransactor::get_blockhash_with_retry(Arc::clone(&client)).await;
-        tokio::time::sleep(Duration::from_secs(10)).await;
         loop {
             log::info!("Using blockhash {}", current_blockhash);
             transaction.try_partial_sign(&[&payer], current_blockhash).map_err(|err| {
