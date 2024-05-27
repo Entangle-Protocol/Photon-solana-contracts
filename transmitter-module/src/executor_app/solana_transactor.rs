@@ -157,12 +157,12 @@ impl SolanaTransactor {
                         match client
                             .confirm_transaction_with_commitment(
                                 &signature,
-                                CommitmentConfig::processed(),
+                                CommitmentConfig::confirmed(),
                             )
                             .await
                         {
                             Ok(r) if r.value => {
-                                info!("Transaction {} status Processed, confirming...", signature);
+                                info!("Transaction {} status Confirmed, finalizing...", signature);
                                 for _ in 0..5 {
                                     match client
                                         .confirm_transaction_with_commitment(
@@ -172,14 +172,14 @@ impl SolanaTransactor {
                                         .await
                                     {
                                         Ok(r) if r.value => {
-                                            info!("Transaction {} confirmed", signature);
+                                            info!("Transaction {} status Finalized", signature);
                                             return Ok(());
                                         }
                                         Ok(_) => {
-                                            debug!("{} Not yet confirmed", signature);
+                                            debug!("{} Not yet finalized", signature);
                                         }
                                         Err(e) => {
-                                            debug!("Not confirmed {}: {}", signature, e);
+                                            debug!("Not finalized {}: {}", signature, e);
                                         }
                                     }
                                     tokio::time::sleep(Duration::from_secs(20)).await;
@@ -187,15 +187,15 @@ impl SolanaTransactor {
                                 break;
                             }
                             Ok(_) => {
-                                debug!("{} Not yet processed", signature);
+                                debug!("{} Not yet confirmed", signature);
                             }
                             Err(e) => {
-                                debug!("Not processed {}: {}", signature, e);
+                                debug!("Not confirmed {}: {}", signature, e);
                             }
                         }
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     }
-                    warn!("Failed to confirm {}", signature);
+                    warn!("Failed to finalize {}", signature);
                 }
                 Err(solana_client::client_error::ClientError {
                     kind:
