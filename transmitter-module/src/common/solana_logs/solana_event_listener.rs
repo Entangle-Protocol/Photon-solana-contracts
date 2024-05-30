@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, warn};
 use solana_client::{
     nonblocking::rpc_client::RpcClient, rpc_client::GetConfirmedSignaturesForAddress2Config,
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
@@ -62,7 +62,9 @@ impl SolanaEventListener {
 
         loop {
             tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
-            let log_bunches = self.read_event_backward_until(&client, solana_config, slot).await?;
+            let Ok(log_bunches) = self.read_event_backward_until(&client, solana_config, slot).await else {
+                continue;
+            };
             for logs_bunch in log_bunches {
                 slot = logs_bunch.slot;
                 self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
@@ -158,7 +160,7 @@ impl SolanaEventListener {
             .get_signatures_for_address_with_config(program_id, args)
             .await
             .map_err(|err| {
-                error!("Failed to get signatures for address: {}", err);
+                warn!("Failed to get signatures for address: {}", err);
                 EventListenerError::SolanaClient
             })?;
         Ok(signatures_backward.iter().filter(|s| s.slot > slot).cloned().collect())
