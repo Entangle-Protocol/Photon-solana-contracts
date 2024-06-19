@@ -45,7 +45,7 @@ impl SolanaRetroReader {
         //     debug!("No latest_processed_block found, skip retrospective reading");
         //     return Ok(());
         // };
-        let tx_start_from = String::from("Tb5PK9d1kMMZnvDVCMGXLiHWtXDvefNGxC3DBsGxLhH8f2zbecwqTQpi5DMLK5C4cyR4uotKxNiEp3SnsEiayUz");
+        let tx_start_from = String::from("5gYheNmURqB8bf77o9C1H1NK8N1drsmz14vwPRQeD6UhAcvcaarqsMQEvfm7XA4tpZjRSqWSzaGoRsUVKpkHScRe");
         debug!("Found latest_processed_block, start backward reading until: {}", tx_start_from);
         let client =
             RpcClient::new_with_commitment(solana_config.rpc_url.clone(), solana_config.commitment);
