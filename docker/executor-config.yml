@@ -16,6 +16,7 @@ extensions:
     - /libonefunc_extension.so
     - /libgov_extension.so
     - /libbridge_extension.so
+    - /libborpa_bridge_extension.so
 
 mongodb:
     uri: mongodb://mongo:27017

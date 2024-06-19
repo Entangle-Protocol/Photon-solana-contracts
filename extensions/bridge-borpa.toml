@@ -1,0 +1,8 @@
+protocol_id = "426f727061000000000000000000000000000000000000000000000000000000"
+bridge_program = "bBr6NPrnTLYQQzYP7fCyJq5tmgx23ZwutHE38BFG1JY"
+core_program = "bCreHQTy6vLbZ3j6DK7hKyGqh1zt7TRu23dkQitdJKN"
+bridge_root = "mainnet0"
+core_root = "mainnet0"
+mint = "BorpaZo2RdiYcriLJu2GRefZdgQPmv63nA8jsVVsMV7W"
+fee_collector_vault = "571CNVwVcpH1pERjfz7Tr6fMAuwsNCccByKoQLw7dEhk"
+use_token2022 = true
