@@ -18,3 +18,4 @@ mongodb:
 allowed_protocols:
     - "photon-gov"
     - "Entangle"
+    - "Borpa"
