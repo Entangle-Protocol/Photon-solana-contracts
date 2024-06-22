@@ -66,8 +66,9 @@ pub enum GovOperation {
     RemoveAllowedProposerAddress = 0xb8e5f3f4,
     AddExecutor = 0xe0aafb68,
     RemoveExecutor = 0x04fa384a,
-    AddTransmitter = 0xa8da4c51,
-    RemoveTransmitter = 0x80936851,
+    AddTransmitters = 0x6c5f5666,
+    RemoveTransmitters = 0x5206da70,
+    UpdateTransmitters = 0x654b46e1,
     SetConsensusTargetRate = 0x970b6109,
 }
 
@@ -112,8 +113,9 @@ pub(super) fn handle_gov_operation(
         GovOperation::RemoveExecutor => {
             remove_executor(calldata, &op_data.protocol_id, target_protocol_info)?
         }
-        GovOperation::AddTransmitter => add_transmitter(calldata, target_protocol_info)?,
-        GovOperation::RemoveTransmitter => remove_transmitter(calldata, target_protocol_info)?,
+        GovOperation::AddTransmitters => add_transmitters(calldata, target_protocol_info)?,
+        GovOperation::RemoveTransmitters => remove_transmitters(calldata, target_protocol_info)?,
+        GovOperation::UpdateTransmitters => update_transmitters(calldata, target_protocol_info)?,
         GovOperation::SetConsensusTargetRate => {
             set_consensus_target_rate(calldata, target_protocol_info)?
         }
@@ -343,56 +345,59 @@ fn remove_executor(
     Ok(())
 }
 
-fn add_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
-    let params = decode_abi_params(
-        calldata,
-        ParamType::Tuple(vec![
-            ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // transmitters
-        ]),
-    )?;
+fn add_transmitters(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
+    let params = decode_abi_params(calldata, abi_decode_scheme(GovOperation::AddTransmitters))?;
+    let transmitters = get_transmitters_to_add(&params[1])?;
+    require!(!transmitters.is_empty(), CustomError::NoTransmittersAllowed);
+    add_transmitters_impl(transmitters, target_protocol_info)
+}
 
-    let transmitters: Vec<EthAddress> = params[1]
+fn get_transmitters_to_add(params: &Token) -> Result<Vec<EthAddress>> {
+    Ok(params
         .clone()
         .into_array()
         .ok_or(CustomError::InvalidGovMsg)?
         .into_iter()
         .filter_map(|x| x.into_address().map(|x| x.to_fixed_bytes()))
         .filter(|x| x != &EthAddress::default())
-        .collect();
-    require!(!transmitters.is_empty(), CustomError::NoTransmittersAllowed);
-    let mut total_transmitters = target_protocol_info.transmitters();
-    total_transmitters.extend_from_slice(&transmitters);
-    total_transmitters.dedup();
+        .collect())
+}
 
+fn add_transmitters_impl(
+    to_add: Vec<EthAddress>,
+    target_protocol_info: &mut ProtocolInfo,
+) -> Result<()> {
+    let mut total_transmitters = target_protocol_info.transmitters();
+    total_transmitters.extend_from_slice(&to_add);
+    total_transmitters.dedup();
     if total_transmitters.len() >= MAX_TRANSMITTERS {
         return Err(CustomError::MaxTransmittersExceeded.into());
     }
-
     target_protocol_info.transmitters = Default::default();
     for (i, k) in total_transmitters.into_iter().enumerate() {
         target_protocol_info.transmitters[i] = k;
     }
-
     Ok(())
 }
 
-fn remove_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
-    let params = decode_abi_params(
-        calldata,
-        ParamType::Tuple(vec![
-            ParamType::FixedBytes(32),                      // protocolId
-            ParamType::Array(Box::new(ParamType::Address)), // transmitters
-        ]),
-    )?;
-    let transmitters: std::result::Result<Vec<EthAddress>, CustomError> = params[1]
+fn remove_transmitters(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
+    let params = decode_abi_params(calldata, abi_decode_scheme(GovOperation::RemoveTransmitters))?;
+    let to_remove = get_transmitters_to_remove(&params[1])?;
+    remove_transmitters_impl(to_remove, target_protocol_info);
+    Ok(())
+}
+
+fn get_transmitters_to_remove(params: &Token) -> std::result::Result<Vec<EthAddress>, CustomError> {
+    params
         .clone()
         .into_array()
         .ok_or(CustomError::InvalidGovMsg)?
         .into_iter()
         .map(|x| x.into_address().map(|x| x.to_fixed_bytes()).ok_or(CustomError::InvalidGovMsg))
-        .collect();
-    let to_remove = transmitters?;
+        .collect()
+}
+
+fn remove_transmitters_impl(to_remove: Vec<EthAddress>, target_protocol_info: &mut ProtocolInfo) {
     let total_transmitters: Vec<_> = target_protocol_info
         .transmitters()
         .into_iter()
@@ -402,6 +407,21 @@ fn remove_transmitter(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) 
     for (i, k) in total_transmitters.into_iter().enumerate() {
         target_protocol_info.transmitters[i] = k;
     }
+}
+
+fn update_transmitters(calldata: &[u8], target_protocol_info: &mut ProtocolInfo) -> Result<()> {
+    let params = decode_abi_params(calldata, abi_decode_scheme(GovOperation::UpdateTransmitters))?;
+
+    let to_remove = get_transmitters_to_remove(&params[2])?;
+    if !to_remove.is_empty() {
+        remove_transmitters_impl(to_remove, target_protocol_info);
+    }
+
+    let to_add: Vec<EthAddress> = get_transmitters_to_add(&params[1])?;
+    if !to_add.is_empty() {
+        add_transmitters_impl(to_add, target_protocol_info)?;
+    }
+
     Ok(())
 }
 
@@ -514,13 +534,18 @@ pub fn abi_decode_scheme(gov_operation: GovOperation) -> ParamType {
             ParamType::FixedBytes(32), // protocolId
             ParamType::Bytes,          // executor
         ]),
-        GovOperation::AddTransmitter => ParamType::Tuple(vec![
+        GovOperation::AddTransmitters => ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
             ParamType::Array(Box::new(ParamType::Address)), // transmitters
         ]),
-        GovOperation::RemoveTransmitter => ParamType::Tuple(vec![
+        GovOperation::RemoveTransmitters => ParamType::Tuple(vec![
             ParamType::FixedBytes(32),                      // protocolId
             ParamType::Array(Box::new(ParamType::Address)), // transmitters
+        ]),
+        GovOperation::UpdateTransmitters => ParamType::Tuple(vec![
+            ParamType::FixedBytes(32),                      // protocolId
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters to add
+            ParamType::Array(Box::new(ParamType::Address)), // transmitters to remove
         ]),
         GovOperation::SetConsensusTargetRate => ParamType::Tuple(vec![
             ParamType::FixedBytes(32), // protocolId
