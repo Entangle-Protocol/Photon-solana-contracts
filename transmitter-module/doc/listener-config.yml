@@ -21,6 +21,8 @@ solana:
     # The solana client commitment receive only events have been happened on the given confirmation level
     # possible values: processed, confirmed, finalized
     commitment: confirmed
+    # The optional solana tx id to force retrospective reading for events backward until it
+    tx_read_from: 22224ksYCnRoG5dpGC1mpQoda1sDZrPLwSxMUgrJJzNG8yH6UFAhk64V34P6kDNBhrugnAacDvkKrnUX1ZMbE8Fw
 
 # mongodb is used to store last_processed_block in a persistent way
 mongodb:

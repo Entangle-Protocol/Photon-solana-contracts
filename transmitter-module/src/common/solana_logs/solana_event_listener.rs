@@ -46,7 +46,7 @@ impl SolanaEventListener {
         })?;
 
         self.logs_retro_reader
-            .read_events_backward(&self.solana_config.client, &self.mongodb_config)
+            .read_events_backward(&self.solana_config, &self.mongodb_config)
             .await?;
 
         self.read_events_backward(&self.solana_config.client, client, slot).await
@@ -62,7 +62,9 @@ impl SolanaEventListener {
 
         loop {
             tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
-            let Ok(log_bunches) = self.read_event_backward_until(&client, solana_config, slot).await else {
+            let Ok(log_bunches) =
+                self.read_event_backward_until(&client, solana_config, slot).await
+            else {
                 continue;
             };
             for logs_bunch in log_bunches {
