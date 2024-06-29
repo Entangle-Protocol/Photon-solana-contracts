@@ -16,7 +16,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use transmitter_common::mongodb::{mdb_solana_chain_id, MongodbConfig, MDB_LAST_BLOCK_COLLECTION};
 
 use crate::common::{
-    config::SolanaClientConfig,
+    config::{SolanaClientConfig, SolanaListenerConfig},
     solana_logs::{solana_event_listener::LogsBunch, EventListenerError},
 };
 
@@ -38,18 +38,20 @@ impl SolanaRetroReader {
 
     pub(super) async fn read_events_backward(
         &self,
-        solana_config: &SolanaClientConfig,
-        _mongodb_config: &MongodbConfig,
+        solana_config: &SolanaListenerConfig,
+        mongodb_config: &MongodbConfig,
     ) -> Result<(), EventListenerError> {
-        // let Ok(Some(tx_start_from)) = self.get_last_processed_block(mongodb_config).await else {
-        //     debug!("No latest_processed_block found, skip retrospective reading");
-        //     return Ok(());
-        // };
-        let tx_start_from = String::from("2qhz4ksYCnRoG5dpGC1mpQoda1sDZrPLwSxMUgrJJzNG8yH6UFAhk64V34P6kDNBhrugnAacDvkKrnUX1ZMbE8Fw");
-        debug!("Found latest_processed_block, start backward reading until: {}", tx_start_from);
-        let client =
-            RpcClient::new_with_commitment(solana_config.rpc_url.clone(), solana_config.commitment);
-        let until = Some(Signature::from_str(&tx_start_from).map_err(|err| {
+        let Some(tx_read_from) = self.get_tx_read_from(solana_config, mongodb_config).await else {
+            debug!("No tx_read_from found, skip retrospective reading");
+            return Ok(());
+        };
+
+        debug!("Found tx_read_from, start backward reading until: {}", tx_read_from);
+        let client = RpcClient::new_with_commitment(
+            solana_config.client.rpc_url.clone(),
+            solana_config.client.commitment,
+        );
+        let until = Some(Signature::from_str(&tx_read_from).map_err(|err| {
             error!("Failed to decode tx_start_from: {}", err);
             EventListenerError::SolanaClient
         })?);
@@ -57,9 +59,14 @@ impl SolanaRetroReader {
         let mut before = None;
         let mut log_bunches = VecDeque::new();
         loop {
-            let signatures_backward =
-                Self::get_signatures_chunk(&photon::ID, solana_config, &client, until, before)
-                    .await?;
+            let signatures_backward = Self::get_signatures_chunk(
+                &photon::ID,
+                &solana_config.client,
+                &client,
+                until,
+                before,
+            )
+            .await?;
 
             if signatures_backward.is_empty() {
                 break;
@@ -72,6 +79,21 @@ impl SolanaRetroReader {
             self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
         }
         Ok(())
+    }
+
+    async fn get_tx_read_from(
+        &self,
+        solana_config: &SolanaListenerConfig,
+        _mongodb_config: &MongodbConfig,
+    ) -> Option<String> {
+        if solana_config.tx_read_from.is_some() {
+            return solana_config.tx_read_from.clone();
+        }
+        // if let result @ Ok(_) = self.get_last_processed_block(mongodb_config).await {
+        //     return result;
+        // }
+        // TODO: get rid of this redundant stuff as read as possible
+        Some("2qhz4ksYCnRoG5dpGC1mpQoda1sDZrPLwSxMUgrJJzNG8yH6UFAhk64V34P6kDNBhrugnAacDvkKrnUX1ZMbE8Fw".to_string())
     }
 
     async fn process_signatures(

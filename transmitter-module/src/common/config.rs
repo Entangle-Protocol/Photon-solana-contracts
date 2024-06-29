@@ -21,4 +21,6 @@ where
 pub(crate) struct SolanaListenerConfig {
     #[serde(flatten)]
     pub(crate) client: SolanaClientConfig,
+    #[serde(alias = "txreadfrom")]
+    pub(crate) tx_read_from: Option<String>,
 }
