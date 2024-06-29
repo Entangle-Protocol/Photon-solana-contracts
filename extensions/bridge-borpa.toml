@@ -4,5 +4,5 @@ core_program = "bCreHQTy6vLbZ3j6DK7hKyGqh1zt7TRu23dkQitdJKN"
 bridge_root = "mainnet0"
 core_root = "mainnet0"
 mint = "BorpaZo2RdiYcriLJu2GRefZdgQPmv63nA8jsVVsMV7W"
-fee_collector_vault = "EWje2VonMWvqBdURQMunKKK3NKje6z8XxrE3AQN6qX1F"
+fee_collector_vault = "fSycXb6dKJnpWLfiFESUbrNqxGBDYwSycpUFocSZxWw"
 use_token2022 = true
