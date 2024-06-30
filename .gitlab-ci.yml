@@ -11,6 +11,7 @@ clippy:
   stage: checks
   image: rust:1.78.0
   script:
+    - git submodule update --init
     - rustup default 1.78.0
     - rustup component add clippy
     - cargo clippy --all-targets --all-features -- -Dwarnings
@@ -27,6 +28,7 @@ versioning and prepare:
 build_solana:
   stage: container_build
   script:
+    - git submodule update --init
     - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest -f ./docker/Dockerfile_solana .
   tags:
     - linux
@@ -34,6 +36,7 @@ build_solana:
 build_module:
   stage: container_build
   script:
+    - git submodule update --init
     - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
   tags:
     - linux

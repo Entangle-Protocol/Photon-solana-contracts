@@ -5,11 +5,12 @@ use mongodb::{
     Client,
 };
 use solana_client::{
-    nonblocking::rpc_client::RpcClient, rpc_client::GetConfirmedSignaturesForAddress2Config,
+    rpc_client::GetConfirmedSignaturesForAddress2Config,
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
-use solana_sdk::{pubkey::Pubkey, signature::Signature};
+use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature};
 use solana_transaction_status::UiTransactionEncoding;
+use solana_transactor::RpcPool;
 use std::{collections::VecDeque, str::FromStr};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -46,10 +47,8 @@ impl SolanaRetroReader {
             return Ok(());
         };
         debug!("Found tx_read_from, start backward reading until: {}", tx_read_from);
-        let client = RpcClient::new_with_commitment(
-            solana_config.client.rpc_url.clone(),
-            solana_config.client.commitment,
-        );
+        let rpc_pool =
+            RpcPool::new(&solana_config.client.read_rpcs, &solana_config.client.write_rpcs)?;
         let until = Some(Signature::from_str(&tx_read_from).map_err(|err| {
             error!("Failed to decode tx_start_from: {}", err);
             EventListenerError::SolanaClient
@@ -61,7 +60,7 @@ impl SolanaRetroReader {
             let signatures_backward = Self::get_signatures_chunk(
                 &photon::ID,
                 &solana_config.client,
-                &client,
+                &rpc_pool,
                 until,
                 before,
             )
@@ -71,7 +70,7 @@ impl SolanaRetroReader {
                 break;
             }
 
-            Self::process_signatures(&client, &mut before, &mut log_bunches, signatures_backward)
+            Self::process_signatures(&rpc_pool, &mut before, &mut log_bunches, signatures_backward)
                 .await;
         }
         for logs_bunch in log_bunches {
@@ -97,18 +96,18 @@ impl SolanaRetroReader {
     }
 
     async fn process_signatures(
-        client: &RpcClient,
+        rpc_pool: &RpcPool,
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signatures_with_meta: Vec<RpcConfirmedTransactionStatusWithSignature>,
     ) {
         for signature_with_meta in signatures_with_meta {
-            _ = Self::process_signature(client, before, log_bunches, signature_with_meta).await;
+            _ = Self::process_signature(rpc_pool, before, log_bunches, signature_with_meta).await;
         }
     }
 
     async fn process_signature(
-        client: &RpcClient,
+        rpc_pool: &RpcPool,
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signature_with_meta: RpcConfirmedTransactionStatusWithSignature,
@@ -116,10 +115,15 @@ impl SolanaRetroReader {
         let signature = &Signature::from_str(&signature_with_meta.signature)
             .map_err(|err| error!("Failed to parse signature: {}", err))?;
         before.replace(*signature);
-        let transaction = client
-            .get_transaction(signature, UiTransactionEncoding::Json)
-            .await
-            .map_err(|err| error!("Failed to get transaction by signature: {}", err))?;
+        let transaction =
+            rpc_pool
+                .with_read_rpc_loop(
+                    |rpc| async move {
+                        rpc.get_transaction(signature, UiTransactionEncoding::Json).await
+                    },
+                    CommitmentConfig::finalized(),
+                )
+                .await;
 
         let logs = transaction
             .transaction
@@ -143,24 +147,24 @@ impl SolanaRetroReader {
     async fn get_signatures_chunk(
         program_id: &Pubkey,
         solana_config: &SolanaClientConfig,
-        client: &RpcClient,
+        rpc_pool: &RpcPool,
         until: Option<Signature>,
         before: Option<Signature>,
     ) -> Result<Vec<RpcConfirmedTransactionStatusWithSignature>, EventListenerError> {
-        let args = GetConfirmedSignaturesForAddress2Config {
-            before,
-            until,
-            limit: None,
-            commitment: Some(solana_config.commitment),
-        };
-
-        let signatures_backward = client
-            .get_signatures_for_address_with_config(program_id, args)
-            .await
-            .map_err(|err| {
-                error!("Failed to get signatures for address: {}", err);
-                EventListenerError::SolanaClient
-            })?;
+        let signatures_backward = rpc_pool
+            .with_read_rpc_loop(
+                |rpc| async move {
+                    let args = GetConfirmedSignaturesForAddress2Config {
+                        before,
+                        until,
+                        limit: None,
+                        commitment: Some(solana_config.commitment),
+                    };
+                    rpc.get_signatures_for_address_with_config(program_id, args).await
+                },
+                solana_config.commitment,
+            )
+            .await;
         Ok(signatures_backward)
     }
 

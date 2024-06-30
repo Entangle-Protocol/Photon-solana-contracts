@@ -13,11 +13,15 @@ rabbitmq:
     # Reconnect Timeout. The time between attempts for the listener to try to reconnect. Default: 500
     reconnect_timeout_ms: 200
 
-
 # solana [pubsubclient](https://docs.rs/solana-pubsub-client/latest/solana_pubsub_client/nonblocking/pubsub_client/index.html) settings
 solana:
-    # Solana http address to connect to send rpc commands
-    rpc_url: http://127.0.0.1:8899
+    # HTTP RPC addresses to connect to read and write to Solana
+    read_rpcs:
+        - url: http://127.0.0.1:8899
+          ratelimit: 4 # requests per second
+    write_rpcs:
+        - url: http://127.0.0.1:8899
+          ratelimit: 4 # requests per second
     # The solana client commitment receive only events have been happened on the given confirmation level
     # possible values: processed, confirmed, finalized
     commitment: confirmed
