@@ -21,7 +21,7 @@ use crate::common::{
 };
 
 pub(super) struct SolanaRetroReader {
-    _mongodb_config: MongodbConfig,
+    mongodb_config: MongodbConfig,
     logs_sender: UnboundedSender<LogsBunch>,
 }
 
@@ -31,7 +31,7 @@ impl SolanaRetroReader {
         logs_sender: UnboundedSender<LogsBunch>,
     ) -> SolanaRetroReader {
         SolanaRetroReader {
-            _mongodb_config: mongodb_config,
+            mongodb_config,
             logs_sender,
         }
     }
@@ -45,7 +45,6 @@ impl SolanaRetroReader {
             debug!("No tx_read_from found, skip retrospective reading");
             return Ok(());
         };
-
         debug!("Found tx_read_from, start backward reading until: {}", tx_read_from);
         let client = RpcClient::new_with_commitment(
             solana_config.client.rpc_url.clone(),
@@ -84,16 +83,17 @@ impl SolanaRetroReader {
     async fn get_tx_read_from(
         &self,
         solana_config: &SolanaListenerConfig,
-        _mongodb_config: &MongodbConfig,
+        mongodb_config: &MongodbConfig,
     ) -> Option<String> {
-        if solana_config.tx_read_from.is_some() {
-            return solana_config.tx_read_from.clone();
+        if let Some(ref tx_read_from) = solana_config.tx_read_from {
+            if !tx_read_from.is_empty() {
+                return Some(tx_read_from.clone());
+            }
         }
-        // if let result @ Ok(_) = self.get_last_processed_block(mongodb_config).await {
-        //     return result;
-        // }
-        // TODO: get rid of this redundant stuff as read as possible
-        Some("2qhz4ksYCnRoG5dpGC1mpQoda1sDZrPLwSxMUgrJJzNG8yH6UFAhk64V34P6kDNBhrugnAacDvkKrnUX1ZMbE8Fw".to_string())
+        if let Ok(result @ Some(_)) = self.get_last_processed_block(mongodb_config).await {
+            return result;
+        }
+        None
     }
 
     async fn process_signatures(
@@ -164,7 +164,7 @@ impl SolanaRetroReader {
         Ok(signatures_backward)
     }
 
-    async fn _get_last_processed_block(
+    async fn get_last_processed_block(
         &self,
         mongodb_config: &MongodbConfig,
     ) -> Result<Option<String>, EventListenerError> {
@@ -188,7 +188,7 @@ impl SolanaRetroReader {
         let db = client.database(&mongodb_config.db);
         let collection = db.collection::<Document>(MDB_LAST_BLOCK_COLLECTION);
 
-        let last_block: &str = &self._mongodb_config.key;
+        let last_block: &str = &self.mongodb_config.key;
         let chain_id = mdb_solana_chain_id();
         let doc = collection
             .find_one(doc! { "direction": "from", "chain": chain_id }, FindOneOptions::default())
@@ -205,7 +205,7 @@ impl SolanaRetroReader {
             warn!("Failed to get {} from document", last_block);
             return Ok(None);
         };
-        debug!("doc: {}", tx_signature);
+        debug!("tx_signature has been read from mongodb: {}", tx_signature);
         Ok(Some(tx_signature))
     }
 }
