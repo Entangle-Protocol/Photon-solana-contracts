@@ -32,3 +32,4 @@ solana-transaction-status = "1.16"
 thiserror = "1.0"
 tokio = { version = "1.36" }
 transmitter-common = { path = "../transmitter-common" }
+solana-transactor = { path = "../solana-transactor" }

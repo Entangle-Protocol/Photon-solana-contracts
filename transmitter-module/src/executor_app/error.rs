@@ -13,8 +13,8 @@ pub(crate) enum ExecutorError {
     MalformedData,
     #[error("Rabbitmq client error")]
     Rabbitmq(#[from] amqprs::error::Error),
-    #[error("Solana client error")]
-    SolanaClient,
     #[error("Mongodb client error")]
     Mongodb(#[from] mongodb::error::Error),
+    #[error("Solana transactor error {0}")]
+    SolanaTransactorError(#[from] solana_transactor::TransactorError),
 }

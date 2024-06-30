@@ -7,7 +7,12 @@ rabbitmq:
     reconnect_timeout_ms: 200
 
 solana:
-    rpc_url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
+    read_rpcs:
+        - url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
+          ratelimit: 4
+    write_rpcs:
+        - url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
+          ratelimit: 1
     commitment: finalized
 
 mongodb:

@@ -1,11 +1,13 @@
 use serde::{de::Error, Deserialize, Deserializer};
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use solana_transactor::RpcEntry;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct SolanaClientConfig {
     #[serde(deserialize_with = "deserialize_commitment")]
     pub(crate) commitment: CommitmentConfig,
-    pub(crate) rpc_url: String,
+    pub(crate) read_rpcs: Vec<RpcEntry>,
+    pub(crate) write_rpcs: Vec<RpcEntry>,
 }
 
 fn deserialize_commitment<'de, D>(deserializer: D) -> Result<CommitmentConfig, D::Error>
