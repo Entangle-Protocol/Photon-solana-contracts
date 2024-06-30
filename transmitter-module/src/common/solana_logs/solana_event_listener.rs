@@ -141,6 +141,7 @@ impl SolanaEventListener {
         let logs = transaction
             .transaction
             .meta
+            .filter(|meta| meta.err.is_none())
             .map(|meta| <Option<Vec<String>>>::from(meta.log_messages))
             .ok_or(())?
             .ok_or(())?;
