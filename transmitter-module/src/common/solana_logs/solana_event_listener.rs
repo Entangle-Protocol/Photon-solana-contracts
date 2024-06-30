@@ -14,7 +14,7 @@ use transmitter_common::mongodb::MongodbConfig;
 use super::{solana_retro_reader::SolanaRetroReader, EventListenerError};
 use crate::common::config::{SolanaClientConfig, SolanaListenerConfig};
 
-const LOGS_TIMEOUT_SEC: u64 = 1;
+const LOGS_TIMEOUT_SEC: u64 = 5;
 
 pub(crate) struct SolanaEventListener {
     solana_config: SolanaListenerConfig,
