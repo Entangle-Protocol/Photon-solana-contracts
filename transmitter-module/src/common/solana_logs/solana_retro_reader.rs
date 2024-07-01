@@ -5,7 +5,7 @@ use mongodb::{
     Client,
 };
 use solana_client::{
-    rpc_client::GetConfirmedSignaturesForAddress2Config,
+    rpc_client::GetConfirmedSignaturesForAddress2Config, rpc_config::RpcTransactionConfig,
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature};
@@ -115,15 +115,22 @@ impl SolanaRetroReader {
         let signature = &Signature::from_str(&signature_with_meta.signature)
             .map_err(|err| error!("Failed to parse signature: {}", err))?;
         before.replace(*signature);
-        let transaction =
-            rpc_pool
-                .with_read_rpc_loop(
-                    |rpc| async move {
-                        rpc.get_transaction(signature, UiTransactionEncoding::Json).await
-                    },
-                    CommitmentConfig::finalized(),
-                )
-                .await;
+        let transaction = rpc_pool
+            .with_read_rpc_loop(
+                |rpc| async move {
+                    rpc.get_transaction_with_config(
+                        signature,
+                        RpcTransactionConfig {
+                            encoding: Some(UiTransactionEncoding::Json),
+                            commitment: Some(CommitmentConfig::finalized()),
+                            max_supported_transaction_version: Some(0),
+                        },
+                    )
+                    .await
+                },
+                CommitmentConfig::finalized(),
+            )
+            .await;
 
         let logs = transaction
             .transaction
