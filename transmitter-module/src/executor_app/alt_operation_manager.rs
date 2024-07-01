@@ -186,7 +186,7 @@ impl AltOperationManager {
                     self.executor.pubkey(),
                     1,
                     alt,
-                    Some(10000),
+                    Some(1000),
                 )
                 .await?;
         }
