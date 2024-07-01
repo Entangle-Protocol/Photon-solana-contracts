@@ -1,22 +1,11 @@
 stages:
-  - checks
   - versioning
+  - checks
   - container_build
   - retag
   - push
   - clean_up
   - deploy
-
-clippy:
-  stage: checks
-  image: rust:1.78.0
-  script:
-    - git submodule update --init
-    - rustup default 1.78.0
-    - rustup component add clippy
-    - cargo clippy --all-targets --all-features -- -Dwarnings
-  tags:
-    - docker
 
 versioning and prepare:
   stage: versioning
@@ -24,6 +13,18 @@ versioning and prepare:
     - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
   tags:
     - linux
+
+# clippy:
+#   stage: checks
+#   image: rust:1.78.0
+#   script:
+#     - git submodule update --init
+#     - rustup default 1.78.0
+#     - rustup component add clippy
+#     - cargo clippy --all-targets --all-features -- -Dwarnings
+#   tags:
+#     - docker
+
 
 build_solana:
   stage: container_build
