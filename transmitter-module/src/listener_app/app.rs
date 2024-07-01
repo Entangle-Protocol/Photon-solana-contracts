@@ -1,4 +1,5 @@
 use crate::common::solana_logs::solana_event_listener::SolanaEventListener;
+use log::info;
 use tokio::sync::mpsc::unbounded_channel;
 
 use super::{
@@ -14,6 +15,7 @@ pub(crate) struct ListenerApp {
 
 impl ListenerApp {
     pub(crate) async fn execute(config_path: &str) {
+        info!("Application restarted {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         let Ok(config) = ListenConfig::try_from_path(config_path) else {
             return;
         };
