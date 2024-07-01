@@ -2,7 +2,7 @@ use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
     AccountDeserialize, InstructionData, ToAccountMetas,
 };
-use futures_util::{select, FutureExt};
+use futures_util::{select, FutureExt, StreamExt};
 use log::*;
 use photon::{photon::ROOT, protocol_data::OpStatus, OpInfo};
 use solana_sdk::{
@@ -14,6 +14,7 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
 };
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use transmitter_common::data::{OperationData, SignedOperation};
 
 use crate::executor_app::error::ExecutorError;
@@ -23,7 +24,7 @@ use super::{extension_manager::ExtensionManager, ServiceCmd};
 // TODO: additional signatures from extensions
 
 pub(super) struct AltOperationManager {
-    op_data_receiver: Mutex<UnboundedReceiver<SignedOperation>>,
+    op_data_receiver: Mutex<Option<UnboundedReceiverStream<SignedOperation>>>,
     last_block_sender: UnboundedSender<u64>,
     transactor: SolanaTransactor,
     extension_mng: ExtensionManager,
@@ -49,8 +50,10 @@ impl AltOperationManager {
         service_receiver: UnboundedReceiver<ServiceCmd>,
     ) -> Self {
         let extension_mng = ExtensionManager::new(extensions);
+        let op_data_receiver: UnboundedReceiverStream<SignedOperation> =
+            UnboundedReceiverStream::new(op_data_receiver);
         Self {
-            op_data_receiver: Mutex::new(op_data_receiver),
+            op_data_receiver: Mutex::new(Some(op_data_receiver)),
             last_block_sender,
             transactor,
             extension_mng,
@@ -95,15 +98,22 @@ impl AltOperationManager {
                 CommitmentConfig::finalized(),
             )
             .await][..];
-        while let Some(op_data) = self.op_data_receiver.lock().await.recv().await {
-            self.last_block_sender
-                .send(op_data.eob_block_number)
-                .expect("Expected last_block_number to be sent");
-            let op_hash = op_data.operation_data.op_hash_with_message();
-            if let Err(e) = self.process_operation(op_hash, op_data, alt).await {
-                log::error!("Failed to process op ({}): {}", hex::encode(op_hash), e);
-            }
-        }
+
+        self.op_data_receiver
+            .lock()
+            .await
+            .take()
+            .unwrap()
+            .for_each_concurrent(64, |op_data| async {
+                self.last_block_sender
+                    .send(op_data.eob_block_number)
+                    .expect("Expected last_block_number to be sent");
+                let op_hash = op_data.operation_data.op_hash_with_message();
+                if let Err(e) = self.process_operation(op_hash, op_data, alt).await {
+                    log::error!("Failed to process op ({}): {}", hex::encode(op_hash), e);
+                }
+            })
+            .await;
     }
 
     async fn process_operation(
@@ -187,6 +197,7 @@ impl AltOperationManager {
                     1,
                     alt,
                     Some(1000),
+                    false,
                 )
                 .await?;
         }

@@ -1,4 +1,6 @@
 #![allow(clippy::large_enum_variant)]
+#![allow(clippy::too_many_arguments)]
+
 use futures::StreamExt;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
@@ -182,8 +184,13 @@ impl SolanaTransactor {
                 }
             };
             queue.insert(signature, Instant::now());
-            log::info!("Sent bundle {} with sig {}, awaiting {}", id, signature, queue.len());
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            log::info!(
+                "Sent bundle {} with sig {}, awaiting {}",
+                id,
+                signature,
+                queue.len()
+            );
+            tokio::time::sleep(Duration::from_secs(5)).await;
             for signature in queue.clone().keys().copied() {
                 if !queue.contains_key(&signature) {
                     continue;
@@ -192,7 +199,10 @@ impl SolanaTransactor {
                     queue.remove(&signature);
                     continue;
                 }
-                if self.check_tx_status(&signature, CommitmentConfig::confirmed()).await {
+                if self
+                    .check_tx_status(&signature, CommitmentConfig::confirmed())
+                    .await
+                {
                     log::info!(
                         "Bundle {} confirmed {} after {} s, finalizing...",
                         id,
@@ -201,7 +211,9 @@ impl SolanaTransactor {
                     );
                     return Ok(signature);
                 }
+                tokio::time::sleep(Duration::from_millis(700)).await;
             }
+            tokio::time::sleep(Duration::from_secs(5)).await;
             loop {
                 let new_blockhash = self.get_blockhash().await;
                 if new_blockhash != current_blockhash {
@@ -255,7 +267,7 @@ impl SolanaTransactor {
         }
         log::warn!("Failed to finalize bundle {} tx {}", id, signature);
         let c = self.finalize_channel.clone();
-        self.send_bundle(bundle, id, start, c).await?;
+        self.send_bundle(bundle, id, start, true, c).await?;
         Ok(())
     }
 
@@ -278,26 +290,39 @@ impl SolanaTransactor {
         bundle: MessageBundle,
         id: Uuid,
         start: Instant,
+        finalize: bool,
         finalize_channel: Arc<UnboundedSender<ChannelMessage>>,
     ) -> Result<Signature, TransactorError> {
         let signature = self.send_with_level_confirmed(&bundle, id).await?;
-        finalize_channel
-            .send(ChannelMessage::Task(FinalizationTask {
-                signature,
-                bundle,
-                id,
-                start,
-            }))
-            .expect("Channel error");
+        if finalize {
+            finalize_channel
+                .send(ChannelMessage::Task(FinalizationTask {
+                    signature,
+                    bundle,
+                    id,
+                    start,
+                }))
+                .expect("Channel error");
+        }
         Ok(signature)
     }
 
-    pub async fn send(&self, bundles: &[MessageBundle]) -> Result<(), TransactorError> {
+    pub async fn send(
+        &self,
+        bundles: &[MessageBundle],
+        finalize: bool,
+    ) -> Result<(), TransactorError> {
         for bundle in bundles.iter() {
             let id = Uuid::new_v4();
             let start = Instant::now();
             self.clone()
-                .send_bundle(bundle.clone(), id, start, self.finalize_channel.clone())
+                .send_bundle(
+                    bundle.clone(),
+                    id,
+                    start,
+                    finalize,
+                    self.finalize_channel.clone(),
+                )
                 .await?;
         }
         Ok(())
@@ -311,12 +336,15 @@ impl SolanaTransactor {
         parallel_limit: usize,
         alt: &[AddressLookupTableAccount],
         compute_unit_price: Option<u64>,
+        finalize: bool,
     ) -> Result<(), TransactorError> {
         let mut ix_compiler = IxCompiler::new(payer, compute_unit_price);
         let messages: Result<Vec<_>, TransactorError> = instructions
             .iter()
             .filter_map(|ix| {
-                ix_compiler.compile(ix.instruction.clone(), alt, ix.compute_units).transpose()
+                ix_compiler
+                    .compile(ix.instruction.clone(), alt, ix.compute_units)
+                    .transpose()
             })
             .collect();
         let mut messages = messages?;
@@ -327,7 +355,7 @@ impl SolanaTransactor {
         futures::stream::iter(messages)
             .for_each_concurrent(parallel_limit, |msg| async move {
                 let bundle = MessageBundle::new(&msg, signers, payer);
-                if let Err(e) = self.send(&[bundle]).await {
+                if let Err(e) = self.send(&[bundle], finalize).await {
                     log::error!("Failed to send: {}", e);
                 }
             })
@@ -337,7 +365,9 @@ impl SolanaTransactor {
 
     pub async fn await_all_tx(self) {
         if let Some(handle) = self.handle.lock().await.take() {
-            self.finalize_channel.send(ChannelMessage::Stop).expect("Channel error");
+            self.finalize_channel
+                .send(ChannelMessage::Stop)
+                .expect("Channel error");
             self.finalize_channel.closed().await;
             handle.await.expect("Await handle error");
         }

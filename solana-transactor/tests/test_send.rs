@@ -50,7 +50,7 @@ async fn test_send() {
     .unwrap();*/
     let transfers: Vec<_> = transfers.collect();
     transactor
-        .send_all_instructions(&transfers, &[&k1], k1.pubkey(), 100, &[], Some(10000))
+        .send_all_instructions(&transfers, &[&k1], k1.pubkey(), 100, &[], Some(10000), true)
         .await
         .unwrap();
     println!(

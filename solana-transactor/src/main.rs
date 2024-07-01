@@ -102,7 +102,7 @@ async fn main() {
                 VersionedTransaction::from(tx)
             };
             transactor
-                .send(&[MessageBundle::new(&tx.message, &[&k], k.pubkey())])
+                .send(&[MessageBundle::new(&tx.message, &[&k], k.pubkey())], true)
                 .await
                 .unwrap();
             transactor.await_all_tx().await;

@@ -64,6 +64,7 @@ pub async fn send_with_alt(
             parallel_limit,
             &[],
             compute_unit_price,
+            true,
         )
         .await
         .expect("Failed to send create ALT instruction");
@@ -90,6 +91,7 @@ pub async fn send_with_alt(
                 parallel_limit,
                 &[],
                 compute_unit_price,
+                true,
             )
             .await
             .expect("Failed to send create ALT instruction");
@@ -112,6 +114,7 @@ pub async fn send_with_alt(
             parallel_limit,
             &[&[new_alt], alt].concat(),
             compute_unit_price,
+            true,
         )
         .await
     {
@@ -128,6 +131,7 @@ pub async fn send_with_alt(
             parallel_limit,
             &[],
             compute_unit_price,
+            true,
         )
         .await
         .expect("Failed to deactivate ALT");
@@ -143,6 +147,7 @@ pub async fn send_with_alt(
             parallel_limit,
             &[],
             compute_unit_price,
+            true,
         )
         .await
         .expect("Failed to close ALT");

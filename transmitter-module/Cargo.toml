@@ -32,5 +32,6 @@ solana-sdk = "1.16"
 solana-transaction-status = "1.16"
 thiserror = "1.0"
 tokio = { version = "1.36" }
+tokio-stream = "0.1.15"
 transmitter-common = { path = "../transmitter-common" }
 solana-transactor = { path = "../solana-transactor" }
