@@ -123,11 +123,18 @@ impl RpcPool {
         T: std::future::Future<Output = Result<O, E>>,
         E: Debug,
     {
+        let mut i = 0;
         loop {
             match self.with_read_rpc(f.clone(), commitment).await {
                 Ok(x) => break x,
                 Err(e) => {
                     log::warn!("RPC error: {:?}", e);
+                    i += 1;
+                    let n = self.read_rpcs.len() as u64;
+                    if i % n == 0 {
+                        log::warn!("RPC pool exhausted, waiting...");
+                        tokio::time::sleep(Duration::from_secs(n * 3)).await
+                    }
                 }
             }
         }
@@ -139,11 +146,18 @@ impl RpcPool {
         T: std::future::Future<Output = Result<O, E>>,
         E: Debug,
     {
+        let mut i = 0;
         loop {
             match self.with_write_rpc(f.clone(), commitment).await {
                 Ok(x) => break x,
                 Err(e) => {
                     log::warn!("RPC error: {:?}", e);
+                    i += 1;
+                    let n = self.write_rpcs.len() as u64;
+                    if i % n == 0 {
+                        log::warn!("RPC pool exhausted, waiting...");
+                        tokio::time::sleep(Duration::from_secs(n * 3)).await
+                    }
                 }
             }
         }
