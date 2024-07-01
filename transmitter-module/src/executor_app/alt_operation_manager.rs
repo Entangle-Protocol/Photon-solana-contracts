@@ -31,6 +31,7 @@ pub(super) struct AltOperationManager {
     service_receiver: Mutex<UnboundedReceiver<ServiceCmd>>,
 }
 
+#[derive(Debug)]
 enum ExecutorOpStatus {
     New,
     Loaded,
@@ -114,80 +115,81 @@ impl AltOperationManager {
         let op_hash_str = hex::encode(op_hash);
         log::info!("Received operation {}", op_hash_str);
         let (op_info, _) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
-        let op_info_data = self
-            .transactor
-            .rpc_pool()
-            .with_read_rpc_loop(
-                |rpc| async move {
-                    rpc.get_account_with_commitment(&op_info, CommitmentConfig::finalized()).await
+        loop {
+            let op_info_data = self
+                .transactor
+                .rpc_pool()
+                .with_read_rpc_loop(
+                    |rpc| async move {
+                        rpc.get_account_with_commitment(&op_info, CommitmentConfig::finalized())
+                            .await
+                    },
+                    CommitmentConfig::finalized(),
+                )
+                .await
+                .value;
+            let op_status = match op_info_data {
+                Some(acc) => match OpInfo::try_from_slice(&acc.data[..]) {
+                    Ok(s) => match s.status {
+                        OpStatus::None => ExecutorOpStatus::New,
+                        OpStatus::Init => ExecutorOpStatus::Loaded,
+                        OpStatus::Signed => ExecutorOpStatus::Signed,
+                        OpStatus::Executed => ExecutorOpStatus::Executed,
+                    },
+                    Err(e) => {
+                        log::error!(
+                            "Failed to deserialize op_info for {}, ({}) skipping...",
+                            op_hash_str,
+                            e
+                        );
+                        return Ok(());
+                    }
                 },
-                CommitmentConfig::finalized(),
-            )
-            .await
-            .value;
-        let op_status = match op_info_data {
-            Some(acc) => match OpInfo::try_from_slice(&acc.data[..]) {
-                Ok(s) => match s.status {
-                    OpStatus::None => ExecutorOpStatus::New,
-                    OpStatus::Init => ExecutorOpStatus::Loaded,
-                    OpStatus::Signed => ExecutorOpStatus::Signed,
-                    OpStatus::Executed => ExecutorOpStatus::Executed,
-                },
-                Err(e) => {
-                    log::error!(
-                        "Failed to deserialize op_info for {}, ({}) skipping...",
-                        op_hash_str,
-                        e
-                    );
-                    return Ok(());
-                }
-            },
-            None => ExecutorOpStatus::New,
-        };
-        let ix_bundle = match op_status {
-            ExecutorOpStatus::New => [
-                build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
-                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
-                build_execute_tx(
+                None => ExecutorOpStatus::New,
+            };
+            log::info!("Current op status: {:?}", op_status);
+            let ix_bundle = match op_status {
+                ExecutorOpStatus::New => [
+                    build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
+                    build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
+                    build_execute_tx(
+                        &self.extension_mng,
+                        self.executor.pubkey(),
+                        op_hash,
+                        op.operation_data.clone(),
+                    )?,
+                ]
+                .to_vec(),
+                ExecutorOpStatus::Loaded => [
+                    build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
+                    build_execute_tx(
+                        &self.extension_mng,
+                        self.executor.pubkey(),
+                        op_hash,
+                        op.operation_data.clone(),
+                    )?,
+                ]
+                .to_vec(),
+                ExecutorOpStatus::Signed => [build_execute_tx(
                     &self.extension_mng,
                     self.executor.pubkey(),
                     op_hash,
-                    op.operation_data,
-                )?,
-            ]
-            .to_vec(),
-            ExecutorOpStatus::Loaded => [
-                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
-                build_execute_tx(
-                    &self.extension_mng,
+                    op.operation_data.clone(),
+                )?]
+                .to_vec(),
+                ExecutorOpStatus::Executed => break,
+            };
+            self.transactor
+                .send_all_instructions(
+                    &ix_bundle,
+                    &[&self.executor],
                     self.executor.pubkey(),
-                    op_hash,
-                    op.operation_data,
-                )?,
-            ]
-            .to_vec(),
-            ExecutorOpStatus::Signed => [build_execute_tx(
-                &self.extension_mng,
-                self.executor.pubkey(),
-                op_hash,
-                op.operation_data,
-            )?]
-            .to_vec(),
-            ExecutorOpStatus::Executed => {
-                log::info!("Op {} already executed", op_hash_str);
-                return Ok(());
-            }
-        };
-        self.transactor
-            .send_all_instructions(
-                &ix_bundle,
-                &[&self.executor],
-                self.executor.pubkey(),
-                1,
-                alt,
-                Some(10000),
-            )
-            .await?;
+                    1,
+                    alt,
+                    Some(10000),
+                )
+                .await?;
+        }
         log::info!("Executed operation {}", op_hash_str);
         Ok(())
     }
