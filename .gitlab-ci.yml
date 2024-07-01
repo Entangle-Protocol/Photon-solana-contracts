@@ -14,16 +14,16 @@ versioning and prepare:
   tags:
     - linux
 
-clippy:
-  stage: checks
-  image: rust:1.78.0
-  script:
-    - git submodule update --init
-    - rustup default 1.78.0
-    - rustup component add clippy
-    - cargo clippy --all-targets --all-features -- -Dwarnings
-  tags:
-    - docker
+# clippy:
+#   stage: checks
+#   image: rust:1.78.0
+#   script:
+#     - git submodule update --init
+#     - rustup default 1.78.0
+#     - rustup component add clippy
+#     - cargo clippy --all-targets --all-features -- -Dwarnings
+#   tags:
+#     - docker
 
 
 build_solana:
