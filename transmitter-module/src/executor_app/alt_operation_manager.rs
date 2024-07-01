@@ -4,7 +4,7 @@ use anchor_lang::{
 };
 use futures_util::{select, FutureExt};
 use log::*;
-use photon::{photon::ROOT, protocol_data::OpStatus};
+use photon::{photon::ROOT, protocol_data::OpStatus, OpInfo};
 use solana_sdk::{
     commitment_config::CommitmentConfig, instruction::Instruction, signature::Keypair,
     signer::Signer,
@@ -116,8 +116,8 @@ impl AltOperationManager {
             .await
             .value;
         let op_status = match op_info_data {
-            Some(acc) => match OpStatus::deserialize(&mut &acc.data[..]) {
-                Ok(s) => match s {
+            Some(acc) => match OpInfo::try_from_slice(&acc.data[..]) {
+                Ok(s) => match s.status {
                     OpStatus::None => ExecutorOpStatus::New,
                     OpStatus::Init => ExecutorOpStatus::Loaded,
                     OpStatus::Signed => ExecutorOpStatus::Signed,

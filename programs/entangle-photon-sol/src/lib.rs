@@ -1006,7 +1006,7 @@ impl ProtocolInfo {
 #[account]
 #[derive(Default)]
 pub struct OpInfo {
-    status: OpStatus,
+    pub status: OpStatus,
     unique_signers: [EthAddress; 16],
     pub op_data: OperationData,
 }
