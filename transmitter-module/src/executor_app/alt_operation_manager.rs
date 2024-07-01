@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
-    AnchorDeserialize, InstructionData, ToAccountMetas,
+    AccountDeserialize, InstructionData, ToAccountMetas,
 };
 use futures_util::{select, FutureExt};
 use log::*;
@@ -129,7 +129,7 @@ impl AltOperationManager {
                 .await
                 .value;
             let op_status = match op_info_data {
-                Some(acc) => match OpInfo::try_from_slice(&acc.data[..]) {
+                Some(acc) => match OpInfo::try_deserialize(&mut &acc.data[..]) {
                     Ok(s) => match s.status {
                         OpStatus::None => ExecutorOpStatus::New,
                         OpStatus::Init => ExecutorOpStatus::Loaded,
