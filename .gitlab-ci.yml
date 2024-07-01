@@ -1,6 +1,6 @@
 stages:
-  - checks
   - versioning
+  - checks
   - container_build
   - retag
   - push
