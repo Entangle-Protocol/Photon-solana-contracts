@@ -147,7 +147,7 @@ impl AltOperationManager {
                 },
                 None => ExecutorOpStatus::New,
             };
-            log::info!("Current op status: {:?}", op_status);
+            log::info!("Current op status ({}): {:?}", op_hash_str, op_status);
             let ix_bundle = match op_status {
                 ExecutorOpStatus::New => [
                     build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
@@ -190,7 +190,6 @@ impl AltOperationManager {
                 )
                 .await?;
         }
-        log::info!("Executed operation {}", op_hash_str);
         Ok(())
     }
 }
