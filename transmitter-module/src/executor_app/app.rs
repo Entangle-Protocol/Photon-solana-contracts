@@ -23,6 +23,7 @@ pub(crate) struct ExecutorApp {
 
 impl ExecutorApp {
     pub(crate) async fn execute(config_path: &str) {
+        info!("Application restarted {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         let Ok(config) = ExecutorConfig::try_from_path(config_path) else {
             return;
         };

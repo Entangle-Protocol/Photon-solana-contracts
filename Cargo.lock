@@ -5925,6 +5925,7 @@ dependencies = [
  "anchor-lang",
  "async-signal",
  "async-trait",
+ "chrono",
  "clap 4.5.8",
  "config",
  "entangle-photon-sol",

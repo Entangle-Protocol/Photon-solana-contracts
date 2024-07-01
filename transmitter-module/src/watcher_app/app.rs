@@ -5,6 +5,7 @@ use crate::{
         solana_logs_processor::OperationExecutedEventProcessor,
     },
 };
+use log::info;
 use tokio::sync::mpsc::unbounded_channel;
 
 pub(crate) struct WatcherApp {
@@ -15,6 +16,7 @@ pub(crate) struct WatcherApp {
 
 impl WatcherApp {
     pub(crate) async fn execute(config_path: &str) {
+        info!("Application restarted {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
         let Ok(config) = WatcherConfig::try_from_path(config_path) else {
             return;
         };
