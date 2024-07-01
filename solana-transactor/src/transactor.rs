@@ -183,7 +183,7 @@ impl SolanaTransactor {
             };
             queue.insert(signature, Instant::now());
             log::info!("Sent bundle {} with sig {}, awaiting {}", id, signature, queue.len());
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(3)).await;
             for signature in queue.clone().keys().copied() {
                 if !queue.contains_key(&signature) {
                     continue;
