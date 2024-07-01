@@ -18,6 +18,7 @@ clippy:
   tags:
     - docker
 
+
 versioning and prepare:
   stage: versioning
   script:
