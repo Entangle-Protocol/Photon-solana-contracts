@@ -7,6 +7,13 @@ stages:
   - clean_up
   - deploy
 
+versioning and prepare:
+  stage: versioning
+  script:
+    - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
+  tags:
+    - linux
+
 clippy:
   stage: checks
   image: rust:1.78.0
@@ -18,13 +25,6 @@ clippy:
   tags:
     - docker
 
-
-versioning and prepare:
-  stage: versioning
-  script:
-    - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
-  tags:
-    - linux
 
 build_solana:
   stage: container_build
