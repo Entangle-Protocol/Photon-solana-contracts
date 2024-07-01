@@ -182,12 +182,8 @@ impl SolanaTransactor {
                 }
             };
             queue.insert(signature, Instant::now());
-            log::info!(
-                "Sent bundle {} with sig {}, awaiting {}",
-                id,
-                signature,
-                queue.len()
-            );
+            log::info!("Sent bundle {} with sig {}, awaiting {}", id, signature, queue.len());
+            tokio::time::sleep(Duration::from_secs(5)).await;
             for signature in queue.clone().keys().copied() {
                 if !queue.contains_key(&signature) {
                     continue;
@@ -196,10 +192,7 @@ impl SolanaTransactor {
                     queue.remove(&signature);
                     continue;
                 }
-                if self
-                    .check_tx_status(&signature, CommitmentConfig::confirmed())
-                    .await
-                {
+                if self.check_tx_status(&signature, CommitmentConfig::confirmed()).await {
                     log::info!(
                         "Bundle {} confirmed {} after {} s, finalizing...",
                         id,
@@ -323,9 +316,7 @@ impl SolanaTransactor {
         let messages: Result<Vec<_>, TransactorError> = instructions
             .iter()
             .filter_map(|ix| {
-                ix_compiler
-                    .compile(ix.instruction.clone(), alt, ix.compute_units)
-                    .transpose()
+                ix_compiler.compile(ix.instruction.clone(), alt, ix.compute_units).transpose()
             })
             .collect();
         let mut messages = messages?;
@@ -346,9 +337,7 @@ impl SolanaTransactor {
 
     pub async fn await_all_tx(self) {
         if let Some(handle) = self.handle.lock().await.take() {
-            self.finalize_channel
-                .send(ChannelMessage::Stop)
-                .expect("Channel error");
+            self.finalize_channel.send(ChannelMessage::Stop).expect("Channel error");
             self.finalize_channel.closed().await;
             handle.await.expect("Await handle error");
         }

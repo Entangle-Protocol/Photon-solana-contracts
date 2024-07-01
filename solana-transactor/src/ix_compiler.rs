@@ -125,8 +125,7 @@ impl IxCompiler {
             self.ix_buffer.clear();
             self.ix_buffer.push(ix);
             self.address_lookup_table_accounts.clear();
-            self.address_lookup_table_accounts
-                .extend_from_slice(address_lookup_table_accounts);
+            self.address_lookup_table_accounts.extend_from_slice(address_lookup_table_accounts);
             self.total_compute_units = compute_units;
             return Ok(Some(VersionedMessage::V0(msg)));
         } else if approaches_limits(msg_len, total_compute_units) {
@@ -137,8 +136,7 @@ impl IxCompiler {
             return Ok(Some(msg));
         }
         self.ix_buffer.push(ix);
-        self.address_lookup_table_accounts
-            .extend_from_slice(address_lookup_table_accounts);
+        self.address_lookup_table_accounts.extend_from_slice(address_lookup_table_accounts);
         self.total_compute_units += total_compute_units;
         Ok(None)
     }
@@ -172,7 +170,7 @@ fn exceeds_limits(msg_len: usize, compute_units: u32) -> bool {
 
 /// Returns true if tx approaches limits
 fn approaches_limits(msg_len: usize, compute_units: u32) -> bool {
-    msg_len >= MAX_MSG_LEN - 100 || compute_units >= MAX_CU - 200_000
+    msg_len >= MAX_MSG_LEN - 32 || compute_units >= MAX_CU - 200_000
 }
 
 fn get_compute_units_ix(compute_units: u32) -> Instruction {
@@ -190,9 +188,7 @@ mod test {
 
     #[test]
     fn test_ix_compile() {
-        env_logger::Builder::new()
-            .filter_level(log::LevelFilter::Debug)
-            .init();
+        env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
         let signer = Keypair::new();
         let program = Keypair::new();
         let accounts = [
@@ -221,10 +217,7 @@ mod test {
         println!("Flush tx len {}", tx_raw.len());
         assert!(tx_raw.len() <= 1232);
 
-        let msg = ix_compiler
-            .compile(ix.clone(), &[], 1200000)
-            .unwrap()
-            .unwrap();
+        let msg = ix_compiler.compile(ix.clone(), &[], 1200000).unwrap().unwrap();
         let tx = VersionedTransaction::try_new(msg, &[&signer]).unwrap();
         let tx_raw: Vec<u8> = bincode::serialize(&tx).unwrap();
         assert!(tx_raw.len() <= 1232);
