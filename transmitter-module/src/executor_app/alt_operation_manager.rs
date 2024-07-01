@@ -6,8 +6,8 @@ use futures_util::{select, FutureExt};
 use log::*;
 use photon::{photon::ROOT, protocol_data::OpStatus, OpInfo};
 use solana_sdk::{
-    commitment_config::CommitmentConfig, instruction::Instruction, signature::Keypair,
-    signer::Signer,
+    address_lookup_table::AddressLookupTableAccount, commitment_config::CommitmentConfig,
+    instruction::Instruction, signature::Keypair, signer::Signer,
 };
 use solana_transactor::{ix_compiler::InstructionBundle, SolanaTransactor};
 use tokio::sync::{
@@ -85,12 +85,21 @@ impl AltOperationManager {
 
     async fn execute_operations(&self) {
         info!("Start listen for incoming operation_data");
+        let alt: Pubkey = "DqfKLmNfqxnf3rn1LJeEjGYjNhiqudpUSgXS6ChVxCq2".parse().unwrap();
+        let alt = &[self
+            .transactor
+            .rpc_pool()
+            .with_read_rpc_loop(
+                |rpc| async move { solana_transactor::alt_manager::load_alt(rpc, alt).await },
+                CommitmentConfig::finalized(),
+            )
+            .await][..];
         while let Some(op_data) = self.op_data_receiver.lock().await.recv().await {
             self.last_block_sender
                 .send(op_data.eob_block_number)
                 .expect("Expected last_block_number to be sent");
             let op_hash = op_data.operation_data.op_hash_with_message();
-            if let Err(e) = self.process_operation(op_hash, op_data).await {
+            if let Err(e) = self.process_operation(op_hash, op_data, alt).await {
                 log::error!("Failed to process op ({}): {}", hex::encode(op_hash), e);
             }
         }
@@ -100,6 +109,7 @@ impl AltOperationManager {
         &self,
         op_hash: [u8; 32],
         op: SignedOperation,
+        alt: &[AddressLookupTableAccount],
     ) -> Result<(), ExecutorError> {
         let op_hash_str = hex::encode(op_hash);
         log::info!("Received operation {}", op_hash_str);
@@ -174,7 +184,7 @@ impl AltOperationManager {
                 &[&self.executor],
                 self.executor.pubkey(),
                 1,
-                &[],
+                alt,
                 Some(10000),
             )
             .await?;
