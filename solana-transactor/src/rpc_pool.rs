@@ -124,6 +124,7 @@ impl RpcPool {
         E: Debug,
     {
         let mut i = 0;
+        let mut x = 0;
         loop {
             match self.with_read_rpc(f.clone(), commitment).await {
                 Ok(x) => break x,
@@ -132,8 +133,9 @@ impl RpcPool {
                     i += 1;
                     let n = self.read_rpcs.len() as u64;
                     if i % n == 0 {
-                        let to_wait = n * 3;
-                        log::warn!("RPC pool exhausted, waiting {}s", to_wait);
+                        let to_wait = x * 6 + n * 3;
+                        x += 1;
+                        log::warn!("RPC pool exhausted ({} times), waiting {}s", x, to_wait);
                         tokio::time::sleep(Duration::from_secs(to_wait)).await
                     }
                 }
@@ -148,6 +150,7 @@ impl RpcPool {
         E: Debug,
     {
         let mut i = 0;
+        let mut x = 0;
         loop {
             match self.with_write_rpc(f.clone(), commitment).await {
                 Ok(x) => break x,
@@ -156,8 +159,9 @@ impl RpcPool {
                     i += 1;
                     let n = self.write_rpcs.len() as u64;
                     if i % n == 0 {
-                        let to_wait = n * 3;
-                        log::warn!("RPC pool exhausted, waiting {}s", to_wait);
+                        let to_wait = x * 6 + n * 3;
+                        x += 1;
+                        log::warn!("RPC pool exhausted ({} times), waiting {}s", x, to_wait);
                         tokio::time::sleep(Duration::from_secs(to_wait)).await
                     }
                 }
