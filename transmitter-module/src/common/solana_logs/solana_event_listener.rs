@@ -66,13 +66,13 @@ impl SolanaEventListener {
         loop {
             debug!("read events backward, init_slot: {}", slot);
             tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
-            let Ok(log_bunches) = self
-                .read_event_backward_until(&rpc_pool, solana_config, slot, solana_config.commitment)
-                .await
+            let Ok(log_bunches) =
+                self.read_event_backward_until(&rpc_pool, solana_config, slot).await
             else {
                 continue;
             };
             for logs_bunch in log_bunches {
+                debug!("update slot: {}", logs_bunch.slot);
                 slot = logs_bunch.slot;
                 self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
             }
@@ -84,7 +84,6 @@ impl SolanaEventListener {
         rpc_pool: &RpcPool,
         solana_config: &SolanaClientConfig,
         slot: u64,
-        commitment: CommitmentConfig,
     ) -> Result<VecDeque<LogsBunch>, EventListenerError> {
         let until = None;
         let mut before = None;
@@ -110,7 +109,7 @@ impl SolanaEventListener {
                 &mut before,
                 &mut log_bunches,
                 signatures_backward,
-                commitment,
+                solana_config.commitment,
             )
             .await;
         }
