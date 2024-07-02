@@ -85,7 +85,11 @@ impl RpcPool {
             .await;
         }
         let lock = rpc.lock.lock().await;
-        let client = RpcClient::new_with_commitment(rpc.url.to_string(), commitment);
+        let client = RpcClient::new_with_timeout_and_commitment(
+            rpc.url.to_string(),
+            Duration::from_secs(3),
+            commitment,
+        );
         let res = f(client).await;
         let _ = lock;
         rpc.last_accessed.store(now(), Ordering::Release);
@@ -110,7 +114,11 @@ impl RpcPool {
             .await;
         }
         let lock = rpc.lock.lock().await;
-        let client = RpcClient::new_with_commitment(rpc.url.to_string(), commitment);
+        let client = RpcClient::new_with_timeout_and_commitment(
+            rpc.url.to_string(),
+            Duration::from_secs(3),
+            commitment,
+        );
         let res = f(client).await;
         let _ = lock;
         rpc.last_accessed.store(now(), Ordering::Release);
