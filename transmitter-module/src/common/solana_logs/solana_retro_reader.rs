@@ -11,6 +11,7 @@ use solana_client::{
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature};
 use solana_transaction_status::UiTransactionEncoding;
 use solana_transactor::RpcPool;
+use std::time::Duration;
 use std::{collections::VecDeque, str::FromStr};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -46,37 +47,69 @@ impl SolanaRetroReader {
             debug!("No tx_read_from found, skip retrospective reading");
             return Ok(());
         };
+
         debug!("Found tx_read_from, start backward reading until: {}", tx_read_from);
         let rpc_pool =
             RpcPool::new(&solana_config.client.read_rpcs, &solana_config.client.write_rpcs)?;
-        let until = Some(Signature::from_str(&tx_read_from).map_err(|err| {
+
+        let mut tx_read_from = Some(Signature::from_str(&tx_read_from).map_err(|err| {
             error!("Failed to decode tx_start_from: {}", err);
             EventListenerError::SolanaClient
         })?);
-
-        let mut before = None;
-        let mut log_bunches = VecDeque::new();
+        let mut until: Option<Signature> = None;
+        let mut next_until: Option<Signature> = None;
         loop {
-            let signatures_backward = Self::get_signatures_chunk(
-                &photon::ID,
-                &solana_config.client,
-                &rpc_pool,
-                until,
-                before,
-            )
-            .await?;
+            let mut before = None;
+            let mut log_bunches = VecDeque::new();
 
-            if signatures_backward.is_empty() {
-                break;
-            }
+            until = if tx_read_from.is_some() {
+                tx_read_from.take()
+            } else {
+                if next_until.is_some() {
+                    next_until
+                } else {
+                    until
+                }
+            };
+            next_until = None;
+            loop {
+                let signatures_backward = Self::get_signatures_chunk(
+                    &photon::ID,
+                    &solana_config.client,
+                    &rpc_pool,
+                    until,
+                    before,
+                )
+                .await?;
 
-            Self::process_signatures(&rpc_pool, &mut before, &mut log_bunches, signatures_backward)
+                if signatures_backward.is_empty() {
+                    break;
+                }
+                if next_until.is_none() {
+                    next_until = Signature::from_str(
+                        &signatures_backward
+                            .first()
+                            .expect("The newest tx expected to be")
+                            .signature,
+                    )
+                    .unwrap()
+                    .into()
+                }
+                Self::process_signatures(
+                    &rpc_pool,
+                    &mut before,
+                    &mut log_bunches,
+                    signatures_backward,
+                    solana_config.client.commitment,
+                )
                 .await;
+            }
+            next_until = log_bunches.back().map(|b| Signature::from_str(&b.tx_signature).unwrap());
+            for logs_bunch in log_bunches {
+                self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
+            }
+            tokio::time::sleep(Duration::from_secs(3)).await;
         }
-        for logs_bunch in log_bunches {
-            self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
-        }
-        Ok(())
     }
 
     async fn get_tx_read_from(
@@ -100,9 +133,17 @@ impl SolanaRetroReader {
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signatures_with_meta: Vec<RpcConfirmedTransactionStatusWithSignature>,
+        commitment: CommitmentConfig,
     ) {
         for signature_with_meta in signatures_with_meta {
-            _ = Self::process_signature(rpc_pool, before, log_bunches, signature_with_meta).await;
+            _ = Self::process_signature(
+                rpc_pool,
+                before,
+                log_bunches,
+                signature_with_meta,
+                commitment,
+            )
+            .await;
         }
     }
 
@@ -111,6 +152,7 @@ impl SolanaRetroReader {
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signature_with_meta: RpcConfirmedTransactionStatusWithSignature,
+        commitment: CommitmentConfig,
     ) -> Result<(), ()> {
         let signature = &Signature::from_str(&signature_with_meta.signature)
             .map_err(|err| error!("Failed to parse signature: {}", err))?;
@@ -122,13 +164,13 @@ impl SolanaRetroReader {
                         signature,
                         RpcTransactionConfig {
                             encoding: Some(UiTransactionEncoding::Json),
-                            commitment: Some(CommitmentConfig::finalized()),
+                            commitment: Some(commitment),
                             max_supported_transaction_version: Some(0),
                         },
                     )
                     .await
                 },
-                CommitmentConfig::finalized(),
+                commitment,
             )
             .await;
 

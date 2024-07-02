@@ -99,7 +99,7 @@ impl SolanaEventListener {
                 slot,
             )
             .await?;
-            debug!("signatures backward, until: {:?}, before: {:?}, slot: {}, signatures_backward: {:?}", until, before, slot, signatures_backward);
+            debug!("signatures backward, until: {:?}, before: {:?}, slot: {}", until, before, slot);
             if signatures_backward.is_empty() {
                 break;
             }
