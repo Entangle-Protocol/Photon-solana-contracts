@@ -125,6 +125,7 @@ impl SolanaEventListener {
         commitment: CommitmentConfig,
     ) {
         for signature_with_meta in signatures_with_meta {
+            debug!("Check if signature with logs: {}", signature_with_meta.signature);
             _ = Self::process_signature(
                 rpc_pool,
                 before,
