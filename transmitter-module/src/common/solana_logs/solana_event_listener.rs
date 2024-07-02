@@ -1,4 +1,4 @@
-use log::error;
+use log::{debug, error};
 use solana_client::{
     rpc_client::GetConfirmedSignaturesForAddress2Config, rpc_config::RpcTransactionConfig,
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
@@ -64,6 +64,7 @@ impl SolanaEventListener {
         let mut slot = init_slot;
 
         loop {
+            debug!("read events backward, init_slot: {}", slot);
             tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
             let Ok(log_bunches) =
                 self.read_event_backward_until(&rpc_pool, solana_config, slot).await
@@ -86,6 +87,7 @@ impl SolanaEventListener {
         let until = None;
         let mut before = None;
         let mut log_bunches = VecDeque::new();
+        debug!("read events backward until slot: {}", slot);
         loop {
             let signatures_backward = Self::get_signatures_chunk(
                 &photon::ID,
@@ -96,7 +98,7 @@ impl SolanaEventListener {
                 slot,
             )
             .await?;
-
+            debug!("signatures backward, until: {:?}, before: {:?}, slot: {}, signatures_backward: {:?}", until, before, slot, signatures_backward);
             if signatures_backward.is_empty() {
                 break;
             }
