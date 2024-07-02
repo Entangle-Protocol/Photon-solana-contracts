@@ -44,7 +44,7 @@ impl SolanaEventListener {
         let slot = rpc_pool
             .with_read_rpc_loop(
                 |rpc| async move { rpc.get_block_height().await },
-                CommitmentConfig::finalized(),
+                config.commitment,
             )
             .await;
 
@@ -66,8 +66,9 @@ impl SolanaEventListener {
         loop {
             debug!("read events backward, init_slot: {}", slot);
             tokio::time::sleep(Duration::from_secs(LOGS_TIMEOUT_SEC)).await;
-            let Ok(log_bunches) =
-                self.read_event_backward_until(&rpc_pool, solana_config, slot).await
+            let Ok(log_bunches) = self
+                .read_event_backward_until(&rpc_pool, solana_config, slot, solana_config.commitment)
+                .await
             else {
                 continue;
             };
@@ -83,6 +84,7 @@ impl SolanaEventListener {
         rpc_pool: &RpcPool,
         solana_config: &SolanaClientConfig,
         slot: u64,
+        commitment: CommitmentConfig,
     ) -> Result<VecDeque<LogsBunch>, EventListenerError> {
         let until = None;
         let mut before = None;
@@ -103,8 +105,14 @@ impl SolanaEventListener {
                 break;
             }
 
-            Self::process_signatures(rpc_pool, &mut before, &mut log_bunches, signatures_backward)
-                .await;
+            Self::process_signatures(
+                rpc_pool,
+                &mut before,
+                &mut log_bunches,
+                signatures_backward,
+                commitment,
+            )
+            .await;
         }
 
         Ok(log_bunches)
@@ -115,9 +123,17 @@ impl SolanaEventListener {
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signatures_with_meta: Vec<RpcConfirmedTransactionStatusWithSignature>,
+        commitment: CommitmentConfig,
     ) {
         for signature_with_meta in signatures_with_meta {
-            _ = Self::process_signature(rpc_pool, before, log_bunches, signature_with_meta).await;
+            _ = Self::process_signature(
+                rpc_pool,
+                before,
+                log_bunches,
+                signature_with_meta,
+                commitment,
+            )
+            .await;
         }
     }
 
@@ -126,6 +142,7 @@ impl SolanaEventListener {
         before: &mut Option<Signature>,
         log_bunches: &mut VecDeque<LogsBunch>,
         signature_with_meta: RpcConfirmedTransactionStatusWithSignature,
+        commitment: CommitmentConfig,
     ) -> Result<(), ()> {
         let signature = &Signature::from_str(&signature_with_meta.signature)
             .map_err(|err| error!("Failed to parse signature: {}", err))?;
@@ -137,13 +154,13 @@ impl SolanaEventListener {
                         signature,
                         RpcTransactionConfig {
                             encoding: Some(UiTransactionEncoding::Json),
-                            commitment: Some(CommitmentConfig::finalized()),
+                            commitment: Some(commitment),
                             max_supported_transaction_version: Some(0),
                         },
                     )
                     .await
                 },
-                CommitmentConfig::finalized(),
+                commitment,
             )
             .await;
 
