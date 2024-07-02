@@ -58,10 +58,11 @@ impl SolanaRetroReader {
         })?);
         let mut until: Option<Signature> = None;
         let mut next_until: Option<Signature> = None;
+        let mut i = 0;
         loop {
+            i = i + 1;
             let mut before = None;
             let mut log_bunches = VecDeque::new();
-
             until = if tx_read_from.is_some() {
                 tx_read_from.take()
             } else {
@@ -71,6 +72,7 @@ impl SolanaRetroReader {
                     until
                 }
             };
+            debug!("Sequential loop of reading events. i: {}, until tx: {:?}", i, until);
             next_until = None;
             loop {
                 let signatures_backward = Self::get_signatures_chunk(
@@ -104,6 +106,7 @@ impl SolanaRetroReader {
                 )
                 .await;
             }
+            debug!("Logs bunch have gotten: {}", log_bunches.len());
             next_until = log_bunches.back().map(|b| Signature::from_str(&b.tx_signature).unwrap());
             for logs_bunch in log_bunches {
                 self.logs_sender.send(logs_bunch).expect("Expected logs_bunch to be sent");
