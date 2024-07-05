@@ -195,10 +195,15 @@ use protocol_data::{
 };
 use util::EthAddress;
 
+#[cfg(feature = "devnet")]
+declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
+
+#[cfg(not(feature = "devnet"))]
 declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
 #[cfg(feature = "devnet")]
 pub const DEPLOYER: &str = "J85q2bNo4FadDqDmUYPLKav14QRexShwEQXxhbkuvEP2";
+
 #[cfg(not(feature = "devnet"))]
 pub const DEPLOYER: &str = "7M681DVV9eg5jihLwbL4yvcwtPJTpih99f94c9K8Sipx";
 
@@ -263,8 +268,6 @@ pub mod photon {
     /// A base seed used for deriving program-specific addresses within the system.
     /// This root seed acts as a foundational element for generating deterministic account addresses.
     #[cfg(feature = "devnet")]
-    pub const ROOT: &[u8] = b"r0";
-    #[cfg(not(feature = "devnet"))]
     pub const ROOT: &[u8] = b"r0";
 
     /// The maximum number of transmitters that can be registered in the system.
