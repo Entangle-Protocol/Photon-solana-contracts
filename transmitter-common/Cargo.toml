@@ -6,7 +6,9 @@ edition = "2021"
 
 [features]
 devnet = []
-default = []
+localnet = []
+mainnet = []
+default = ["localnet"]
 
 [dependencies]
 amqprs = "1.5"

@@ -6,7 +6,7 @@ skip-lint = false
 default = []
 
 [programs.localnet]
-photon = "JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT"
+photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
 onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
 
 [programs.mainnet]

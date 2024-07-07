@@ -14,9 +14,10 @@ RUN solana config set --url http://localhost:8899
 COPY . /photon-crosschain-messaging/
 RUN yarn install --cwd /photon-crosschain-messaging/
 COPY keys/*-keypair.json /photon-crosschain-messaging/target/deploy/
-ENV RUSTFLAGS="--cfg feature=\"devnet\""
-RUN cd /photon-crosschain-messaging/ && anchor build
+RUN --mount=type=cache,target=/photon-crosschain-messaging/target,sharing=locked --mount=type=cache,target=/usr/local/cargo/registry \
+    cd /photon-crosschain-messaging/ && anchor build && \
+    mkdir /deploy && \
+    cp /photon-crosschain-messaging/target/deploy/onefunc.so /photon-crosschain-messaging/target/deploy/photon.so /deploy
 WORKDIR /photon-crosschain-messaging/
-RUN docker/build_solana_test_state.sh
-RUN rm -rf target/release/deps
+RUN --mount=type=cache,target=/photon-crosschain-messaging/target docker/build_solana_test_state.sh
 ENTRYPOINT ["solana-test-validator"]
