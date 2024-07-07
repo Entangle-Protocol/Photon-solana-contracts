@@ -14,6 +14,8 @@ use solana_sdk::{
 };
 use std::{
     collections::HashMap,
+    fmt::Display,
+    iter::repeat,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -28,6 +30,7 @@ use uuid::Uuid;
 
 use crate::{
     ix_compiler::{InstructionBundle, IxCompiler},
+    log_with_ctx,
     rpc_pool::RpcPool,
     TransactorError,
 };
@@ -60,6 +63,7 @@ enum ChannelMessage {
 }
 
 struct FinalizationTask {
+    log_ctx: Option<String>,
     signature: Signature,
     bundle: MessageBundle,
     id: Uuid,
@@ -137,8 +141,9 @@ impl SolanaTransactor {
         }
     }
 
-    async fn send_with_level_confirmed(
+    async fn send_with_level_confirmed<T: Display>(
         self,
+        log_ctx: Option<T>,
         bundle: &MessageBundle,
         id: Uuid,
     ) -> Result<Signature, TransactorError> {
@@ -179,12 +184,14 @@ impl SolanaTransactor {
                         i += 1;
                     }
                     Err((e, url)) => {
-                        log::warn!("Failed to send tx: {} ({})", e, url);
+                        log_with_ctx!(warn, log_ctx, "Failed to send tx: {} ({})", e, url);
                     }
                 }
             };
             queue.insert(signature, Instant::now());
-            log::info!(
+            log_with_ctx!(
+                debug,
+                log_ctx,
                 "Sent bundle {} with sig {}, awaiting {}",
                 id,
                 signature,
@@ -199,11 +206,10 @@ impl SolanaTransactor {
                     queue.remove(&signature);
                     continue;
                 }
-                if self
-                    .check_tx_status(&signature, CommitmentConfig::confirmed())
-                    .await
-                {
-                    log::info!(
+                if self.check_tx_status(&signature, CommitmentConfig::confirmed()).await {
+                    log_with_ctx!(
+                        debug,
+                        log_ctx,
                         "Bundle {} confirmed {} after {} s, finalizing...",
                         id,
                         signature,
@@ -228,6 +234,7 @@ impl SolanaTransactor {
 
     async fn finalize(
         self,
+        log_ctx: Option<&str>,
         signature: &Signature,
         bundle: MessageBundle,
         id: Uuid,
@@ -251,7 +258,9 @@ impl SolanaTransactor {
                 .await
             {
                 Ok(Some(_)) => {
-                    log::info!(
+                    log_with_ctx!(
+                        debug,
+                        log_ctx,
                         "Bundle {} finalized {} after {} s",
                         id,
                         signature,
@@ -265,9 +274,9 @@ impl SolanaTransactor {
                 Ok(None) => {}
             }
         }
-        log::warn!("Failed to finalize bundle {} tx {}", id, signature);
+        log_with_ctx!(warn, log_ctx, "Failed to finalize bundle {} tx {}", id, signature);
         let c = self.finalize_channel.clone();
-        self.send_bundle(bundle, id, start, true, c).await?;
+        self.send_bundle(log_ctx, bundle, id, start, true, c).await?;
         Ok(())
     }
 
@@ -276,7 +285,13 @@ impl SolanaTransactor {
             match msg {
                 ChannelMessage::Task(task) => {
                     self.clone()
-                        .finalize(&task.signature, task.bundle, task.id, task.start)
+                        .finalize(
+                            task.log_ctx.as_deref(),
+                            &task.signature,
+                            task.bundle,
+                            task.id,
+                            task.start,
+                        )
                         .await
                         .expect("Finalize should not fail");
                 }
@@ -285,18 +300,20 @@ impl SolanaTransactor {
         }
     }
 
-    async fn send_bundle(
+    async fn send_bundle<T: Display + Clone>(
         self,
+        log_ctx: Option<T>,
         bundle: MessageBundle,
         id: Uuid,
         start: Instant,
         finalize: bool,
         finalize_channel: Arc<UnboundedSender<ChannelMessage>>,
     ) -> Result<Signature, TransactorError> {
-        let signature = self.send_with_level_confirmed(&bundle, id).await?;
+        let signature = self.send_with_level_confirmed(log_ctx.clone(), &bundle, id).await?;
         if finalize {
             finalize_channel
                 .send(ChannelMessage::Task(FinalizationTask {
+                    log_ctx: log_ctx.map(|c| c.to_string()),
                     signature,
                     bundle,
                     id,
@@ -307,8 +324,9 @@ impl SolanaTransactor {
         Ok(signature)
     }
 
-    pub async fn send(
+    pub async fn send<T: Display + Clone>(
         &self,
+        log_ctx: Option<T>,
         bundles: &[MessageBundle],
         finalize: bool,
     ) -> Result<(), TransactorError> {
@@ -317,6 +335,7 @@ impl SolanaTransactor {
             let start = Instant::now();
             self.clone()
                 .send_bundle(
+                    log_ctx.clone(),
                     bundle.clone(),
                     id,
                     start,
@@ -328,8 +347,9 @@ impl SolanaTransactor {
         Ok(())
     }
 
-    pub async fn send_all_instructions(
+    pub async fn send_all_instructions<T: Display + Clone>(
         &self,
+        log_ctx: Option<T>,
         instructions: &[InstructionBundle],
         signers: &[&Keypair],
         payer: Pubkey,
@@ -343,7 +363,7 @@ impl SolanaTransactor {
             .iter()
             .filter_map(|ix| {
                 ix_compiler
-                    .compile(ix.instruction.clone(), alt, ix.compute_units)
+                    .compile(log_ctx.clone(), ix.instruction.clone(), alt, ix.compute_units)
                     .transpose()
             })
             .collect();
@@ -352,11 +372,11 @@ impl SolanaTransactor {
             messages.push(msg);
         }
 
-        futures::stream::iter(messages)
-            .for_each_concurrent(parallel_limit, |msg| async move {
-                let bundle = MessageBundle::new(&msg, signers, payer);
-                if let Err(e) = self.send(&[bundle], finalize).await {
-                    log::error!("Failed to send: {}", e);
+        futures::stream::iter(messages.iter().zip(repeat(log_ctx)))
+            .for_each_concurrent(parallel_limit, |(msg, log_ctx)| async move {
+                let bundle = MessageBundle::new(msg, signers, payer);
+                if let Err(e) = self.send(log_ctx.clone(), &[bundle], finalize).await {
+                    log_with_ctx!(error, log_ctx, "Failed to send: {}", e);
                 }
             })
             .await;
@@ -365,9 +385,7 @@ impl SolanaTransactor {
 
     pub async fn await_all_tx(self) {
         if let Some(handle) = self.handle.lock().await.take() {
-            self.finalize_channel
-                .send(ChannelMessage::Stop)
-                .expect("Channel error");
+            self.finalize_channel.send(ChannelMessage::Stop).expect("Channel error");
             self.finalize_channel.closed().await;
             handle.await.expect("Await handle error");
         }

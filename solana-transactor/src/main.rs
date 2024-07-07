@@ -45,9 +45,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
     let args = Args::parse();
     let read_rpcs = [
         RpcEntry {
@@ -78,9 +76,7 @@ async fn main() {
         },
     ];
     let pool = RpcPool::new(&read_rpcs, &write_rpcs).unwrap();
-    let transactor = SolanaTransactor::start(pool)
-        .await
-        .expect("Failed to init transactor");
+    let transactor = SolanaTransactor::start(pool).await.expect("Failed to init transactor");
     let k = if let Some(s) = args.primary_signer {
         Keypair::read_from_file(s).expect("Failed to read primary signer")
     } else {
@@ -102,7 +98,7 @@ async fn main() {
                 VersionedTransaction::from(tx)
             };
             transactor
-                .send(&[MessageBundle::new(&tx.message, &[&k], k.pubkey())], true)
+                .send::<&str>(None, &[MessageBundle::new(&tx.message, &[&k], k.pubkey())], true)
                 .await
                 .unwrap();
             transactor.await_all_tx().await;
@@ -114,10 +110,8 @@ async fn main() {
                 .collect();
             let signers_addrs: Vec<_> = signers.iter().map(|x| x.pubkey()).collect();
             println!("Additional signers: {:?}", signers_addrs);
-            let iter = data
-                .split(',')
-                .map(|data| hex::decode(data).expect("Invalid hex"))
-                .map(|raw| {
+            let iter =
+                data.split(',').map(|data| hex::decode(data).expect("Invalid hex")).map(|raw| {
                     if args.use_v0 {
                         let tx: VersionedTransaction =
                             bincode::deserialize_from(&mut std::io::Cursor::new(raw))

@@ -10,6 +10,7 @@ use solana_sdk::{
     instruction::Instruction, signature::Keypair, signer::Signer,
 };
 use solana_transactor::{ix_compiler::InstructionBundle, SolanaTransactor};
+use std::ops::Deref;
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
@@ -110,7 +111,7 @@ impl AltOperationManager {
                     .expect("Expected last_block_number to be sent");
                 let op_hash = op_data.operation_data.op_hash_with_message();
                 if let Err(e) = self.process_operation(op_hash, op_data, alt).await {
-                    log::error!("Failed to process op ({}): {}", hex::encode(op_hash), e);
+                    error!("{}: Failed to process: {}", hex::encode(op_hash), e);
                 }
             })
             .await;
@@ -123,7 +124,7 @@ impl AltOperationManager {
         alt: &[AddressLookupTableAccount],
     ) -> Result<(), ExecutorError> {
         let op_hash_str = hex::encode(op_hash);
-        log::info!("Received operation {}", op_hash_str);
+        debug!("{}, operation received", op_hash_str);
         let (op_info, _) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
         loop {
             let op_info_data = self
@@ -147,17 +148,16 @@ impl AltOperationManager {
                         OpStatus::Executed => ExecutorOpStatus::Executed,
                     },
                     Err(e) => {
-                        log::error!(
-                            "Failed to deserialize op_info for {}, ({}) skipping...",
-                            op_hash_str,
-                            e
+                        error!(
+                            "{}. Failed to deserialize op_info, ({}) skipping...",
+                            op_hash_str, e
                         );
                         return Ok(());
                     }
                 },
                 None => ExecutorOpStatus::New,
             };
-            log::info!("Current op status ({}): {:?}", op_hash_str, op_status);
+            debug!("{}, current op status: {:?}", op_hash_str, op_status);
             let ix_bundle = match op_status {
                 ExecutorOpStatus::New => [
                     build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
@@ -191,6 +191,7 @@ impl AltOperationManager {
             };
             self.transactor
                 .send_all_instructions(
+                    Some(op_hash_str.deref()),
                     &ix_bundle,
                     &[&self.executor],
                     self.executor.pubkey(),
@@ -210,6 +211,7 @@ fn build_load_ix(
     op_hash: [u8; 32],
     op_data: OperationData,
 ) -> Result<InstructionBundle, ExecutorError> {
+    let op_hash_str = hex::encode(op_hash);
     let (op_info_pda, _bump) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
     let (protocol_info_pda, _) =
         Pubkey::find_program_address(&[ROOT, b"PROTOCOL", &op_data.protocol_id.0], &photon::ID);
@@ -223,16 +225,20 @@ fn build_load_ix(
     }
     .to_account_metas(None);
     let protocol_id = String::from_utf8(op_data.protocol_id.0.to_vec()).map_err(|err| {
-        error!("Failed to get protocol id utf8: {}", err);
+        error!("{}. Failed to get protocol id utf8: {}", op_hash_str, err);
         ExecutorError::MalformedData
     })?;
     debug!(
-        "Build txs for protocol_id: {}, executor: {}, protocol_info: {}, op_info: {}, config: {}",
-        protocol_id, executor, protocol_info_pda, op_info_pda, config_pda
+        "{}, Build txs for protocol_id: {}, executor: {}, protocol_info: {}, op_info: {}, config: {}",
+        op_hash_str, protocol_id, executor, protocol_info_pda, op_info_pda, config_pda
     );
     let photon_op_data =
         photon::protocol_data::OperationData::try_from(op_data).map_err(|err| {
-            error!("Failed to get op_data from op_data_message: {}", hex::encode(err));
+            error!(
+                "{}. Failed to get op_data from op_data_message: {}",
+                op_hash_str,
+                hex::encode(err)
+            );
             ExecutorError::MalformedData
         })?;
     let load_op_data = photon::instruction::LoadOperation {

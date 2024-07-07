@@ -6,8 +6,9 @@ use solana_sdk::{
     message::{v0::Message, VersionedMessage},
     pubkey::Pubkey,
 };
+use std::fmt::Display;
 
-use crate::TransactorError;
+use crate::{log_with_ctx, TransactorError};
 
 const MAX_CU: u32 = 1_400_000;
 const MAX_MSG_LEN: usize = 1232 - 65; // assuming only one signature
@@ -58,8 +59,9 @@ impl IxCompiler {
     }
 
     /// Try to pack buffered instructions into message, return next message to send if close to or over transaction size limit
-    pub fn compile(
+    pub fn compile<T: Display>(
         &mut self,
+        log_ctx: Option<T>,
         ix: Instruction,
         address_lookup_table_accounts: &[AddressLookupTableAccount],
         compute_units: u32,
@@ -103,14 +105,16 @@ impl IxCompiler {
         )?;
         let msg = VersionedMessage::V0(msg);
         let msg_len = msg.serialize().len();
-        log::info!(
+        log_with_ctx!(
+            debug,
+            log_ctx,
             "Instructions: {} Tx len: {} CU: {}",
             self.ix_buffer.len(),
             msg_len,
             total_compute_units
         );
         if exceeds_limits(msg_len, total_compute_units) {
-            log::info!("Tx limit reached, sending previous instructions...");
+            log_with_ctx!(debug, log_ctx, "Tx limit reached, sending previous instructions...");
             let msg = Message::try_compile(
                 &self.payer,
                 &[
@@ -125,20 +129,18 @@ impl IxCompiler {
             self.ix_buffer.clear();
             self.ix_buffer.push(ix);
             self.address_lookup_table_accounts.clear();
-            self.address_lookup_table_accounts
-                .extend_from_slice(address_lookup_table_accounts);
+            self.address_lookup_table_accounts.extend_from_slice(address_lookup_table_accounts);
             self.total_compute_units = compute_units;
             return Ok(Some(VersionedMessage::V0(msg)));
         } else if approaches_limits(msg_len, total_compute_units) {
-            log::info!("Tx limit reached, sending current instructions...");
+            log_with_ctx!(debug, log_ctx, "Tx limit reached, sending current instructions...");
             self.ix_buffer.clear();
             self.address_lookup_table_accounts.clear();
             self.total_compute_units = 0;
             return Ok(Some(msg));
         }
         self.ix_buffer.push(ix);
-        self.address_lookup_table_accounts
-            .extend_from_slice(address_lookup_table_accounts);
+        self.address_lookup_table_accounts.extend_from_slice(address_lookup_table_accounts);
         self.total_compute_units += total_compute_units;
         Ok(None)
     }
@@ -190,9 +192,7 @@ mod test {
 
     #[test]
     fn test_ix_compile() {
-        env_logger::Builder::new()
-            .filter_level(log::LevelFilter::Debug)
-            .init();
+        env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
         let signer = Keypair::new();
         let program = Keypair::new();
         let accounts = [
@@ -204,7 +204,7 @@ mod test {
         let mut ix_compiler = IxCompiler::new(signer.pubkey(), Some(1000));
         let mut n = 0;
         let msg = loop {
-            if let Some(msg) = ix_compiler.compile(ix.clone(), &[], 20000).unwrap() {
+            if let Some(msg) = ix_compiler.compile::<&str>(None, ix.clone(), &[], 20000).unwrap() {
                 break msg;
             } else {
                 n += 1;
@@ -221,10 +221,7 @@ mod test {
         println!("Flush tx len {}", tx_raw.len());
         assert!(tx_raw.len() <= 1232);
 
-        let msg = ix_compiler
-            .compile(ix.clone(), &[], 1200000)
-            .unwrap()
-            .unwrap();
+        let msg = ix_compiler.compile::<&str>(None, ix.clone(), &[], 1200000).unwrap().unwrap();
         let tx = VersionedTransaction::try_new(msg, &[&signer]).unwrap();
         let tx_raw: Vec<u8> = bincode::serialize(&tx).unwrap();
         assert!(tx_raw.len() <= 1232);
