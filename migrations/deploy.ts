@@ -7,10 +7,10 @@ import fs from "fs";
 import { ethers } from "ethers";
 import * as readline from "readline";
 
-const DEVNET = false;
+const DEVNET = true;
 
 const EOB_CHAIN_ID = DEVNET ? 33133 : 33033;
-const ROOT = DEVNET ? utf8.encode("root-0") : utf8.encode("r0");
+const ROOT = utf8.encode("r0");
 const GOV_CONSENSUS_TARGET_RATE = 6000;
 const GOV_PROTOCOL_ID = Buffer.from(
     utf8.encode(
@@ -39,8 +39,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
         KEYS_PATH +
         "/transmitters.json").map(hexToBytes);
     const owner = await getKeypairFromFile(KEYS_PATH + "/owner.json");
-    const govExecutor1 = await getKeypairFromFile(KEYS_PATH + "/gov-executor1.json");
-    const govExecutor2 = await getKeypairFromFile(KEYS_PATH + "/gov-executor2.json");
+    const govExecutor1 = await getKeypairFromFile(KEYS_PATH + "/gov-executor.json");
     const program = anchor.workspace.Photon as Program<Photon>;
     const config = web3.PublicKey.findProgramAddressSync(
         [ROOT, utf8.encode("CONFIG")],
@@ -60,14 +59,13 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     );
     console.log("Network:", DEVNET ? "Devnet" : "Mainnet");
     console.log("Owner account:", owner.publicKey.toBase58());
-    console.log("Gov executor account 1:", govExecutor1.publicKey.toBase58());
-    console.log("Gov executor account 2:", govExecutor2.publicKey.toBase58());
+    console.log("Gov executor:", govExecutor1.publicKey.toBase58());
     console.log("Config account:", config.toBase58());
     console.log("Protocol info:", protocolInfo.toBase58());
     console.log("Photon program account:", program.programId.toBase58());
     console.log("eob_master_contract:", eob_master_contract);
 
-    //await askAndExecute();
+    // await askAndExecute();
 
     let tx_signature = await program.methods
         .initialize(
@@ -75,7 +73,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
             eob_master_contract_buf,
             new anchor.BN(GOV_CONSENSUS_TARGET_RATE),
             transmitters,
-            [govExecutor1.publicKey, govExecutor2.publicKey]
+            [govExecutor1.publicKey]
         )
         .accounts({
             admin: owner.publicKey,
@@ -104,7 +102,7 @@ export function askAndExecute() {
                 console.log("You chose not to proceed. Exiting...");
                 process.exit();
             } else {
-                console.log('Invalid input. Please enter either "y" or "n".');
+                console.log("Invalid input. Please enter either \"y\" or \"n\".");
                 askAndExecute().then(resolve);
             }
         });

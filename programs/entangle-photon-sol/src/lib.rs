@@ -195,16 +195,15 @@ use protocol_data::{
 };
 use util::EthAddress;
 
-#[cfg(feature = "devnet")]
-declare_id!("JDxWYX5NrL51oPcYunS7ssmikkqMLcuHn9v4HRnedKHT");
-
-#[cfg(not(feature = "devnet"))]
 declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
 #[cfg(feature = "devnet")]
+pub const DEPLOYER: &str = "843CN5krDmv6ffi2cJ3W2HxQBTzJwEtvuTBsPX7rRsa2";
+
+#[cfg(feature = "localnet")]
 pub const DEPLOYER: &str = "J85q2bNo4FadDqDmUYPLKav14QRexShwEQXxhbkuvEP2";
 
-#[cfg(not(feature = "devnet"))]
+#[cfg(feature = "mainnet")]
 pub const DEPLOYER: &str = "7M681DVV9eg5jihLwbL4yvcwtPJTpih99f94c9K8Sipx";
 
 /// The `photon` module encapsulates all operations related to cross-chain messaging on the Solana blockchain,
@@ -254,20 +253,22 @@ pub const DEPLOYER: &str = "7M681DVV9eg5jihLwbL4yvcwtPJTpih99f94c9K8Sipx";
 /// with other chains, leveraging the Photon system's capabilities to enhance their applications' reach and functionalities.
 #[program]
 pub mod photon {
+    #[cfg(not(any(feature = "devnet", feature = "localnet", feature = "mainnet")))]
+    compile_error!("Either feature \"devnet\", \"localnet\" or \"mainnet\" must be defined");
+
     /// Unique identifier for the Solana chain used within the Photon cross-chain messaging layer.
     /// This constant helps ensure operations are validated specifically for the Solana blockchain.
-    #[cfg(feature = "devnet")]
+    #[cfg(any(feature = "devnet", feature = "localnet"))]
     pub const SOLANA_CHAIN_ID: u128 = 100000000000000000000;
-    #[cfg(not(feature = "devnet"))]
+    #[cfg(feature = "mainnet")]
     pub const SOLANA_CHAIN_ID: u128 = 11100000000000000501;
 
-    /// Represents the number of decimal places used in rate calculations for consensus mechanisms.
+    /// Represents the umber of decimal places used in rate calculations for consensus mechanisms.
     /// This precision is necessary for accurate calculations when determining the consensus rate.
     pub const RATE_DECIMALS: u64 = 10000;
 
     /// A base seed used for deriving program-specific addresses within the system.
     /// This root seed acts as a foundational element for generating deterministic account addresses.
-    #[cfg(feature = "devnet")]
     pub const ROOT: &[u8] = b"r0";
 
     /// The maximum number of transmitters that can be registered in the system.
