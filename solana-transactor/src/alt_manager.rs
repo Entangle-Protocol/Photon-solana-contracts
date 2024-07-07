@@ -1,3 +1,4 @@
+use log::debug;
 use std::{collections::HashSet, time::Duration};
 
 use solana_address_lookup_table_program::{
@@ -23,10 +24,7 @@ pub async fn send_with_alt(
     alt: &[AddressLookupTableAccount],
     compute_unit_price: Option<u64>,
 ) {
-    let alt_addresses: Vec<_> = alt
-        .iter()
-        .flat_map(|x| x.addresses.clone().into_iter())
-        .collect();
+    let alt_addresses: Vec<_> = alt.iter().flat_map(|x| x.addresses.clone().into_iter()).collect();
     let total_addresses: Vec<_> = instructions
         .iter()
         .flat_map(|x| {
@@ -38,26 +36,21 @@ pub async fn send_with_alt(
                 .chain(std::iter::once(x.instruction.program_id))
         })
         .collect();
-    let to_add: HashSet<_> = total_addresses
-        .iter()
-        .cloned()
-        .filter(|x| !alt_addresses.contains(x))
-        .collect();
-    println!("Total addresses: {}", total_addresses.len());
-    println!("To add: {}", to_add.len());
+    let to_add: HashSet<_> =
+        total_addresses.iter().cloned().filter(|x| !alt_addresses.contains(x)).collect();
+    debug!("Total addresses: {}", total_addresses.len());
+    debug!("To add: {}", to_add.len());
     let slot = transactor
         .rpc_pool()
-        .with_read_rpc(
-            |rpc| async move { rpc.get_slot().await },
-            CommitmentConfig::confirmed(),
-        )
+        .with_read_rpc(|rpc| async move { rpc.get_slot().await }, CommitmentConfig::confirmed())
         .await
         .expect("Failed to get slot");
     let (ix, alt_address) = create_lookup_table(signer.pubkey(), signer.pubkey(), slot);
-    log::info!("New ALT address {}", alt_address);
+    debug!("New ALT address {}", alt_address);
     let ix = InstructionBundle::new(ix, 200000);
     transactor
-        .send_all_instructions(
+        .send_all_instructions::<&str>(
+            None,
             &[ix],
             &[signer],
             signer.pubkey(),
@@ -68,7 +61,7 @@ pub async fn send_with_alt(
         )
         .await
         .expect("Failed to send create ALT instruction");
-    log::info!("ALT created");
+    debug!("ALT created");
     let to_add: Vec<_> = to_add.into_iter().collect();
     for chunk in to_add.chunks(20) {
         let mut ix = extend_lookup_table(
@@ -84,7 +77,8 @@ pub async fn send_with_alt(
         });
         let ix = InstructionBundle::new(ix, 200000);
         transactor
-            .send_all_instructions(
+            .send_all_instructions::<&str>(
+                None,
                 &[ix],
                 &[signer],
                 signer.pubkey(),
@@ -95,7 +89,7 @@ pub async fn send_with_alt(
             )
             .await
             .expect("Failed to send create ALT instruction");
-        log::info!("ALT extended by {}", chunk.len());
+        debug!("ALT extended by {}", chunk.len());
     }
     tokio::time::sleep(Duration::from_secs(20)).await;
     let new_alt = transactor
@@ -107,7 +101,8 @@ pub async fn send_with_alt(
         .await
         .expect("Failed to load new ALT");
     if let Err(e) = transactor
-        .send_all_instructions(
+        .send_all_instructions::<&str>(
+            None,
             instructions,
             &[&[signer], additional_signers].concat(),
             signer.pubkey(),
@@ -120,11 +115,12 @@ pub async fn send_with_alt(
     {
         log::error!("Failed to send tx: {}", e);
     }
-    log::info!("Deactivating ALT");
+    debug!("Deactivating ALT");
     let ix = deactivate_lookup_table(alt_address, signer.pubkey());
     let ix = InstructionBundle::new(ix, 200000);
     transactor
-        .send_all_instructions(
+        .send_all_instructions::<&str>(
+            None,
             &[ix],
             &[signer],
             signer.pubkey(),
@@ -136,11 +132,12 @@ pub async fn send_with_alt(
         .await
         .expect("Failed to deactivate ALT");
     tokio::time::sleep(Duration::from_secs(240)).await;
-    log::info!("Clearing ALT");
+    debug!("Clearing ALT");
     let ix = close_lookup_table(alt_address, signer.pubkey(), signer.pubkey());
     let ix = InstructionBundle::new(ix, 200000);
     transactor
-        .send_all_instructions(
+        .send_all_instructions::<&str>(
+            None,
             &[ix],
             &[signer],
             signer.pubkey(),
