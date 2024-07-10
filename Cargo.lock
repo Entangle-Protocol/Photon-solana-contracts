@@ -4979,6 +4979,7 @@ dependencies = [
  "indexmap 2.2.6",
  "log",
  "portable-atomic",
+ "semver 1.0.22",
  "serde",
  "serde_json",
  "solana-address-lookup-table-program",
