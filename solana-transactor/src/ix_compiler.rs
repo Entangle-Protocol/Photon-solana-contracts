@@ -13,7 +13,7 @@ use crate::{log_with_ctx, TransactorError};
 const MAX_CU: u32 = 1_400_000;
 const MAX_MSG_LEN: usize = 1232 - 65; // assuming only one signature
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct InstructionBundle {
     pub instruction: Instruction,
     pub compute_units: u32,

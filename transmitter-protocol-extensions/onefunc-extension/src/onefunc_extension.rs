@@ -40,7 +40,8 @@ impl ProtocolExtension for OnefuncExtension {
     ) -> Result<Vec<AccountMeta>, ExtensionError> {
         Ok(match function_selector {
             b"init_owned_counter" => self.get_accounts_init_counter(),
-            b"increment_owned_counter" => self.get_accounts_increment(),
+            b"increment" => self.get_accounts_increment(),
+            b"increment_owned_counter" => self.get_accounts_increment_owned(),
             b"\x01\x02\x03\x04" => self.get_accounts_receive_photon_msg(),
             _ => {
                 let selector = String::from_utf8_lossy(function_selector);
@@ -86,13 +87,21 @@ impl OnefuncExtension {
         ]
     }
 
-    fn get_accounts_increment(&self) -> Vec<AccountMeta> {
+    fn get_accounts_increment_owned(&self) -> Vec<AccountMeta> {
         let counter_owner = self.counter_owner.pubkey();
         let (onefunc_counter_pda, _) =
             Pubkey::find_program_address(&[b"COUNTER", counter_owner.as_ref()], &onefunc::ID);
         vec![
             AccountMeta::new_readonly(onefunc::ID, false),
             AccountMeta::new_readonly(self.counter_owner.pubkey(), true),
+            AccountMeta::new(onefunc_counter_pda, false),
+        ]
+    }
+
+    fn get_accounts_increment(&self) -> Vec<AccountMeta> {
+        let (onefunc_counter_pda, _) = Pubkey::find_program_address(&[b"COUNTER"], &onefunc::ID);
+        vec![
+            AccountMeta::new_readonly(onefunc::ID, false),
             AccountMeta::new(onefunc_counter_pda, false),
         ]
     }

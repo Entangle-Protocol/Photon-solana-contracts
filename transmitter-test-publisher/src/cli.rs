@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 pub(crate) enum Operation {
     InitOwnedCounter,
     Increment(u64),
+    IncrementOwned(u64),
     CodeBased(Vec<u8>),
     AddProtocol,
 }
@@ -15,6 +16,13 @@ pub(crate) struct Workaround(Vec<u8>);
 #[derive(Subcommand)]
 pub(crate) enum Command {
     #[command(about = "Publish the increment operation to be called")]
+    Increment {
+        #[arg(long, short, help = "Config path")]
+        config: String,
+        #[arg(long, short, help = "Component")]
+        value: u64,
+    },
+    #[command(about = "Publish the increment derived counter operation")]
     IncrementOwnedCounter {
         #[arg(long, short, help = "Config path")]
         config: String,
@@ -57,11 +65,14 @@ impl Cli {
     pub(super) async fn execute(args: impl Iterator<Item = String>) {
         let mut parsed_cli = Self::parse_from(args);
         match &mut parsed_cli.command {
+            Command::Increment { config, value } => {
+                publish(config, &Operation::Increment(*value), 1).await
+            }
             Command::IncrementOwnedCounter {
                 config,
                 value,
                 times,
-            } => publish(config, &Operation::Increment(*value), *times).await,
+            } => publish(config, &Operation::IncrementOwned(*value), *times).await,
             Command::InitOwnedCounter { config } => {
                 publish(config, &Operation::InitOwnedCounter, 1).await
             }
