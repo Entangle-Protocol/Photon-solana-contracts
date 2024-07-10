@@ -1,3 +1,4 @@
+use log::error;
 use portable_atomic::{AtomicU64, Ordering};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -5,6 +6,7 @@ use std::{
     fmt::Debug,
     time::{Duration, UNIX_EPOCH},
 };
+
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -14,7 +16,7 @@ struct Rpc {
     url: Url,
     last_accessed: AtomicU64,
     min_timeout: Duration,
-    lock: Mutex<()>,
+    cached_version: Mutex<Option<semver::Version>>,
 }
 
 #[derive(Clone)]
@@ -40,9 +42,9 @@ impl RpcPool {
                         .url
                         .parse()
                         .map_err(|_| TransactorError::InvalidRpc(rpc_config.url.clone()))?,
+                    cached_version: Mutex::default(),
                     last_accessed: AtomicU64::new(now()),
                     min_timeout,
-                    lock: Mutex::default(),
                 })
             })
             .collect::<Result<Vec<Rpc>, TransactorError>>()?;
@@ -55,9 +57,9 @@ impl RpcPool {
                         .url
                         .parse()
                         .map_err(|_| TransactorError::InvalidRpc(rpc_config.url.clone()))?,
+                    cached_version: Mutex::default(),
                     last_accessed: AtomicU64::new(now()),
                     min_timeout,
-                    lock: Mutex::default(),
                 })
             })
             .collect::<Result<Vec<Rpc>, TransactorError>>()?;
@@ -82,15 +84,17 @@ impl RpcPool {
             tokio::time::sleep(Duration::from_millis(rpc.min_timeout.as_millis() as u64 - elapsed))
                 .await;
         }
-        let lock = rpc.lock.lock().await;
+        let mut rpc_version = rpc.cached_version.lock().await;
         let client = RpcClient::new_with_timeout_and_commitment(
             rpc.url.to_string(),
             Duration::from_secs(3),
             commitment,
         );
+        Self::set_client_rpc_version(&mut rpc_version, &rpc.url, &client).await;
         let res = f(client).await;
-        let _ = lock;
         rpc.last_accessed.store(now(), Ordering::Release);
+        // rpc_version should be locked until `f` has completed
+        drop(rpc_version);
         res
     }
 
@@ -109,16 +113,43 @@ impl RpcPool {
             tokio::time::sleep(Duration::from_millis(rpc.min_timeout.as_millis() as u64 - elapsed))
                 .await;
         }
-        let lock = rpc.lock.lock().await;
+        let mut rpc_version = rpc.cached_version.lock().await;
         let client = RpcClient::new_with_timeout_and_commitment(
             rpc.url.to_string(),
             Duration::from_secs(3),
             commitment,
         );
+        Self::set_client_rpc_version(&mut rpc_version, &rpc.url, &client).await;
         let res = f(client).await;
-        let _ = lock;
         rpc.last_accessed.store(now(), Ordering::Release);
+        // rpc_version should be locked until `f` has completed
+        drop(rpc_version);
         res
+    }
+
+    async fn set_client_rpc_version(
+        rpc_version: &mut Option<semver::Version>,
+        rpc_url: &Url,
+        client: &RpcClient,
+    ) {
+        if rpc_version.is_none() {
+            let Ok(version) = client.get_version().await.map_err(|err| {
+                error!("Failed to get version from rpc to cache: {}, error: {}", rpc_url, err)
+            }) else {
+                return;
+            };
+            let Ok(version) = semver::Version::parse(&version.solana_core).map_err(|err| {
+                error!("Failed to parse version from: {}, error: {}", version.solana_core, err)
+            }) else {
+                return;
+            };
+            rpc_version.replace(version);
+        }
+        let version = rpc_version.clone().expect("Expected to be set");
+        client
+            .set_node_version(version)
+            .await
+            .expect("Expected version to be updated well for http client");
     }
 
     pub async fn with_read_rpc_loop<F, T, O, E>(&self, f: F, commitment: CommitmentConfig) -> O
