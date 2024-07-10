@@ -68,6 +68,24 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
         rand::thread_rng().fill_bytes(&mut tx_id);
 
         let op_data = match operation {
+            Operation::Increment(component) => {
+                let function_selector: Vec<u8> = b"\x01\x09increment".to_vec();
+                let params: Vec<u8> =
+                    ethabi::encode(&[Token::Tuple(vec![Token::Uint(Uint::from(*component))])]);
+                OperationData {
+                    protocol_id,
+                    meta,
+                    src_block_number: 1,
+                    src_chain_id: dst_chain_id,
+                    dest_chain_id: dst_chain_id,
+                    nonce,
+                    src_op_tx_id: tx_id.to_vec(),
+                    protocol_addr: protocol_address.clone(),
+                    function_selector,
+                    params,
+                    reserved: <Vec<u8>>::default(),
+                }
+            }
             Operation::InitOwnedCounter => {
                 let function_selector: Vec<u8> = b"\x01\x12init_owned_counter".to_vec();
                 OperationData {
@@ -84,7 +102,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     reserved: <Vec<u8>>::default(),
                 }
             }
-            Operation::Increment(component) => {
+            Operation::IncrementOwned(component) => {
                 let function_selector: Vec<u8> = b"\x01\x17increment_owned_counter".to_vec();
                 let params: Vec<u8> =
                     ethabi::encode(&[Token::Tuple(vec![Token::Uint(Uint::from(*component))])]);
@@ -218,7 +236,7 @@ mod test {
 
     #[test]
     fn test_op_hash_by_name_matches() {
-        env_logger::init();
+        // env_logger::init();
         let meta = [1; 32];
         let protocol_id = ProtocolId(
             *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
@@ -247,7 +265,7 @@ mod test {
 
     #[test]
     fn test_op_hash_by_code_matches() {
-        env_logger::init();
+        // env_logger::init();
         let meta = [1; 32];
         let protocol_id = ProtocolId(
             *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),

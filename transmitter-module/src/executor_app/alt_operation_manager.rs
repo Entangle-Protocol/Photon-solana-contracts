@@ -16,35 +16,27 @@ use tokio::sync::{
     Mutex,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
+
 use transmitter_common::data::{OperationData, SignedOperation};
 
-use crate::executor_app::error::ExecutorError;
-
-use super::{extension_manager::ExtensionManager, ServiceCmd};
-
-// TODO: additional signatures from extensions
+use super::{
+    error::ExecutorError, extension_manager::ExtensionManager, ExecutorOpStatus, OpAcknowledge,
+    ServiceCmd,
+};
 
 pub(super) struct AltOperationManager {
     op_data_receiver: Mutex<Option<UnboundedReceiverStream<SignedOperation>>>,
-    last_block_sender: UnboundedSender<u64>,
+    op_acknowledge_sender: UnboundedSender<OpAcknowledge>,
     transactor: SolanaTransactor,
     extension_mng: ExtensionManager,
     executor: Keypair,
     service_receiver: Mutex<UnboundedReceiver<ServiceCmd>>,
 }
 
-#[derive(Debug)]
-enum ExecutorOpStatus {
-    New,
-    Loaded,
-    Signed,
-    Executed,
-}
-
 impl AltOperationManager {
     pub fn new(
         op_data_receiver: UnboundedReceiver<SignedOperation>,
-        last_block_sender: UnboundedSender<u64>,
+        op_acknowledge_sender: UnboundedSender<OpAcknowledge>,
         transactor: SolanaTransactor,
         extensions: Vec<String>,
         executor: Keypair,
@@ -55,7 +47,7 @@ impl AltOperationManager {
             UnboundedReceiverStream::new(op_data_receiver);
         Self {
             op_data_receiver: Mutex::new(Some(op_data_receiver)),
-            last_block_sender,
+            op_acknowledge_sender,
             transactor,
             extension_mng,
             executor,
@@ -90,15 +82,7 @@ impl AltOperationManager {
 
     async fn execute_operations(&self) {
         info!("Start listen for incoming operation_data");
-        let alt: Pubkey = "DqfKLmNfqxnf3rn1LJeEjGYjNhiqudpUSgXS6ChVxCq2".parse().unwrap();
-        let alt = &[self
-            .transactor
-            .rpc_pool()
-            .with_read_rpc_loop(
-                |rpc| async move { solana_transactor::alt_manager::load_alt(rpc, alt).await },
-                CommitmentConfig::finalized(),
-            )
-            .await][..];
+        let alt = &[][..];
 
         self.op_data_receiver
             .lock()
@@ -106,10 +90,14 @@ impl AltOperationManager {
             .take()
             .unwrap()
             .for_each_concurrent(64, |op_data| async {
-                self.last_block_sender
-                    .send(op_data.eob_block_number)
-                    .expect("Expected last_block_number to be sent");
                 let op_hash = op_data.operation_data.op_hash_with_message();
+                self.op_acknowledge_sender
+                    .send(OpAcknowledge::new(
+                        op_data.eob_block_number,
+                        op_hash,
+                        ExecutorOpStatus::New,
+                    ))
+                    .expect("Expected acknowledge to be sent");
                 if let Err(e) = self.process_operation(op_hash, op_data, alt).await {
                     error!("{}: Failed to process: {}", hex::encode(op_hash), e);
                 }
@@ -157,38 +145,19 @@ impl AltOperationManager {
                 },
                 None => ExecutorOpStatus::New,
             };
-            debug!("{}, current op status: {:?}", op_hash_str, op_status);
-            let ix_bundle = match op_status {
-                ExecutorOpStatus::New => [
-                    build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
-                    build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
-                    build_execute_tx(
-                        &self.extension_mng,
-                        self.executor.pubkey(),
+            debug!("{}. current op status: {:?}", op_hash_str, op_status);
+            let ix_bundle = self.build_ixs(op_hash, op.clone(), op_status)?;
+
+            if ix_bundle.is_empty() {
+                self.op_acknowledge_sender
+                    .send(OpAcknowledge::new(
+                        op.eob_block_number,
                         op_hash,
-                        op.operation_data.clone(),
-                    )?,
-                ]
-                .to_vec(),
-                ExecutorOpStatus::Loaded => [
-                    build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
-                    build_execute_tx(
-                        &self.extension_mng,
-                        self.executor.pubkey(),
-                        op_hash,
-                        op.operation_data.clone(),
-                    )?,
-                ]
-                .to_vec(),
-                ExecutorOpStatus::Signed => [build_execute_tx(
-                    &self.extension_mng,
-                    self.executor.pubkey(),
-                    op_hash,
-                    op.operation_data.clone(),
-                )?]
-                .to_vec(),
-                ExecutorOpStatus::Executed => break,
-            };
+                        ExecutorOpStatus::Executed,
+                    ))
+                    .expect("Expected acknowledge to be sent");
+                break;
+            }
             self.transactor
                 .send_all_instructions(
                     Some(op_hash_str.deref()),
@@ -203,6 +172,42 @@ impl AltOperationManager {
                 .await?;
         }
         Ok(())
+    }
+
+    fn build_ixs(
+        &self,
+        op_hash: [u8; 32],
+        op: SignedOperation,
+        op_status: ExecutorOpStatus,
+    ) -> Result<Vec<InstructionBundle>, ExecutorError> {
+        Ok(match op_status {
+            ExecutorOpStatus::New => vec![
+                build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
+                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
+                build_execute_tx(
+                    &self.extension_mng,
+                    self.executor.pubkey(),
+                    op_hash,
+                    op.operation_data.clone(),
+                )?,
+            ],
+            ExecutorOpStatus::Loaded => vec![
+                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
+                build_execute_tx(
+                    &self.extension_mng,
+                    self.executor.pubkey(),
+                    op_hash,
+                    op.operation_data.clone(),
+                )?,
+            ],
+            ExecutorOpStatus::Signed => vec![build_execute_tx(
+                &self.extension_mng,
+                self.executor.pubkey(),
+                op_hash,
+                op.operation_data.clone(),
+            )?],
+            ExecutorOpStatus::Executed => vec![],
+        })
     }
 }
 

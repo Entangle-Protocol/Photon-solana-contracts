@@ -79,10 +79,8 @@ impl RpcPool {
             .await
             .expect("Empty round robin pool");
         if elapsed < rpc.min_timeout.as_millis() as u64 {
-            tokio::time::sleep(Duration::from_millis(
-                rpc.min_timeout.as_millis() as u64 - elapsed,
-            ))
-            .await;
+            tokio::time::sleep(Duration::from_millis(rpc.min_timeout.as_millis() as u64 - elapsed))
+                .await;
         }
         let lock = rpc.lock.lock().await;
         let client = RpcClient::new_with_timeout_and_commitment(
@@ -108,10 +106,8 @@ impl RpcPool {
             .await
             .expect("Empty round robin pool");
         if elapsed < rpc.min_timeout.as_millis() as u64 {
-            tokio::time::sleep(Duration::from_millis(
-                rpc.min_timeout.as_millis() as u64 - elapsed,
-            ))
-            .await;
+            tokio::time::sleep(Duration::from_millis(rpc.min_timeout.as_millis() as u64 - elapsed))
+                .await;
         }
         let lock = rpc.lock.lock().await;
         let client = RpcClient::new_with_timeout_and_commitment(

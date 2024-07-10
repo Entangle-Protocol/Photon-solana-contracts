@@ -27,11 +27,11 @@ solana:
     # payer: mRazhLmdFRULW1Z6jHcQ2WR4f9eRmjiLvR7R2Yo4LQfvFj5XiN3bwPt6dSUoQfNWpey5VgJaZZWU3vkQmH9ubsY
     # HTTP RPC addresses to connect to read and write to Solana
     read_rpcs:
-        - url: http://127.0.0.1:8899
-          ratelimit: 4 # requests per second
+        -   url: http://127.0.0.1:8899
+            ratelimit: 4 # requests per second
     write_rpcs:
-        - url: http://127.0.0.1:8899
-          ratelimit: 4 # requests per second
+        -   url: http://127.0.0.1:8899
+            ratelimit: 4 # requests per second
     # The solana client commitment to not continue processing until the given confirmation level happens
     # possible values: processed, confirmed, finalized
     commitment: confirmed

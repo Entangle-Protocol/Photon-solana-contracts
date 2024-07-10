@@ -1,91 +1,98 @@
 stages:
-  - versioning
-  - checks
-  - container_build
-  - retag
-  - push
-  - clean_up
-  - deploy
+    - versioning
+    - checks
+    - container_build
+    - retag
+    - push
+    - clean_up
+    - deploy
 
 versioning and prepare:
-  stage: versioning
-  script:
-    - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
-  tags:
-    - linux
+    stage: versioning
+    script:
+        - echo "Version is $CI_COMMIT_BRANCH.$CI_PIPELINE_ID"
+    tags:
+        - linux
 
-# clippy:
-#   stage: checks
-#   image: rust:1.78.0
-#   script:
-#     - git submodule update --init
-#     - rustup default 1.78.0
-#     - rustup component add clippy
-#     - cargo clippy --all-targets --all-features -- -Dwarnings
-#   tags:
-#     - docker
+clippy:
+    stage: checks
+    image: rust:1.78.0
+    script:
+        - git submodule update --init
+        - rustup default 1.78.0
+        - rustup component add clippy
+        - cargo clippy --all-targets -- -Dwarnings
+    tags:
+        - docker
 
+tests:
+    stage: checks
+    image: rust:1.78.0
+    script:
+        - cargo test --workspace --exclude entangle-photon-sol -- --skip test_send
+    tags:
+        - docker
 
 build_solana:
-  stage: container_build
-  script:
-    - git submodule update --init
-    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest -f ./docker/Dockerfile_solana .
-  tags:
-    - linux
+    stage: container_build
+    script:
+        - git submodule update --init
+        - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest -f ./docker/Dockerfile_solana .
+    tags:
+        - linux
 
 build_module:
-  stage: container_build
-  script:
-    - git submodule update --init
-    - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
-  tags:
-    - linux
+    stage: container_build
+    script:
+        - git submodule update --init
+        - docker build -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -t 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest -f ./docker/Dockerfile_module .
+    tags:
+        - linux
 
 retag:
-  stage: retag
-  script:
-    - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
-  only:
-    - test-stand
-    - mainnet
-  tags:
-    - linux
+    stage: retag
+    script:
+        - docker tag 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
+    only:
+        - testnet
+        - mainnet
+    tags:
+        - linux
 
 
 solana_push:
-  stage: push
-  script:
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest
-  tags:
-    - linux
+    stage: push
+    script:
+        - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
+        - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest
+    tags:
+        - linux
 
 module_push:
-  stage: push
-  script:
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest
-  tags:
-    - linux
+    stage: push
+    script:
+        - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID
+        - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest
+    tags:
+        - linux
 
 module_latest_push:
-  stage: push
-  script:
-    - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
-    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
-  only:
-    - test-stand
-    - mainnet
-  tags:
-    - linux
+    stage: push
+    script:
+        - docker push 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
+        - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.latest
+    only:
+        - testnet
+        - mainnet
+    tags:
+        - linux
 
 clean_up_images:
-  stage: clean_up
-  script:
-    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -f
-    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest || true
-    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -f
-    - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest || true
-  tags:
-    - linux
+    stage: clean_up
+    script:
+        - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -f
+        - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-solana:latest || true
+        - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:$CI_COMMIT_BRANCH.$CI_PIPELINE_ID -f
+        - docker rmi 899260217834.dkr.ecr.us-east-1.amazonaws.com/photon-module:latest || true
+    tags:
+        - linux

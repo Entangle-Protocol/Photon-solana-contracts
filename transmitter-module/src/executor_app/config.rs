@@ -59,7 +59,9 @@ impl ExecutorConfig {
 }
 
 fn deserialize_keypair<'de, D>(deserializer: D) -> Result<Keypair, D::Error>
-where D: Deserializer<'de> {
+where
+    D: Deserializer<'de>,
+{
     let s = String::deserialize(deserializer)?;
     let keydata = bs58::decode(s)
         .into_vec()
