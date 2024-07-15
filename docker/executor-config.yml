@@ -19,6 +19,7 @@ solana:
     check_balance_period: 100
     warn_balance_lamports: 2000000000
     suspend_balance_lamports: 1000000000
+    executor_attempts: 2
 
 extensions:
     - /libonefunc_extension.so

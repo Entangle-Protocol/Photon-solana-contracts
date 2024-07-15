@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 pub(crate) enum Operation {
     InitOwnedCounter,
     Increment(u64),
+    ToBeFailed,
     IncrementOwned(u64),
     CodeBased(Vec<u8>),
     AddProtocol,
@@ -21,6 +22,11 @@ pub(crate) enum Command {
         config: String,
         #[arg(long, short, help = "Component")]
         value: u64,
+    },
+    #[command(about = "Publish the `to_be_failed` operation to be called")]
+    ToBeFailed {
+        #[arg(long, short, help = "Config path")]
+        config: String,
     },
     #[command(about = "Publish the increment derived counter operation")]
     IncrementOwnedCounter {
@@ -68,6 +74,7 @@ impl Cli {
             Command::Increment { config, value } => {
                 publish(config, &Operation::Increment(*value), 1).await
             }
+            Command::ToBeFailed { config } => publish(config, &Operation::ToBeFailed, 1).await,
             Command::IncrementOwnedCounter {
                 config,
                 value,

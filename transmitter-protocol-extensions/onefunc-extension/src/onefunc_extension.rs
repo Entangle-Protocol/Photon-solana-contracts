@@ -41,6 +41,7 @@ impl ProtocolExtension for OnefuncExtension {
         Ok(match function_selector {
             b"init_owned_counter" => self.get_accounts_init_counter(),
             b"increment" => self.get_accounts_increment(),
+            b"to_be_failed" => self.get_accounts_to_be_failed(),
             b"increment_owned_counter" => self.get_accounts_increment_owned(),
             b"\x01\x02\x03\x04" => self.get_accounts_receive_photon_msg(),
             _ => {
@@ -104,6 +105,10 @@ impl OnefuncExtension {
             AccountMeta::new_readonly(onefunc::ID, false),
             AccountMeta::new(onefunc_counter_pda, false),
         ]
+    }
+
+    fn get_accounts_to_be_failed(&self) -> Vec<AccountMeta> {
+        vec![AccountMeta::new_readonly(onefunc::ID, false)]
     }
 
     fn get_accounts_receive_photon_msg(&self) -> Vec<AccountMeta> {

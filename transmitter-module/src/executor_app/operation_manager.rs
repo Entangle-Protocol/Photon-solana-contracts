@@ -4,10 +4,9 @@ use anchor_lang::{
 };
 use futures_util::{select, FutureExt, StreamExt};
 use log::*;
-use photon::{photon::ROOT, protocol_data::OpStatus, OpInfo};
+use photon::{photon::ROOT, OpInfo};
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount, commitment_config::CommitmentConfig,
-    instruction::Instruction, signer::Signer,
+    address_lookup_table::AddressLookupTableAccount, instruction::Instruction, signer::Signer,
 };
 use solana_transactor::{ix_compiler::InstructionBundle, log_with_ctx, SolanaTransactor};
 use std::ops::Deref;
@@ -22,7 +21,7 @@ use tokio::sync::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
-use transmitter_common::data::{OperationData, SignedOperation};
+use transmitter_common::data::{OpHash, OperationData, SignedOperation};
 
 use super::{
     error::ExecutorError, extension_manager::ExtensionManager, ExecutorOpStatus, OpAcknowledge,
@@ -122,62 +121,41 @@ impl OperationManager {
 
     async fn process_operation(
         &self,
-        op_hash: [u8; 32],
+        op_hash: OpHash,
         op: SignedOperation,
         alt: &[AddressLookupTableAccount],
     ) -> Result<(), ExecutorError> {
         let op_hash_str = hex::encode(op_hash);
-        debug!("{}, operation received", op_hash_str);
-        let (op_info, _) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
-
+        debug!("{}. Operation received", op_hash_str);
+        let mut last_op_status = (None, 0);
         loop {
             if !self.check_balance_and_suspend(&op_hash_str).await {
                 continue;
             }
-            self.suspending_ctx.op_proc_counter.fetch_add(1, Ordering::Release);
-            let op_info_data = self
-                .transactor
-                .rpc_pool()
-                .with_read_rpc_loop(
-                    |rpc| async move {
-                        rpc.get_account_with_commitment(&op_info, CommitmentConfig::finalized())
-                            .await
-                    },
-                    CommitmentConfig::finalized(),
-                )
-                .await
-                .value;
-            let op_status = match op_info_data {
-                Some(acc) => match OpInfo::try_deserialize(&mut &acc.data[..]) {
-                    Ok(s) => match s.status {
-                        OpStatus::None => ExecutorOpStatus::New,
-                        OpStatus::Init => ExecutorOpStatus::Loaded,
-                        OpStatus::Signed => ExecutorOpStatus::Signed,
-                        OpStatus::Executed => ExecutorOpStatus::Executed,
-                    },
-                    Err(e) => {
-                        error!(
-                            "{}. Failed to deserialize op_info, ({}) skipping...",
-                            op_hash_str, e
-                        );
-                        return Ok(());
-                    }
-                },
-                None => ExecutorOpStatus::New,
-            };
-            debug!("{}. current op status: {:?}", op_hash_str, op_status);
-            let ix_bundle = self.build_ixs(op_hash, op.clone(), op_status)?;
 
-            if ix_bundle.is_empty() {
-                self.op_acknowledge_sender
-                    .send(OpAcknowledge::new(
-                        op.eob_block_number,
-                        op_hash,
-                        ExecutorOpStatus::Executed,
-                    ))
-                    .expect("Expected acknowledge to be sent");
+            self.suspending_ctx.op_proc_counter.fetch_add(1, Ordering::Release);
+            let Ok(mut op_status) = self.get_op_status(op_hash).await else {
+                return Ok(());
+            };
+
+            match last_op_status {
+                (Some(value), ref mut attempts) if value == op_status => {
+                    *attempts += 1;
+                    if *attempts >= self.solana_config.executor_attempts {
+                        op_status = ExecutorOpStatus::Failed;
+                    }
+                }
+                _ => last_op_status = (Some(op_status), 0),
+            }
+
+            debug!("{}. Operation status: {:?}", op_hash_str, op_status);
+            if ExecutorOpStatus::Executed == op_status || ExecutorOpStatus::Failed == op_status {
+                self.ack_executed(op.eob_block_number, op_hash, op_status);
                 break;
             }
+
+            let ix_bundle = self.build_ixs(op_hash, op.clone(), op_status)?;
+            const COMPUTE_UNIT_PRICE_LAMPORTS: u64 = 1000;
             self.transactor
                 .send_all_instructions(
                     Some(op_hash_str.deref()),
@@ -186,12 +164,49 @@ impl OperationManager {
                     self.solana_config.payer.pubkey(),
                     1,
                     alt,
-                    Some(1000),
+                    Some(COMPUTE_UNIT_PRICE_LAMPORTS),
                     false,
                 )
                 .await?;
         }
         Ok(())
+    }
+
+    fn ack_executed(&self, eob_block_number: u64, op_hash: OpHash, op_status: ExecutorOpStatus) {
+        self.op_acknowledge_sender
+            .send(OpAcknowledge::new(eob_block_number, op_hash, op_status))
+            .expect("Expected acknowledge to be sent");
+    }
+
+    async fn get_op_status(&self, op_hash: OpHash) -> Result<ExecutorOpStatus, ExecutorError> {
+        let (op_info, _) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
+        let op_info_data = self
+            .transactor
+            .rpc_pool()
+            .with_read_rpc_loop(
+                |rpc| async move {
+                    rpc.get_account_with_commitment(&op_info, self.solana_config.client.commitment)
+                        .await
+                },
+                self.solana_config.client.commitment,
+            )
+            .await
+            .value;
+        let op_status = match op_info_data {
+            Some(acc) => match OpInfo::try_deserialize(&mut &acc.data[..]) {
+                Ok(s) => ExecutorOpStatus::from(s.status),
+                Err(e) => {
+                    error!(
+                        "{}. Failed to deserialize op_info, ({}) skipping...",
+                        hex::encode(op_hash),
+                        e
+                    );
+                    return Err(ExecutorError::MalformedData);
+                }
+            },
+            None => ExecutorOpStatus::New,
+        };
+        Ok(op_status)
     }
 
     async fn get_balance(&self) -> Result<u64, ExecutorError> {
@@ -296,7 +311,9 @@ impl OperationManager {
                 op_hash,
                 op.operation_data.clone(),
             )?],
-            ExecutorOpStatus::Executed => vec![],
+            ExecutorOpStatus::Executed | ExecutorOpStatus::Failed => {
+                panic!("Unexpected op status")
+            }
         })
     }
 }

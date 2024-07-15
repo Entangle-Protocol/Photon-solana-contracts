@@ -86,6 +86,22 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     reserved: <Vec<u8>>::default(),
                 }
             }
+            Operation::ToBeFailed => {
+                let function_selector: Vec<u8> = b"\x01\x0Cto_be_failed".to_vec();
+                OperationData {
+                    protocol_id,
+                    meta,
+                    src_block_number: 1,
+                    src_chain_id: dst_chain_id,
+                    dest_chain_id: dst_chain_id,
+                    nonce,
+                    src_op_tx_id: tx_id.to_vec(),
+                    protocol_addr: protocol_address.clone(),
+                    function_selector,
+                    params: <Vec<u8>>::default(),
+                    reserved: <Vec<u8>>::default(),
+                }
+            }
             Operation::InitOwnedCounter => {
                 let function_selector: Vec<u8> = b"\x01\x12init_owned_counter".to_vec();
                 OperationData {
