@@ -443,7 +443,7 @@ pub mod photon {
         op_hash: Vec<u8>,
     ) -> Result<()> {
         let op_data = &ctx.accounts.op_info.op_data;
-
+        msg!("op_hash: {}", hex::encode(&op_hash));
         // The first account in remaining_accounts should be protocol address, which is added first in account list
         let mut accounts: Vec<_> = ctx.remaining_accounts.first().into_iter().cloned().collect();
         require!(

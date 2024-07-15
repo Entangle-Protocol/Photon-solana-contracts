@@ -134,7 +134,7 @@ impl OpRegistry {
 
         match acknowledge.status {
             ExecutorOpStatus::New => Self::on_new_operation(block_info, acknowledge.op_hash),
-            ExecutorOpStatus::Executed => {
+            ExecutorOpStatus::Failed | ExecutorOpStatus::Executed => {
                 Self::on_executed_operation(block_info, acknowledge.op_hash)
             }
             unexpected => error!("Unexpected operation status: {:?}", unexpected),

@@ -40,6 +40,7 @@ pub(super) struct SolanaExecutorConfig {
     pub(super) client: SolanaClientConfig,
     #[serde(flatten)]
     pub(super) suspending_config: SuspendingConfig,
+    pub(super) executor_attempts: usize,
 }
 
 #[derive(Debug, Deserialize)]

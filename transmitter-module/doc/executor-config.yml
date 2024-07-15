@@ -41,6 +41,8 @@ solana:
     warn_balance_lamports: 2000000000
     # A balance threshold to pause operation processing if that is bellow the defined value
     suspend_balance_lamports: 1000000000
+    # The attempts to retry an operation if that is in the same status until it is considered as failed and skipped
+    executor_attempts: 2
 
 # List of executor extensions registered for solana transaction preprocessing
 extensions:

@@ -44,6 +44,11 @@ pub mod onefunc {
         Ok(())
     }
 
+    pub fn to_be_failed(_ctx: Context<ToBeFailed>) -> Result<()> {
+        require!(false, CustomError::InvalidParams);
+        Ok(())
+    }
+
     pub fn increment_owned_counter(
         ctx: Context<IncrementOwnedCounter>,
         params: Vec<u8>,
@@ -205,6 +210,21 @@ pub struct Increment<'info> {
         bump
     )]
     counter: Box<Account<'info, Counter>>,
+}
+
+#[derive(Accounts)]
+pub struct ToBeFailed<'info> {
+    /// Protocol executor
+    #[account(signer, mut)]
+    executor: Signer<'info>,
+
+    /// Owner account
+    #[account(signer)]
+    call_authority: Signer<'info>,
+
+    /// Operation info
+    #[account()]
+    op_info: Account<'info, OpInfo>,
 }
 
 #[derive(Accounts)]
