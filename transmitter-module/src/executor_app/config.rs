@@ -38,6 +38,15 @@ pub(super) struct SolanaExecutorConfig {
     pub(super) payer: Keypair,
     #[serde(flatten)]
     pub(super) client: SolanaClientConfig,
+    #[serde(flatten)]
+    pub(super) suspending_config: SuspendingConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct SuspendingConfig {
+    pub(super) check_balance_period: usize,
+    pub(super) warn_balance_lamports: u64,
+    pub(super) suspend_balance_lamports: u64,
 }
 
 impl ExecutorConfig {

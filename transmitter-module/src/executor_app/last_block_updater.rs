@@ -67,7 +67,7 @@ impl LastBlockUpdater {
 
     async fn process_acknowledges(&self) -> Result<(), ExecutorError> {
         while let Some(acknowledge) = self.acknowledge_receiver.lock().await.recv().await {
-            debug!("Operation acknowledge received: {:?}", acknowledge);
+            debug!("Operation acknowledge received: {}", acknowledge);
             self.on_acknowledge(acknowledge).await;
         }
         Ok(())

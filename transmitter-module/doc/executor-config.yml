@@ -35,6 +35,12 @@ solana:
     # The solana client commitment to not continue processing until the given confirmation level happens
     # possible values: processed, confirmed, finalized
     commitment: confirmed
+    # A threshold that is expressed in the operation executing attempts. Each 100th attempt balance should be checked.
+    check_balance_period: 100
+    # A balance threshold to warn if that is bellow the defined value
+    warn_balance_lamports: 2000000000
+    # A balance threshold to pause operation processing if that is bellow the defined value
+    suspend_balance_lamports: 1000000000
 
 # List of executor extensions registered for solana transaction preprocessing
 extensions:

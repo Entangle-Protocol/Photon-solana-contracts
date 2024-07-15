@@ -7,51 +7,66 @@ use log::*;
 use photon::{photon::ROOT, protocol_data::OpStatus, OpInfo};
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount, commitment_config::CommitmentConfig,
-    instruction::Instruction, signature::Keypair, signer::Signer,
+    instruction::Instruction, signer::Signer,
 };
-use solana_transactor::{ix_compiler::InstructionBundle, SolanaTransactor};
+use solana_transactor::{ix_compiler::InstructionBundle, log_with_ctx, SolanaTransactor};
 use std::ops::Deref;
-use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    Mutex,
+use std::sync::{
+    atomic::{AtomicU64, AtomicUsize, Ordering},
+    Arc,
 };
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use std::time::Duration;
+use tokio::sync::{
+    mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
+    Mutex, Notify,
+};
+use tokio_stream::wrappers::ReceiverStream;
 
 use transmitter_common::data::{OperationData, SignedOperation};
 
 use super::{
     error::ExecutorError, extension_manager::ExtensionManager, ExecutorOpStatus, OpAcknowledge,
-    ServiceCmd,
+    ServiceCmd, OP_DATA_SENDER_CAPACITY,
 };
+use crate::executor_app::config::SolanaExecutorConfig;
 
-pub(super) struct AltOperationManager {
-    op_data_receiver: Mutex<Option<UnboundedReceiverStream<SignedOperation>>>,
+pub(super) struct OperationManager {
+    op_data_receiver: Mutex<Option<ReceiverStream<SignedOperation>>>,
     op_acknowledge_sender: UnboundedSender<OpAcknowledge>,
     transactor: SolanaTransactor,
     extension_mng: ExtensionManager,
-    executor: Keypair,
+    solana_config: SolanaExecutorConfig,
     service_receiver: Mutex<UnboundedReceiver<ServiceCmd>>,
+    suspending_ctx: SuspendingCtx,
 }
 
-impl AltOperationManager {
+#[derive(Default)]
+struct SuspendingCtx {
+    balance: AtomicU64,
+    processing_notify: Mutex<Option<Arc<Notify>>>,
+    op_proc_counter: AtomicUsize,
+}
+
+impl OperationManager {
     pub fn new(
-        op_data_receiver: UnboundedReceiver<SignedOperation>,
+        op_data_receiver: Receiver<SignedOperation>,
         op_acknowledge_sender: UnboundedSender<OpAcknowledge>,
         transactor: SolanaTransactor,
         extensions: Vec<String>,
-        executor: Keypair,
+        solana_config: SolanaExecutorConfig,
         service_receiver: UnboundedReceiver<ServiceCmd>,
     ) -> Self {
         let extension_mng = ExtensionManager::new(extensions);
-        let op_data_receiver: UnboundedReceiverStream<SignedOperation> =
-            UnboundedReceiverStream::new(op_data_receiver);
+        let op_data_receiver: ReceiverStream<SignedOperation> =
+            ReceiverStream::new(op_data_receiver);
         Self {
             op_data_receiver: Mutex::new(Some(op_data_receiver)),
             op_acknowledge_sender,
             transactor,
             extension_mng,
-            executor,
+            solana_config,
             service_receiver: Mutex::new(service_receiver),
+            suspending_ctx: SuspendingCtx::default(),
         }
     }
 
@@ -89,7 +104,7 @@ impl AltOperationManager {
             .await
             .take()
             .unwrap()
-            .for_each_concurrent(64, |op_data| async {
+            .for_each_concurrent(OP_DATA_SENDER_CAPACITY, |op_data| async {
                 let op_hash = op_data.operation_data.op_hash_with_message();
                 self.op_acknowledge_sender
                     .send(OpAcknowledge::new(
@@ -114,7 +129,12 @@ impl AltOperationManager {
         let op_hash_str = hex::encode(op_hash);
         debug!("{}, operation received", op_hash_str);
         let (op_info, _) = Pubkey::find_program_address(&[ROOT, b"OP", &op_hash], &photon::ID);
+
         loop {
+            if !self.check_balance_and_suspend(&op_hash_str).await {
+                continue;
+            }
+            self.suspending_ctx.op_proc_counter.fetch_add(1, Ordering::Release);
             let op_info_data = self
                 .transactor
                 .rpc_pool()
@@ -162,8 +182,8 @@ impl AltOperationManager {
                 .send_all_instructions(
                     Some(op_hash_str.deref()),
                     &ix_bundle,
-                    &[&self.executor],
-                    self.executor.pubkey(),
+                    &[&self.solana_config.payer],
+                    self.solana_config.payer.pubkey(),
                     1,
                     alt,
                     Some(1000),
@@ -174,35 +194,105 @@ impl AltOperationManager {
         Ok(())
     }
 
+    async fn get_balance(&self) -> Result<u64, ExecutorError> {
+        let rpc = self.transactor.rpc_pool();
+        let rpc_balance = rpc
+            .with_read_rpc(
+                |rpc| async move { rpc.get_balance(&self.solana_config.payer.pubkey()).await },
+                self.solana_config.client.commitment,
+            )
+            .await
+            .map_err(|err| {
+                error!("Failed to get balance: {}", err);
+                ExecutorError::from(err)
+            })?;
+        Ok(rpc_balance)
+    }
+
+    async fn check_balance_and_suspend(&self, op_hash: &str) -> bool {
+        let suspending_config = &self.solana_config.suspending_config;
+
+        if self.suspending_ctx.op_proc_counter.load(Ordering::Acquire)
+            % suspending_config.check_balance_period
+            == 0
+        {
+            let Ok(new_balance) = self.get_balance().await else {
+                return false;
+            };
+            self.suspending_ctx.balance.store(new_balance, Ordering::Release);
+            if new_balance < suspending_config.suspend_balance_lamports {
+                warn!(
+                    "Executor balance is too low: {} lamports. Processing will be suspended.",
+                    new_balance
+                );
+            } else if new_balance < suspending_config.warn_balance_lamports {
+                warn!("Executor balance is getting too low: {} lamports", new_balance);
+            }
+        }
+
+        let balance = self.suspending_ctx.balance.load(Ordering::Acquire);
+        if balance >= suspending_config.suspend_balance_lamports {
+            return true;
+        }
+
+        // At this place all operation precesses are getting synchronized
+        let mut notify_guard = self.suspending_ctx.processing_notify.lock().await;
+        if let Some(notify) = notify_guard.clone() {
+            log_with_ctx!(
+                debug,
+                Some(op_hash),
+                "Balance is insufficient: {} lamports, suspended",
+                balance
+            );
+            drop(notify_guard);
+            notify.notified().await;
+            return true;
+        }
+
+        notify_guard.replace(Arc::new(Notify::new()));
+        drop(notify_guard);
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            let Ok(balance) = self.get_balance().await else {
+                continue;
+            };
+            log_with_ctx!(debug, Some(op_hash), "Balance is being checked: {} lamports", balance);
+            if balance >= suspending_config.suspend_balance_lamports {
+                self.suspending_ctx.balance.store(balance, Ordering::Release);
+                log_with_ctx!(debug, Some(op_hash), "Resume processing, balance: {}", balance);
+                let mut proc_notify_guard = self.suspending_ctx.processing_notify.lock().await;
+                proc_notify_guard.take().expect("Expected to be set").notify_waiters();
+                return true;
+            }
+        }
+    }
+
     fn build_ixs(
         &self,
         op_hash: [u8; 32],
         op: SignedOperation,
         op_status: ExecutorOpStatus,
     ) -> Result<Vec<InstructionBundle>, ExecutorError> {
+        let payer = self.solana_config.payer.pubkey();
         Ok(match op_status {
             ExecutorOpStatus::New => vec![
-                build_load_ix(self.executor.pubkey(), op_hash, op.operation_data.clone())?,
-                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
+                build_load_ix(payer, op_hash, op.operation_data.clone())?,
+                build_sign_tx(payer, op_hash, op.clone())?,
                 build_execute_tx(
                     &self.extension_mng,
-                    self.executor.pubkey(),
+                    self.solana_config.payer.pubkey(),
                     op_hash,
                     op.operation_data.clone(),
                 )?,
             ],
             ExecutorOpStatus::Loaded => vec![
-                build_sign_tx(self.executor.pubkey(), op_hash, op.clone())?,
-                build_execute_tx(
-                    &self.extension_mng,
-                    self.executor.pubkey(),
-                    op_hash,
-                    op.operation_data.clone(),
-                )?,
+                build_sign_tx(payer, op_hash, op.clone())?,
+                build_execute_tx(&self.extension_mng, payer, op_hash, op.operation_data.clone())?,
             ],
             ExecutorOpStatus::Signed => vec![build_execute_tx(
                 &self.extension_mng,
-                self.executor.pubkey(),
+                payer,
                 op_hash,
                 op.operation_data.clone(),
             )?],
