@@ -25,6 +25,7 @@ impl ListenerApp {
     }
 
     fn new(config: ListenConfig) -> ListenerApp {
+        Self::trace_config(&config);
         let (propose_sender, propose_receiver) = unbounded_channel();
         let (logs_sender, logs_receiver) = unbounded_channel();
         ListenerApp {
@@ -36,6 +37,32 @@ impl ListenerApp {
                 config.allowed_protocols,
             ),
         }
+    }
+
+    fn trace_config(config: &ListenConfig) {
+        info!("solana_commitment: {}", config.solana.client.commitment.commitment);
+
+        for rpc in &config.solana.client.read_rpcs {
+            info!("solana_read_rpc: {}, rate_limit: {}", rpc.url, rpc.ratelimit);
+        }
+
+        for rpc in &config.solana.client.write_rpcs {
+            info!("solana_write_rpc: {}, rate_limit: {}", rpc.url, rpc.ratelimit);
+        }
+
+        info!(
+            "mongodb. uri: {}, user: {}, db: {}, key: {}",
+            config.mongodb.uri, config.mongodb.user, config.mongodb.db, config.mongodb.key
+        );
+        info!(
+            "rabbitmq. host: {}, port: {}, user: {},  binding: {:?},  reconnect: {:?}",
+            config.rabbitmq.connect.host,
+            config.rabbitmq.connect.port,
+            config.rabbitmq.connect.user,
+            config.rabbitmq.binding,
+            config.rabbitmq.reconnect
+        );
+        info!("allowed_protocols: {}", config.allowed_protocols.join(", "));
     }
 
     async fn execute_impl(&mut self) {

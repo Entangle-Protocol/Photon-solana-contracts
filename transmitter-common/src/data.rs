@@ -1,10 +1,11 @@
+use hex;
 use photon::{
     protocol_data::FunctionSelector,
     util::{u128_to_bytes32, u64_to_bytes32},
 };
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{bs58, pubkey::Pubkey};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -42,7 +43,13 @@ pub enum TransmitterMsgImpl {
     SignedOperationData(SignedOperation),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, derive_more::Display, Deserialize, Serialize)]
+#[display(
+    fmt = "{{ operation_data: {}, eob_block_number: {}, signatures: {} }}",
+    operation_data,
+    eob_block_number,
+    "signatures.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(\",\")"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct SignedOperation {
     #[serde(rename = "operation")]
@@ -51,7 +58,8 @@ pub struct SignedOperation {
     pub eob_block_number: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, derive_more::Display, Deserialize, Serialize)]
+#[display(fmt = "{:x}{}{}", v, "hex::encode(r)", "hex::encode(s)")]
 pub struct TransmitterSignature {
     pub v: u8,
     pub r: Vec<u8>,
@@ -68,8 +76,24 @@ impl From<TransmitterSignature> for photon::protocol_data::TransmitterSignature 
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, derive_more::Display, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[display(
+    fmt = "{{ protocol_id: \"{}\", meta: {}, src_chain_id: {}, src_block_number: {}, src_op_tx_id: \
+              0x{}, nonce: {}, dest_chain_id: {}, protocol_addr: {}, function_selector: {}, params: \
+              {}, reserved: {}}}",
+    "String::from_utf8_lossy(&protocol_id.0)",
+    "hex::encode(meta)",
+    src_chain_id,
+    src_block_number,
+    "hex::encode(src_op_tx_id)",
+    nonce,
+    dest_chain_id,
+    "bs58::encode(protocol_addr).into_string()",
+    "hex::encode(function_selector)",
+    "hex::encode(params)",
+    "hex::encode(reserved)"
+)]
 pub struct OperationData {
     #[serde(with = "protocol_id_serialization")]
     pub protocol_id: ProtocolId,

@@ -17,4 +17,6 @@ pub(crate) enum ExecutorError {
     Mongodb(#[from] mongodb::error::Error),
     #[error("Solana transactor error {0}")]
     SolanaTransactorError(#[from] solana_transactor::TransactorError),
+    #[error("Solana client error {0}")]
+    SolanaClientError(#[from] solana_client::client_error::ClientError),
 }

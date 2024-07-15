@@ -4973,6 +4973,7 @@ dependencies = [
  "bincode",
  "bs58 0.5.1",
  "clap 4.5.8",
+ "derive_more",
  "env_logger 0.11.2",
  "futures",
  "hex",
@@ -5908,6 +5909,7 @@ version = "0.1.0"
 dependencies = [
  "amqprs",
  "async-trait",
+ "derive_more",
  "entangle-photon-sol",
  "hex",
  "log",

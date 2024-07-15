@@ -6,17 +6,19 @@ use solana_transactor::{RpcPool, SolanaTransactor};
 use std::io;
 use tokio::{
     select,
-    sync::mpsc::{unbounded_channel, UnboundedSender},
+    sync::mpsc::{channel, unbounded_channel, UnboundedSender},
 };
+use transmitter_common::data::SignedOperation;
 
 use super::{
-    alt_operation_manager::AltOperationManager, config::ExecutorConfig, error::ExecutorError,
-    last_block_updater::LastBlockUpdater, rabbitmq_consumer::RabbitmqConsumer, ServiceCmd,
+    config::ExecutorConfig, error::ExecutorError, last_block_updater::LastBlockUpdater,
+    operation_manager::OperationManager, rabbitmq_consumer::RabbitmqConsumer, ServiceCmd,
+    OP_DATA_SENDER_CAPACITY,
 };
 
 pub(crate) struct ExecutorApp {
     rabbitmq_consumer: RabbitmqConsumer,
-    operation_mng: AltOperationManager,
+    operation_mng: OperationManager,
     service_sender: UnboundedSender<ServiceCmd>,
     last_block_updater: LastBlockUpdater,
 }
@@ -43,12 +45,12 @@ impl ExecutorApp {
     }
 
     async fn try_new(config: ExecutorConfig) -> Result<ExecutorApp, ExecutorError> {
-        let (op_data_sender, op_data_receiver) = unbounded_channel();
+        Self::trace_config(&config);
+        let (op_data_sender, op_data_receiver) =
+            channel::<SignedOperation>(OP_DATA_SENDER_CAPACITY);
         let (service_sender, service_receiver) = unbounded_channel();
         let (last_block_sender, last_block_receiver) = unbounded_channel();
         let executor = config.solana.payer.pubkey();
-        log::info!("Total read RPCs: {}", config.solana.client.read_rpcs.len());
-        log::info!("Total write RPCs: {}", config.solana.client.write_rpcs.len());
         let transactor = SolanaTransactor::start(RpcPool::new(
             &config.solana.client.read_rpcs,
             &config.solana.client.write_rpcs,
@@ -61,21 +63,51 @@ impl ExecutorApp {
                 CommitmentConfig::confirmed(),
             )
             .await;
-        log::info!("Executor: {}, balance: {}", executor, balance);
+        info!("Executor: {}, balance: {}", executor, balance);
         Ok(ExecutorApp {
             rabbitmq_consumer: RabbitmqConsumer::new(config.rabbitmq, op_data_sender),
-            operation_mng: AltOperationManager::new(
+            operation_mng: OperationManager::new(
                 op_data_receiver,
                 last_block_sender,
                 transactor,
                 config.extensions,
-                config.solana.payer,
+                config.solana,
                 service_receiver,
             ),
             last_block_updater: LastBlockUpdater::try_new(config.mongodb, last_block_receiver)
                 .await?,
             service_sender,
         })
+    }
+
+    fn trace_config(config: &ExecutorConfig) {
+        info!(
+            "solana_commitment: {}, executor: {}",
+            config.solana.client.commitment.commitment,
+            config.solana.payer.pubkey(),
+        );
+        for rpc in &config.solana.client.read_rpcs {
+            info!("solana_read_rpc: {}, rate_limit: {}", rpc.url, rpc.ratelimit);
+        }
+        for rpc in &config.solana.client.write_rpcs {
+            info!("solana_write_rpc: {}, rate_limit: {}", rpc.url, rpc.ratelimit);
+        }
+
+        info!(
+            "mongodb. uri: {}, user: {}, db: {}, key: {}",
+            config.mongodb.uri, config.mongodb.user, config.mongodb.db, config.mongodb.key
+        );
+        info!(
+            "rabbitmq. host: {}, port: {}, user: {}, queue: {}, binding: {:?}, consumer_tag: {}, reconnect: {:?}",
+            config.rabbitmq.connect.host,
+            config.rabbitmq.connect.port,
+            config.rabbitmq.connect.user,
+            config.rabbitmq.queue,
+            config.rabbitmq.binding,
+            config.rabbitmq.consumer_tag,
+            config.rabbitmq.reconnect
+        );
+        info!("extensions: {}", config.extensions.join(", "));
     }
 
     async fn listen_to_signals(

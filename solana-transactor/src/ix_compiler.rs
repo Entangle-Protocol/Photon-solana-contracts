@@ -114,7 +114,7 @@ impl IxCompiler {
             total_compute_units
         );
         if exceeds_limits(msg_len, total_compute_units) {
-            log_with_ctx!(debug, log_ctx, "Tx limit reached, sending previous instructions...");
+            log_with_ctx!(trace, log_ctx, "Tx limit reached, sending previous instructions...");
             let msg = Message::try_compile(
                 &self.payer,
                 &[

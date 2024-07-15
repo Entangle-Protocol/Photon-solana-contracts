@@ -10,12 +10,15 @@ rabbitmq:
 
 solana:
     read_rpcs:
-        - url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
-          ratelimit: 4
+        -   url: http://solana:8899
+            ratelimit: 4
     write_rpcs:
-        - url: https://wandering-icy-road.solana-mainnet.quiknode.pro/914f9b67832d4cdde6b801a8e0987814799a4f52
-          ratelimit: 1
+        -   url: http://solana:8899
+            ratelimit: 1
     commitment: confirmed
+    check_balance_period: 100
+    warn_balance_lamports: 2000000000
+    suspend_balance_lamports: 1000000000
 
 extensions:
     - /libonefunc_extension.so
