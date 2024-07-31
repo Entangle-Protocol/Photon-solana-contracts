@@ -57,20 +57,18 @@ impl SolanaRetroReader {
             EventListenerError::SolanaClient
         })?);
         let mut until: Option<Signature> = None;
+        let mut need_check: bool;
         let mut next_until: Option<Signature> = None;
-        let mut i = 0;
         loop {
-            i += 1;
             let mut before = None;
             let mut log_bunches = VecDeque::new();
-            until = if tx_read_from.is_some() {
-                tx_read_from.take()
+            (until, need_check) = if tx_read_from.is_some() {
+                (tx_read_from.take(), true)
             } else if next_until.is_some() {
-                next_until
+                (next_until, false)
             } else {
-                until
+                (until, false)
             };
-            debug!("Sequential loop of reading events. i: {}, until tx: {:?}", i, until);
             next_until = None;
             loop {
                 let signatures_backward = Self::get_signatures_chunk(
@@ -101,6 +99,7 @@ impl SolanaRetroReader {
                     &mut log_bunches,
                     signatures_backward,
                     solana_config.client.commitment,
+                    need_check,
                 )
                 .await;
             }
@@ -137,6 +136,7 @@ impl SolanaRetroReader {
         log_bunches: &mut VecDeque<LogsBunch>,
         signatures_with_meta: Vec<RpcConfirmedTransactionStatusWithSignature>,
         commitment: CommitmentConfig,
+        need_check: bool,
     ) {
         for signature_with_meta in signatures_with_meta {
             _ = Self::process_signature(
@@ -145,6 +145,7 @@ impl SolanaRetroReader {
                 log_bunches,
                 signature_with_meta,
                 commitment,
+                need_check,
             )
             .await;
         }
@@ -156,6 +157,7 @@ impl SolanaRetroReader {
         log_bunches: &mut VecDeque<LogsBunch>,
         signature_with_meta: RpcConfirmedTransactionStatusWithSignature,
         commitment: CommitmentConfig,
+        need_check: bool,
     ) -> Result<(), ()> {
         let signature = &Signature::from_str(&signature_with_meta.signature)
             .map_err(|err| error!("Failed to parse signature: {}", err))?;
@@ -190,6 +192,7 @@ impl SolanaRetroReader {
         }
 
         log_bunches.push_front(LogsBunch {
+            need_check,
             tx_signature: signature_with_meta.signature,
             slot: transaction.slot,
             logs,

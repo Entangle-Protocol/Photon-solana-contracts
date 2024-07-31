@@ -12,14 +12,12 @@ use tokio::{
 };
 
 use transmitter_common::{
-    config::ReconnectConfig,
-    data::{TransmitterMsg, TransmitterMsgImpl},
-    rabbitmq_client::RabbitmqClient,
+    config::ReconnectConfig, data::TransmitterMsgImpl, rabbitmq_client::RabbitmqClient,
 };
 
 use super::error::WatcherError;
 use crate::common::rabbitmq::{ChannelControl, ConnectionControl, RabbitmqListenConfig};
-use transmitter_common::data::ProposalExecuted;
+use transmitter_common::data::{ProposalExecuted, TransmitterMsg};
 
 pub(super) struct RabbitmqPublisher {
     config: RabbitmqListenConfig,
@@ -58,7 +56,7 @@ impl RabbitmqPublisher {
                     self.init_connection().await?;
                     continue
                 },
-                op_data = self.propose_to_progress() => op_data
+                proposal = self.propose_to_progress() => proposal
             };
             let Some(operation_status) = proposal_executed else {
                 return Ok(());
@@ -67,9 +65,11 @@ impl RabbitmqPublisher {
         }
     }
 
-    async fn publish_propose(&mut self, operation_executed: ProposalExecuted) {
-        let transmitter_msg =
-            TransmitterMsg::V1(TransmitterMsgImpl::ProposalExecuted(operation_executed.clone()));
+    async fn publish_propose(&mut self, proposal: ProposalExecuted) {
+        let transmitter_msg = TransmitterMsg::new(
+            TransmitterMsgImpl::ProposalExecuted(proposal.clone()),
+            proposal.need_check,
+        );
         debug!("operation_status to be sent: {:?}", transmitter_msg);
         let Ok(json_data) = serde_json::to_vec(&transmitter_msg).map_err(|err| {
             error!(
@@ -83,7 +83,7 @@ impl RabbitmqPublisher {
         let channel = self.channel.as_ref().expect("Expected rabbitmq channel to be set");
         let res = channel.basic_publish(BasicProperties::default(), json_data, args.clone()).await;
         let _ = res.map_err(|err| {
-            self.buffered_op_status = Some(operation_executed);
+            self.buffered_op_status = Some(proposal);
             error!("Failed to publish operation_data message, error: {}", err);
         });
     }

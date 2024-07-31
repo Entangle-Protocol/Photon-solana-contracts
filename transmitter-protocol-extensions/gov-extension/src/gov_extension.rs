@@ -41,7 +41,8 @@ impl ProtocolExtension for GovExtension {
             error!("Failed to get first chunk of gov selector");
             ExtensionError::Extension
         })?;
-        let selector_u32 = u32::from_be_bytes(<[u8; 4]>::try_from(code).expect("Expected gov code to be 4 bytes"));
+        let selector_u32 =
+            u32::from_be_bytes(<[u8; 4]>::try_from(code).expect("Expected gov code to be 4 bytes"));
         let gov_operation = GovOperation::try_from(selector_u32).map_err(|err| {
             error!("Failed to get gov_operation from selector: {}", err);
             ExtensionError::Extension

@@ -14,7 +14,7 @@ use tokio::sync::{mpsc::Sender, Notify};
 
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{SignedOperation, TransmitterMsg, TransmitterMsgImpl},
+    data::{SignedOperation, TransmitterMsgImpl, TransmitterMsgVersioned},
     rabbitmq_client::RabbitmqClient,
 };
 
@@ -117,9 +117,9 @@ impl RabbitmqConsumer {
         };
 
         let signed_operation = match serde_json::from_str(&data) {
-            Ok(TransmitterMsg::V1(TransmitterMsgImpl::SignedOperationData(signed_operation))) => {
-                signed_operation
-            }
+            Ok(TransmitterMsgVersioned::V1(TransmitterMsgImpl::SignedOperationData(
+                signed_operation,
+            ))) => signed_operation,
             Ok(msg) => {
                 warn!("Received unexpected data: {:? }", msg);
                 return;

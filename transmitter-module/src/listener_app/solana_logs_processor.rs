@@ -58,7 +58,7 @@ impl ProposalEventProcessor {
 impl EventProcessor for ProposalEventProcessor {
     type Event = ProposeEvent;
 
-    fn on_event(&self, event: ProposeEvent, signature: &str, slot: u64) {
+    fn on_event(&self, event: Self::Event, signature: &str, slot: u64, need_check: bool) {
         if !self.allowed_protocols.contains(&event.protocol_id) {
             return;
         }
@@ -75,6 +75,7 @@ impl EventProcessor for ProposalEventProcessor {
             return;
         };
         if let Err(err) = self.propose_sender.send(Propose {
+            need_check,
             latest_block_id: signature.to_string(),
             operation_data: OperationData {
                 src_chain_id: SOLANA_CHAIN_ID,

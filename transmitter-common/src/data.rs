@@ -28,8 +28,26 @@ impl Display for ProtocolId {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransmitterMsg {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub need_check: Option<bool>,
+    #[serde(flatten)]
+    pub msg: TransmitterMsgVersioned,
+}
+
+impl TransmitterMsg {
+    pub fn new(msg_impl: TransmitterMsgImpl, need_check: bool) -> TransmitterMsg {
+        TransmitterMsg {
+            msg: TransmitterMsgVersioned::V1(msg_impl),
+            need_check: Some(need_check),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "version")]
-pub enum TransmitterMsg {
+pub enum TransmitterMsgVersioned {
     #[serde(rename = "1.0")]
     V1(TransmitterMsgImpl),
 }
@@ -163,6 +181,8 @@ impl TryFrom<OperationData> for photon::protocol_data::OperationData {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Propose {
+    #[serde(skip)]
+    pub need_check: bool,
     pub latest_block_id: String,
     #[serde(flatten)]
     pub operation_data: OperationData,
@@ -245,6 +265,8 @@ mod protocol_id_serialization {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalExecuted {
+    #[serde(skip)]
+    pub need_check: bool,
     pub last_watched_block: String,
     pub op_hash: OpHash,
     pub executor: Pubkey,

@@ -8,7 +8,8 @@ use log::{debug, error, info};
 use serde::Deserialize;
 use transmitter_common::{
     data::{
-        OperationData, SignedOperation, TransmitterMsg, TransmitterMsgImpl, TransmitterSignature,
+        OperationData, SignedOperation, TransmitterMsgImpl, TransmitterMsgVersioned,
+        TransmitterSignature,
     },
     rabbitmq_client::{RabbitmqBindingConfig, RabbitmqClient, RabbitmqConnectConfig},
 };
@@ -46,11 +47,12 @@ impl RabbitmqPublisher {
             self.config.binding.exchange, self.config.binding.routing_key
         );
 
-        let msg = TransmitterMsg::V1(TransmitterMsgImpl::SignedOperationData(SignedOperation {
-            operation_data,
-            signatures,
-            eob_block_number,
-        }));
+        let msg =
+            TransmitterMsgVersioned::V1(TransmitterMsgImpl::SignedOperationData(SignedOperation {
+                operation_data,
+                signatures,
+                eob_block_number,
+            }));
 
         let json_data = serde_json::to_vec(&msg).expect("Expected operation be serialized well");
         let args = BasicPublishArguments::from(&self.config.binding);

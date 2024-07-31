@@ -36,9 +36,10 @@ impl OperationExecutedEventProcessor {
 impl EventProcessor for OperationExecutedEventProcessor {
     type Event = photon::ProposalExecuted;
 
-    fn on_event(&self, event: Self::Event, signature: &str, _slot: u64) {
+    fn on_event(&self, event: Self::Event, signature: &str, _slot: u64, need_check: bool) {
         debug!("OperationExecuted status event intercepted: {:?}", event);
         if let Err(err) = self.op_status_sender.send(ProposalExecuted {
+            need_check,
             last_watched_block: signature.to_string(),
             op_hash: OpHash::try_from(event.op_hash)
                 .expect("op_hash expected to be gotten from proposal_executed event"),

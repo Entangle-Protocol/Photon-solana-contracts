@@ -45,7 +45,7 @@ RUSTFLAGS="--cfg feature=\"devnet\"" anchor build
 To run the solana test validator with previously compiled solana programs, you can use the following command
 
 ```sh
-solana-test-validator --reset --bpf-program keys/onefunc-keypair.json target/deploy/onefunc.so --bpf-program keys/photon-keypair.json target/deploy/photon.so
+solana-test-validator --reset --config solana_config.yml --bpf-program keys/onefunc-keypair.json target/deploy/onefunc.so --bpf-program keys/photon-keypair.json target/deploy/photon.so
 ```
 
 The test script facilitates a range of government operations available through the photon messaging endpoint. These
