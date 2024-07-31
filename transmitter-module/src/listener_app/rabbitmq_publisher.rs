@@ -11,9 +11,10 @@ use tokio::{
     sync::{mpsc::UnboundedReceiver, Notify},
 };
 
+use transmitter_common::data::TransmitterMsg;
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{Propose, TransmitterMsg, TransmitterMsgImpl},
+    data::{Propose, TransmitterMsgImpl},
     rabbitmq_client::RabbitmqClient,
 };
 
@@ -57,7 +58,7 @@ impl RabbitmqPublisher {
                     self.init_connection().await?;
                     continue
                 },
-                op_data = self.propose_to_progress() => op_data
+                proposal = self.propose_to_progress() => proposal
             };
             let Some(propose) = propose else {
                 return Ok(());
@@ -67,7 +68,8 @@ impl RabbitmqPublisher {
     }
 
     async fn publish_propose(&mut self, propose: Propose) {
-        let transmitter_msg = TransmitterMsg::V1(TransmitterMsgImpl::Propose(propose.clone()));
+        let transmitter_msg =
+            TransmitterMsg::new(TransmitterMsgImpl::Propose(propose.clone()), propose.need_check);
         debug!("operation_data to be sent: {:?}", transmitter_msg);
         let Ok(json_data) = serde_json::to_vec(&transmitter_msg).map_err(|err| {
             error!(

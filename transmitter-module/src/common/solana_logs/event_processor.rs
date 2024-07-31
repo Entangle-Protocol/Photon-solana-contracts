@@ -16,16 +16,19 @@ pub trait EventProcessor {
             log::error!("Failed to parse logs: {:?}", logs);
             return;
         };
-        debug!(
-            "Logs intercepted, tx_signature: {}, events: {}",
-            logs_bunch.tx_signature.to_string(),
-            events.len()
-        );
+        if !events.is_empty() {
+            debug!(
+                "Logs intercepted, tx_signature: {}, events: {}, need_check: {}",
+                logs_bunch.tx_signature.to_string(),
+                events.len(),
+                logs_bunch.need_check
+            );
+        }
 
         for event in events {
-            self.on_event(event, &logs_bunch.tx_signature, logs_bunch.slot);
+            self.on_event(event, &logs_bunch.tx_signature, logs_bunch.slot, logs_bunch.need_check);
         }
     }
 
-    fn on_event(&self, event: Self::Event, signature: &str, slot: u64);
+    fn on_event(&self, event: Self::Event, signature: &str, slot: u64, need_check: bool);
 }

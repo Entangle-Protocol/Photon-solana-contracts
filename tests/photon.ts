@@ -62,12 +62,12 @@ describe("photon", () => {
     before(async () => {
         let tx = await program.provider.connection.requestAirdrop(
             owner.publicKey,
-            anchor.web3.LAMPORTS_PER_SOL
+            5 * anchor.web3.LAMPORTS_PER_SOL
         );
         await program.provider.connection.confirmTransaction(tx);
         tx = await program.provider.connection.requestAirdrop(
             executor.publicKey,
-            anchor.web3.LAMPORTS_PER_SOL
+            5 * anchor.web3.LAMPORTS_PER_SOL
         );
         await program.provider.connection.confirmTransaction(tx);
 
