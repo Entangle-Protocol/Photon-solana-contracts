@@ -115,7 +115,7 @@ impl ChannelCallback for ChannelControl {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct RabbitmqListenConfig {
+pub(crate) struct RabbitmqPublishConfig {
     #[serde(flatten)]
     pub(crate) connect: RabbitmqConnectConfig,
     #[serde(flatten)]

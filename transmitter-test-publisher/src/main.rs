@@ -50,19 +50,13 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 
     let publisher = RabbitmqPublisher::new(config.rabbitmq);
 
-    let protocol_id = ProtocolId(
-        *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
-    );
-    let gov_protocol_id =
-        ProtocolId(*GOV_PROTOCOL_ID.first_chunk().expect("Expected GOV_PROTOCOL_ID be set"));
+    let protocol_id = ProtocolId(*onefunc::onefunc::PROTOCOL_ID);
+    let gov_protocol_id = ProtocolId(*GOV_PROTOCOL_ID);
 
     let dst_chain_id = photon::photon::SOLANA_CHAIN_ID;
     let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
-    let meta: Meta =
-        *hex::decode("0100000000000000000000000000000000000000000000000000000000000000")
-            .expect("Expected meta hex to be decoded")
-            .first_chunk()
-            .expect("Expected meta chunck to be");
+    let meta: &Meta =
+        b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     for nonce in 0..times {
         let mut tx_id = [0u8; 64];
         rand::thread_rng().fill_bytes(&mut tx_id);
@@ -74,7 +68,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     ethabi::encode(&[Token::Tuple(vec![Token::Uint(Uint::from(*component))])]);
                 OperationData {
                     protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -90,7 +84,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 let function_selector: Vec<u8> = b"\x01\x0Cto_be_failed".to_vec();
                 OperationData {
                     protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -106,7 +100,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 let function_selector: Vec<u8> = b"\x01\x12init_owned_counter".to_vec();
                 OperationData {
                     protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -124,7 +118,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     ethabi::encode(&[Token::Tuple(vec![Token::Uint(Uint::from(*component))])]);
                 OperationData {
                     protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -141,7 +135,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 code_function_selector.extend(code.iter());
                 OperationData {
                     protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: dst_chain_id,
                     dest_chain_id: dst_chain_id,
@@ -168,7 +162,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                 ])]);
                 OperationData {
                     protocol_id: gov_protocol_id,
-                    meta,
+                    meta: *meta,
                     src_block_number: 1,
                     src_chain_id: 33133,
                     dest_chain_id: dst_chain_id,
@@ -254,9 +248,7 @@ mod test {
     fn test_op_hash_by_name_matches() {
         // env_logger::init();
         let meta = [1; 32];
-        let protocol_id = ProtocolId(
-            *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
-        );
+        let protocol_id = ProtocolId(*onefunc::onefunc::PROTOCOL_ID);
         let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
         let mut tx_id = [0u8; 64];
         rand::thread_rng().fill_bytes(&mut tx_id);
@@ -283,9 +275,7 @@ mod test {
     fn test_op_hash_by_code_matches() {
         // env_logger::init();
         let meta = [1; 32];
-        let protocol_id = ProtocolId(
-            *onefunc::onefunc::PROTOCOL_ID.first_chunk().expect("Expected PROTOCOL_ID be set"),
-        );
+        let protocol_id = ProtocolId(*onefunc::onefunc::PROTOCOL_ID);
         let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
         let mut tx_id = [0u8; 64];
         rand::thread_rng().fill_bytes(&mut tx_id);

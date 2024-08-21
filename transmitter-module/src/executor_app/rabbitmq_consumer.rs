@@ -8,9 +8,11 @@ use amqprs::{
 };
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc::Sender, Notify};
+use std::{sync::Arc, time::Duration};
+use tokio::{
+    select,
+    sync::{mpsc::Sender, Mutex, Notify},
+};
 
 use transmitter_common::{
     config::ReconnectConfig,
@@ -25,8 +27,7 @@ pub(super) struct RabbitmqConsumer {
     config: RabbitmqConfig,
     op_data_sender: Sender<SignedOperation>,
     close_notify: Arc<Notify>,
-    connection: Option<Connection>,
-    channel: Option<Channel>,
+    connection: Mutex<Option<(Connection, Channel)>>,
 }
 
 impl RabbitmqConsumer {
@@ -38,15 +39,22 @@ impl RabbitmqConsumer {
             config,
             op_data_sender,
             close_notify: Arc::new(Notify::new()),
-            connection: None,
-            channel: None,
+            connection: Mutex::new(None),
         }
     }
 
-    pub(super) async fn execute(mut self) -> Result<(), ExecutorError> {
+    pub(super) async fn execute(self) -> Result<(), ExecutorError> {
         self.init_connection().await?;
+        let queue_name = self.init_rabbitmq_structure().await?;
+        select! {
+            _ = self.process_incoming_data(&queue_name) => Ok(()),
+            res = self.process_reconnect(self.close_notify.clone()) => res
+        }
+    }
 
-        let channel = self.channel.as_ref().expect("Expected rabbitmq channel to be set");
+    async fn init_rabbitmq_structure(&self) -> Result<String, ExecutorError> {
+        let guard = self.connection.lock().await;
+        let (_, channel) = guard.as_ref().expect("Expected rabbitmq channel to be set");
         let exchange = &self.config.binding.exchange;
         let exch_args = ExchangeDeclareArguments::new(exchange, "direct").durable(true).finish();
         channel.exchange_declare(exch_args).await.map_err(|err| {
@@ -86,19 +94,34 @@ impl RabbitmqConsumer {
             error!("Failed to confirm_select: {}", err);
             ExecutorError::from(err)
         })?;
+        Ok(queue_name)
+    }
 
+    async fn process_incoming_data(&self, queue_name: &str) {
         loop {
-            let Ok(Some((get_ok, _props, data))) = channel
-                .basic_get(BasicGetArguments {
-                    queue: queue_name.clone(),
-                    no_ack: false,
-                })
-                .await
-            else {
-                tokio::time::sleep(Duration::from_secs(1)).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let guard = self.connection.lock().await;
+            let Some((_, channel)) = guard.as_ref() else {
                 continue;
             };
-            self.process_operation_data(channel, get_ok, data).await;
+            if !channel.is_open() {
+                continue;
+            }
+            loop {
+                let Ok(Some((get_ok, _props, data))) =
+                    channel.basic_get(BasicGetArguments::new(queue_name)).await
+                else {
+                    break;
+                };
+                self.process_operation_data(channel, get_ok, data).await
+            }
+        }
+    }
+
+    async fn process_reconnect(&self, notify: Arc<Notify>) -> Result<(), ExecutorError> {
+        loop {
+            notify.notified().await;
+            self.init_connection().await?;
         }
     }
 
@@ -148,12 +171,12 @@ impl RabbitmqConsumer {
 impl RabbitmqClient for RabbitmqConsumer {
     type Error = ExecutorError;
 
-    async fn reconnect(&mut self) -> Result<(), ExecutorError> {
+    async fn reconnect(&self) -> Result<(), ExecutorError> {
         let conn_control = ConnectionControl::new(self.close_notify.clone());
         let conn = self.connect(&self.config.connect, conn_control).await?;
         let chann_control = ChannelControl::new(self.close_notify.clone());
-        self.channel = Some(self.open_channel(&conn, chann_control).await?);
-        self.connection = conn.into();
+        let channel = self.open_channel(&conn, chann_control).await?;
+        self.connection.lock().await.replace((conn, channel));
         Ok(())
     }
 

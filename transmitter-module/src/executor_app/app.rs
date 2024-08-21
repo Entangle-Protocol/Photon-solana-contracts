@@ -65,6 +65,7 @@ impl ExecutorApp {
             .await;
         info!("Executor: {}, balance: {}", executor, balance);
         Ok(ExecutorApp {
+            last_block_updater: LastBlockUpdater::try_new(&config, last_block_receiver).await?,
             rabbitmq_consumer: RabbitmqConsumer::new(config.rabbitmq, op_data_sender),
             operation_mng: OperationManager::new(
                 op_data_receiver,
@@ -74,8 +75,6 @@ impl ExecutorApp {
                 config.solana,
                 service_receiver,
             ),
-            last_block_updater: LastBlockUpdater::try_new(config.mongodb, last_block_receiver)
-                .await?,
             service_sender,
         })
     }

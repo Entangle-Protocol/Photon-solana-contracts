@@ -8,31 +8,28 @@ use log::{debug, error, info};
 use std::sync::Arc;
 use tokio::{
     select,
-    sync::{mpsc::UnboundedReceiver, Notify},
+    sync::{mpsc::UnboundedReceiver, Mutex, Notify},
 };
-
-use transmitter_common::data::TransmitterMsg;
 use transmitter_common::{
     config::ReconnectConfig,
-    data::{Propose, TransmitterMsgImpl},
+    data::{Propose, TransmitterMsg, TransmitterMsgImpl},
     rabbitmq_client::RabbitmqClient,
 };
 
 use super::error::ListenError;
-use crate::common::rabbitmq::{ChannelControl, ConnectionControl, RabbitmqListenConfig};
+use crate::common::rabbitmq::{ChannelControl, ConnectionControl, RabbitmqPublishConfig};
 
 pub(super) struct RabbitmqPublisher {
-    config: RabbitmqListenConfig,
+    config: RabbitmqPublishConfig,
     propose_receiver: UnboundedReceiver<Propose>,
     buffered_propose: Option<Propose>,
     close_notify: Arc<Notify>,
-    connection: Option<Connection>,
-    channel: Option<Channel>,
+    connection: Mutex<Option<(Connection, Channel)>>,
 }
 
 impl RabbitmqPublisher {
     pub(super) fn new(
-        config: RabbitmqListenConfig,
+        config: RabbitmqPublishConfig,
         propose_receiver: UnboundedReceiver<Propose>,
     ) -> RabbitmqPublisher {
         RabbitmqPublisher {
@@ -40,8 +37,7 @@ impl RabbitmqPublisher {
             propose_receiver,
             buffered_propose: None,
             close_notify: Arc::new(Notify::new()),
-            connection: None,
-            channel: None,
+            connection: Mutex::new(None),
         }
     }
 
@@ -80,7 +76,8 @@ impl RabbitmqPublisher {
             return;
         };
         let args = BasicPublishArguments::from(&self.config.binding);
-        let channel = self.channel.as_ref().expect("Expected rabbitmq channel to be set");
+        let guard = self.connection.lock().await;
+        let (_, channel) = guard.as_ref().expect("Expected rabbitmq channel to be set");
         let res = channel.basic_publish(BasicProperties::default(), json_data, args.clone()).await;
         let _ = res.map_err(|err| {
             self.buffered_propose = Some(propose);
@@ -100,12 +97,12 @@ impl RabbitmqPublisher {
 #[async_trait]
 impl RabbitmqClient for RabbitmqPublisher {
     type Error = ListenError;
-    async fn reconnect(&mut self) -> Result<(), ListenError> {
+    async fn reconnect(&self) -> Result<(), ListenError> {
         let conn_control = ConnectionControl::new(self.close_notify.clone());
         let conn = self.connect(&self.config.connect, conn_control).await?;
         let chann_control = ChannelControl::new(self.close_notify.clone());
-        self.channel = Some(self.open_channel(&conn, chann_control).await?);
-        self.connection = conn.into();
+        let channel = self.open_channel(&conn, chann_control).await?;
+        self.connection.lock().await.replace((conn, channel));
         Ok(())
     }
 
