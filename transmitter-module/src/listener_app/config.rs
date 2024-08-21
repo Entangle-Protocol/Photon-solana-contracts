@@ -5,11 +5,11 @@ use serde::Deserialize;
 use transmitter_common::mongodb::MongodbConfig;
 
 use super::error::ListenError;
-use crate::common::{config::SolanaListenerConfig, rabbitmq::RabbitmqListenConfig};
+use crate::common::{config::SolanaListenerConfig, rabbitmq::RabbitmqPublishConfig};
 
 #[derive(Deserialize)]
 pub(super) struct ListenConfig {
-    pub(super) rabbitmq: RabbitmqListenConfig,
+    pub(super) rabbitmq: RabbitmqPublishConfig,
     pub(super) solana: SolanaListenerConfig,
     pub(super) mongodb: MongodbConfig,
     pub(super) allowed_protocols: Vec<String>,

@@ -11,7 +11,7 @@ rabbitmq:
     # Reconnect attempts. The count of times listener will try to recover the connection. Default: 20
     reconnect_attempts: 100
     # Reconnect Timeout. The time between attempts for the listener to try to reconnect. Default: 500
-    reconnect_timeout_ms: 200
+    reconnect_timeout_ms: 500
 
 # solana [pubsubclient](https://docs.rs/solana-pubsub-client/latest/solana_pubsub_client/nonblocking/pubsub_client/index.html) settings
 solana:

@@ -4,13 +4,13 @@ use serde::Deserialize;
 use transmitter_common::mongodb::MongodbConfig;
 
 use crate::{
-    common::{config::SolanaListenerConfig, rabbitmq::RabbitmqListenConfig},
+    common::{config::SolanaListenerConfig, rabbitmq::RabbitmqPublishConfig},
     watcher_app::error::WatcherError,
 };
 
 #[derive(Deserialize)]
 pub(super) struct WatcherConfig {
-    pub(super) rabbitmq: RabbitmqListenConfig,
+    pub(super) rabbitmq: RabbitmqPublishConfig,
     pub(super) solana: SolanaListenerConfig,
     pub(super) mongodb: MongodbConfig,
 }

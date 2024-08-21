@@ -10,7 +10,7 @@ use std::{error::Error, time::Duration};
 
 use super::config::ReconnectConfig;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct RabbitmqConnectConfig {
     pub host: String,
     pub port: u16,
@@ -18,7 +18,7 @@ pub struct RabbitmqConnectConfig {
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct RabbitmqBindingConfig {
     pub exchange: String,
     pub routing_key: String,
@@ -81,7 +81,7 @@ pub trait RabbitmqClient {
         Ok(channel)
     }
 
-    async fn init_connection(&mut self) -> Result<(), Self::Error> {
+    async fn init_connection(&self) -> Result<(), Self::Error> {
         let mut attemts = 0;
         let config = self.reconnect_config().clone();
         while let Err(err) = self.reconnect().await {
@@ -96,7 +96,7 @@ pub trait RabbitmqClient {
         Ok(())
     }
 
-    async fn reconnect(&mut self) -> Result<(), Self::Error> {
+    async fn reconnect(&self) -> Result<(), Self::Error> {
         panic!("This method is can not to be excluded with cfg(feature) because of clippy");
     }
 

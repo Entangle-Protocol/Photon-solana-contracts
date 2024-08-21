@@ -19,4 +19,6 @@ pub(crate) enum ExecutorError {
     SolanaTransactorError(#[from] solana_transactor::TransactorError),
     #[error("Solana client error {0}")]
     SolanaClientError(#[from] solana_client::client_error::ClientError),
+    #[error("Tokio channel error {0}")]
+    ChannelError(#[from] tokio::sync::mpsc::error::SendError<u64>),
 }

@@ -1,10 +1,10 @@
-use crate::{test_config::TestConfig, Consumer};
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
     channel::{
         BasicConsumeArguments, ConfirmSelectArguments, ExchangeDeclareArguments,
         QueueBindArguments, QueueDeclareArguments,
     },
+    connection::Connection,
 };
 use async_trait::async_trait;
 use log::info;
@@ -13,7 +13,10 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
+use tokio::select;
 use transmitter_common::rabbitmq_client::RabbitmqClient;
+
+use crate::{test_config::TestConfig, Consumer};
 
 pub(super) struct RabbitmqConsumer;
 
@@ -31,16 +34,27 @@ impl RabbitmqConsumer {
         let exchange = &config.rabbitmq.binding.exchange;
         let exch_args = ExchangeDeclareArguments::new(exchange, "direct").durable(true).finish();
         channel.exchange_declare(exch_args).await.expect("Expected exchange be declared");
+        select! {
+            _ = self.listen_for_propose(&config, &connection) => {},
+        }
+    }
+
+    async fn listen_for_propose(&self, config: &TestConfig, connection: &Connection) {
         let queue_args = QueueDeclareArguments::default()
             .queue(config.rabbitmq.queue.clone())
-            .durable(true)
+            .auto_delete(true)
             .finish();
+        let channel = self
+            .open_channel(connection, DefaultChannelCallback)
+            .await
+            .expect("Expected rabbitmq channel be opened");
         let (queue_name, _, _) = channel
             .queue_declare(queue_args)
             .await
             .expect("Expected queue be declared")
             .expect("Expected queue be returned");
         let routing_key = &config.rabbitmq.binding.routing_key;
+        let exchange = &config.rabbitmq.binding.exchange;
         channel
             .queue_bind(QueueBindArguments::new(&queue_name, exchange, routing_key))
             .await
@@ -57,7 +71,7 @@ impl RabbitmqConsumer {
         let consumer_tag = &config.rabbitmq.consumer_tag;
         let args = BasicConsumeArguments::new(&queue_name, consumer_tag);
 
-        let consumer = Consumer::new(config.mongodb).await;
+        let consumer = Consumer::new(config.mongodb.clone()).await;
         let tag =
             channel.basic_consume(consumer, args).await.expect("Expected consuming be started");
         info!("Consuming messages with consumer_tag started: {}", tag);

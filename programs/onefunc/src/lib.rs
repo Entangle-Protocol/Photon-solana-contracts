@@ -20,7 +20,7 @@ pub mod onefunc {
 
     use super::*;
 
-    pub static PROTOCOL_ID: &[u8] = b"onefunc_________________________";
+    pub static PROTOCOL_ID: &[u8; 32] = b"onefunc_________________________";
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.counter.call_authority = ctx.accounts.call_authority.key();
