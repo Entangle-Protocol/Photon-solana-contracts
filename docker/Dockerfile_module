@@ -3,20 +3,13 @@ COPY . /photon-messaging-solana/
 
 RUN --mount=type=cache,target=/photon-messaging-solana/target,sharing=locked --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --manifest-path=photon-messaging-solana/Cargo.toml \
-                --package transmitter-test-listener \
-                --package test-publisher \
-                --release && \
-    mkdir /release && \
-    cp /photon-messaging-solana/target/release/test-publisher /photon-messaging-solana/target/release/transmitter-test-listener /release
-
-RUN --mount=type=cache,target=/photon-messaging-solana/target,sharing=locked --mount=type=cache,target=/usr/local/cargo/registry \
-    cargo build --manifest-path=photon-messaging-solana/Cargo.toml \
                 --package bridge-extension \
                 --package borpa-bridge-extension \
                 --package onefunc-extension \
                 --package gov-extension \
                 --package transmitter-module \
                 --release && \
+    mkdir /release && \
     cp /photon-messaging-solana/target/release/transmitter-module \
        /photon-messaging-solana/target/release/libonefunc_extension.so \
        /photon-messaging-solana/target/release/libgov_extension.so \

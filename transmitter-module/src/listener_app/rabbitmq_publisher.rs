@@ -10,6 +10,7 @@ use tokio::{
     select,
     sync::{mpsc::UnboundedReceiver, Mutex, Notify},
 };
+
 use transmitter_common::{
     config::ReconnectConfig,
     data::{Propose, TransmitterMsg, TransmitterMsgImpl},
