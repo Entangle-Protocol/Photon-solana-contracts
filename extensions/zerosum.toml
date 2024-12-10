@@ -1,0 +1,7 @@
+protocol_id = "5a65726f73756d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d"
+zs_program = "br1JCj83uwQa4MtZ5g9C98PfGduMhJED3m4viYLAGUB"
+core_program = "c9c8teGDY7kYGRYELVSRfuZdsBa9Zc22zLWCYe9LFfc"
+seed_root = "r0"
+mint = "ng1ecKYngpPBs89hWow7dtG46yC2r7AQWYmYHtq33BX"
+operator_vault = "25EEnnUkSYZJyF3r8jW89UKsDJh8mUHYhmAnEre2PSAV"
+use_token2022 = false

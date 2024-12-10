@@ -1,31 +1,11 @@
-<img src="https://docs.entangle.fi/~gitbook/image?url=https%3A%2F%2F4040807501-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F5AajewgFWO9EkufRORqL%252Fuploads%252FDfRGGJJASR0PFitX6rbx%252FTwitter%2520%281%29.png%3Falt%3Dmedia%26token%3D09e49fe6-1b92-4bed-82e6-730ba785afaf&width=1248&dpr=2&quality=100&sign=5fbbb9f4&sv=1" alt="Entangle" style="width:100%;"/><div align="center">
+# Photon cross chain messaging solana
 
-  <a href="https://entangle.fi/">
-  
-  </a>
+This repository showcases an implementation of the [Photon Messaging Layer][gitbook] designed to enable cross-chain
+communication through a network of smart contracts supported by Agents known as Transmitters and Executors.
 
-  <h1>Photon</h1>
+<div style="text-align: center;"><img src="https://entangle-1.gitbook.io/~gitbook/image?url=https:%2F%2F758965771-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FW4hWFoOg1bsy9f1Z6FWM%252Fuploads%252FzTNtzkvpHmvi80k7Nb1p%252F1.png%3Falt=media%26token=4835b28b-cec4-46c9-8856-5110d8e3078d&width=768&dpr=1&quality=100&sign=d84c0f2a1f69e12d6b7341cac8e0f08cfe007d7405a6764ea908b70ae1508356" alt="Executor Design" width="500"/></div>
 
-  <p>
-    <strong>Cross-chain messaging protocol</strong>
-  </p>
-
-  <p>
-    <a href="https://docs.entangle.fi/entangle-components/photon-messaging"><img alt="Docs" src="https://img.shields.io/badge/Readthedocs-%23000000.svg?style=for-the-badge&logo=readthedocs&logoColor=white)"/></a>
-  </p>
-</div>
-
-Photon Messaging is an omnichain protocol that facilitates secure and efficient cross-chain communication for both EVM and non-EVM blockchains. It enables developers to send customized messages across diverse blockchain networks, supporting seamless asset transfers and operations.
-
-## Components & Docs
-
-- Operational flow of sending decentralized blockchain operations goes through an intricate network of smart contracts such as [Endpoint system](https://docs.entangle.fi/entangle-components/photon-messaging/end-points-system).
-- Photon [Agent network](https://docs.entangle.fi/entangle-components/photon-messaging/entangle-agent-network) is a Delegated Proof of Stake (DPoS) distributed architecture with off-chain machines.
-- [Photon Executors](https://docs.entangle.fi/entangle-components/photon-messaging/executors) backend programs tasked with retrieving and executing approved operations from various blockchains.
-- [Photon Data Streamer](https://docs.entangle.fi/entangle-components/photon-messaging/photon-data-streamer) is part of the Photon infrastructure, optimized for real-time data transmission to enable immediate processing and analysis
-- [Universal Data Feeds](https://docs.entangle.fi/entangle-components/universal-data-feeds) is part of the Photon infrastructure created for collection, processing and disributing data of any format between different blockchains.
-
-Refer to the Photon Messaging [Docs](https://docs.entangle.fi/entangle-components/photon-messaging) for building and integrating into Photon.
+Here are the key components of the current implementation for the Solana blockchain:
 
 ### The mentioned set of components for the Solana blockchain
 
@@ -57,7 +37,7 @@ captured and relayed between the transmitter core component and other entities.
 A widely used way of making solana programs implemented with [Anchor](https://www.anchor-lang.com/) is as follows
 
 ```sh
-RUSTFLAGS="--cfg feature=\"devnet\"" anchor build
+RUSTFLAGS="--cfg feature=\"localnet\"" anchor build
 ```
 
 ### Running solana test validator
@@ -65,7 +45,7 @@ RUSTFLAGS="--cfg feature=\"devnet\"" anchor build
 To run the solana test validator with previously compiled solana programs, you can use the following command
 
 ```sh
-solana-test-validator --reset --config solana_config.yml --bpf-program keys/onefunc-keypair.json target/deploy/onefunc.so --bpf-program keys/photon-keypair.json target/deploy/photon.so
+solana-test-validator --reset --config solana_config.yml --bpf-program keys/zerosum-keypair.json target/deploy/zerosum.so --bpf-program keys/photon-keypair.json target/deploy/photon.so --bpf-program keys/ngl_core-keypair.json target/deploy/ngl_core.so --bpf-program keys/onefunc-keypair.json target/deploy/onefunc.so --bpf-program metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s mpl_token_metadata.so
 ```
 
 The test script facilitates a range of government operations available through the photon messaging endpoint. These
@@ -108,9 +88,9 @@ transmitted to the entangled blockchain and the Master contract within it.
 Listener service could be started as follows
 
 ```sh
-RUST_LOG=debug
-ENTANGLE_RABBITMQ_USER=guest
-ENTANGLE_RABBITMQ_PASSWORD=guest
+RUST_LOG=debug \
+ENTANGLE_RABBITMQ_USER=guest \
+ENTANGLE_RABBITMQ_PASSWORD=guest \
 cargo run --release -p transmitter-module -- listener --config transmitter-module/doc/listener-config.yml
 ```
 
@@ -162,8 +142,8 @@ blockchain by simulating the core transmitter module with the [test-publisher](t
 export ENTANGLE_RABBITMQ_PASSWORD=guest
 export ENTANGLE_RABBITMQ_USER=guest
 export RUST_LOG="info,test_publisher=debug"
-cargo run --release --package test-publisher -- init-owned-counter --config transmitter-test-publisher/publisher-config.yml
-cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-test-publisher/publisher-config.yml  --value 2 --times 1
+cargo run --release --package test-publisher -- add-protocol --config transmitter-test-publisher/publisher-config.yml
+# cargo run --release --package test-publisher -- increment-owned-counter --config transmitter-test-publisher/publisher-config.yml  --value 2 --times 1
 ```
 
 ### Update extensions without stopping the executor

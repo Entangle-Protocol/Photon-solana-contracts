@@ -9,6 +9,7 @@ pub(crate) enum Operation {
     IncrementOwned(u64),
     CodeBased(Vec<u8>),
     AddProtocol,
+    StartGameOmnichain
 }
 
 #[derive(Clone)]

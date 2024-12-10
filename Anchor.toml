@@ -6,11 +6,13 @@ skip-lint = false
 default = []
 
 [programs.localnet]
-photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
-onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
+photon = "Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R"
+onefunc = "QjB5Zuc3PasXPfdSta54GzKQa5yNiQk9TEmLUJEA2Xk"
+ngl_core = "FmHwfH7HvAoD7HNvwX71ffUF3G2ejJoPDcZr4kBu5Y2a"
+zerosum = "E81J4bjf8vHpioEGn75ysw895khGs5uaK3hDxPCe2z55"
 
 [programs.mainnet]
-photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
+photon = "Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R"
 
 [registry]
 url = "https://api.apr.dev"

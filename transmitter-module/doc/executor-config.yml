@@ -46,9 +46,8 @@ solana:
 
 # List of executor extensions registered for solana transaction preprocessing
 extensions:
-    - target/release/libonefunc_extension.so
-    - target/release/libgov_extension.so
-    - target/release/libbridge_extension.so
+    - target/release/libonefunc_extension.dylib
+    - target/release/libgov_extension.dylib
 
 # mongodb is used to store last_processed_block in a persistent way
 mongodb:

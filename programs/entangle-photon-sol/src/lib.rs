@@ -195,7 +195,7 @@ use protocol_data::{
 };
 use util::EthAddress;
 
-declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
+declare_id!("Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R");
 
 #[cfg(not(any(feature = "devnet", feature = "localnet", feature = "mainnet")))]
 compile_error!("Either feature \"devnet\", \"localnet\" or \"mainnet\" must be defined");
@@ -318,7 +318,7 @@ pub mod photon {
         eob_chain_id: u64,
         eob_master_smart_contract: Vec<u8>,
         consensus_target_rate: u64,
-        gov_transmitters: Vec<EthAddress>,
+        gov_transmitters: Vec<[u8; 20]>,
         gov_executors: Vec<Pubkey>,
     ) -> Result<()> {
         ctx.accounts.config.admin = ctx.accounts.admin.key();
@@ -462,11 +462,12 @@ pub mod photon {
         if ctx.remaining_accounts.len() > 1 {
             accounts.extend_from_slice(&ctx.remaining_accounts[1..]);
         }
-        let metas: Vec<_> = accounts
+        let mut metas: Vec<_> = accounts
             .iter()
-            .filter(|x| x.key() != op_data.protocol_addr)
             .map(|x| x.to_account_metas(None).first().expect("always at least one").clone())
             .collect();
+        let program = metas.remove(0);
+        metas.push(program);
 
         let (method, payload) = match &op_data.function_selector {
             FunctionSelector::ByCode(selector) => {
@@ -978,7 +979,7 @@ pub struct ProtocolInfo {
     is_init: bool,
     consensus_target_rate: u64,
     protocol_address: Pubkey,
-    transmitters: Box<[EthAddress; 20]>, // cannot use const with anchor
+    transmitters: Box<[[u8; 20]; 20]>, // cannot use const with anchor
     executors: Box<[Pubkey; 20]>,
     proposers: Box<[Pubkey; 20]>,
 }
@@ -1014,7 +1015,7 @@ impl ProtocolInfo {
 #[derive(Default)]
 pub struct OpInfo {
     pub status: OpStatus,
-    unique_signers: [EthAddress; 16],
+    unique_signers: [[u8; 20]; 16],
     pub op_data: OperationData,
 }
 

@@ -140,7 +140,7 @@ impl TryFrom<&[u8]> for FunctionSelector {
 #[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug, Default)]
 pub struct OperationData {
     pub protocol_id: Vec<u8>, // [u8; 32] is zeroed out due to bug
-    pub meta: Meta,
+    pub meta: [u8; 32],
     pub src_chain_id: u128,
     pub src_block_number: u64,
     pub src_op_tx_id: Vec<u8>,
