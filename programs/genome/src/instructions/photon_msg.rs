@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use crate::GenomeConfig;
 use crate::{error::OmnichainError, OperatorInfo, Role, TournamentParams, GENOME_PROTOCOL_ID, GENOME_ROOT};
 use anchor_lang::prelude::*;
@@ -18,7 +17,7 @@ use super::BP_DEC;
 use crate::error::ControlAccessError;
 use photon::{program::Photon, OpInfo};
 use solana_program::{instruction::Instruction, program::invoke};
-use crate::error::OmnichainError::{InvalidParams, InvalidPubkey};
+use crate::error::OmnichainError::{InvalidParams, };
 
 #[derive(Accounts)]
 pub struct PhotonMsg<'info> {
@@ -70,13 +69,13 @@ pub struct PhotonMsg<'info> {
     /// Genome Token mint authority
     #[account(seeds = [GENOME_ROOT, b"AUTHORITY"], bump)]
     pub treasury_authority: UncheckedAccount<'info>,
-    #[account(mut, associated_token::mint = mint, associated_token::authority = treasury_authority, associated_token::token_program = token_program)]
+    #[account(init_if_needed, payer = executor, associated_token::mint = mint, associated_token::authority = treasury_authority, associated_token::token_program = token_program)]
     pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: platform wallet
     #[account(mut)]
     pub platform_wallet: AccountInfo<'info>,
-    #[account(mut, associated_token::mint = mint, associated_token::authority = platform_wallet, associated_token::token_program = token_program)]
+    #[account(init_if_needed, payer = executor, associated_token::mint = mint, associated_token::authority = platform_wallet, associated_token::token_program = token_program)]
     pub platform_wallet_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token>,
