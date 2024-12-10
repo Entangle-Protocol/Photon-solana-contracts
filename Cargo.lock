@@ -2052,6 +2052,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "genome"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "entangle-photon-sol",
+ "ethabi",
+ "hex-literal",
+ "ngl-core",
+ "solana-program",
+]
+
+[[package]]
 name = "gethostname"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6645,19 +6658,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zerosum"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "entangle-photon-sol",
- "ethabi",
- "hex-literal",
- "ngl-core",
- "solana-program",
-]
-
-[[package]]
 name = "zs-extension"
 version = "0.1.0"
 dependencies = [
@@ -6667,6 +6667,7 @@ dependencies = [
  "entangle-photon-sol",
  "env_logger 0.11.2",
  "ethabi",
+ "genome",
  "hex",
  "lazy_static",
  "log",
@@ -6676,7 +6677,6 @@ dependencies = [
  "spl-token 2.0.8",
  "spl-token-2022 1.0.0",
  "transmitter-common",
- "zerosum",
 ]
 
 [[package]]

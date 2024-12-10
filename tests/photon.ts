@@ -12,7 +12,7 @@ import { Metaplex, PublicKey } from "@metaplex-foundation/js";
 import { PROGRAM_ADDRESS } from "@metaplex-foundation/mpl-token-metadata";
 import { Photon } from "../target/types/photon";
 import { Onefunc } from "../target/types/onefunc";
-import { Zerosum } from "../target/types/zerosum";
+import { Genome } from "../target/types/genome";
 import { NglCore } from "../target/types/ngl_core";
 import { bs58, utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -45,7 +45,7 @@ const GOV_PROTOCOL_ID = Buffer.from(
         "photon-gov\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     )
 );
-const ZS_ID = Buffer.from(utf8.encode("Zerosum-------------------------"));
+const GENOME_ID = Buffer.from(utf8.encode("Genome--------------------------"));
 const ONE_FUNC_ID = Buffer.from(utf8.encode("onefunc_________________________"));
 
 type FunctionSelector = anchor.IdlTypes<Photon>["FunctionSelector"];
@@ -55,7 +55,7 @@ describe("photon", () => {
     anchor.setProvider(anchor.AnchorProvider.env());
     const program = anchor.workspace.Photon as Program<Photon>;
     const onefunc = anchor.workspace.Onefunc as Program<Onefunc>;
-    const zerosum = anchor.workspace.Zerosum as Program<Zerosum>;
+    const genome = anchor.workspace.Genome as Program<Genome>;
     const nglCore = anchor.workspace.NglCore as Program<NglCore>;
 
     let owner_keypair = Uint8Array.from(require("../keys/owner.json"));
@@ -77,13 +77,13 @@ describe("photon", () => {
     let nonce = 0;
     let onefuncProtocol;
 
-    const zsRoot = utf8.encode("zerosum-root");
+    const zsRoot = utf8.encode("genome-root");
     let zsConfig;
     let zsPhotonOperatorInfo;
     let zsProposer;
     let zsTreasuryAuthority = web3.PublicKey.findProgramAddressSync(
         [zsRoot, utf8.encode("AUTHORITY")],
-        zerosum.programId
+        genome.programId
     )[0];
     let zsCallAuthority;
     let zsGameWinner;
@@ -124,7 +124,7 @@ describe("photon", () => {
             program.programId
         )[0];
         zsCallAuthority = web3.PublicKey.findProgramAddressSync(
-            [ROOT, utf8.encode("CALL_AUTHORITY"), ZS_ID],
+            [ROOT, utf8.encode("CALL_AUTHORITY"), GENOME_ID],
             program.programId
         )[0];
         govCallAuthority = web3.PublicKey.findProgramAddressSync(
@@ -147,10 +147,10 @@ describe("photon", () => {
 
         zsProposer = web3.PublicKey.findProgramAddressSync(
             [ROOT, utf8.encode("PROPOSER")],
-            zerosum.programId
+            genome.programId
         )[0];
 
-        console.log("NGL", nglCore.programId, "ZS", zerosum.programId, "Photon", program.programId);
+        console.log("NGL", nglCore.programId, "GEN", genome.programId, "Photon", program.programId);
     });
 
     async function executeOperation(
@@ -275,7 +275,7 @@ describe("photon", () => {
                 .remainingAccounts(remainingAccounts)
                 .rpc();
             console.debug("execute_operation:", signature);
-        } else if (protocolId.equals(ZS_ID)) {
+        } else if (protocolId.equals(GENOME_ID)) {
             const modifyComputeUnits =
                 anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
                     units: 300_000,
@@ -381,13 +381,13 @@ describe("photon", () => {
     it("Initialize", async () => {
         zsConfig = anchor.web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CONFIG")],
-            zerosum.programId
+            genome.programId
         )[0];
         const operatorInfo = anchor.web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("OPERATOR"), owner.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
-        await zerosum.methods
+        await genome.methods
             .initialize()
             .accountsStrict({
                 admin: owner.publicKey,
@@ -398,7 +398,7 @@ describe("photon", () => {
             .signers([owner])
             .rpc();
 
-        console.log("Successfully initialized ZS!");
+        console.log("Successfully initialized GENOME!");
 
         await onefunc.methods
             .initialize()
@@ -443,26 +443,26 @@ describe("photon", () => {
     });
 
     it("addAllowedProtocol", async () => {
-        // 2: ZeroSum to be added as allowed protocol
+        // 2: Genome to be added as allowed protocol
         let params = addAllowedProtocol(ONE_FUNC_ID, [], CONSENSUS_TARGET_RATE);
         await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x45a004b9, params, ONE_FUNC_ID);
 
-        // ZS add allowed protocol
-        let zsParams = addAllowedProtocol(ZS_ID, [], CONSENSUS_TARGET_RATE);
-        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x45a004b9, zsParams, ZS_ID);
+        // Genome add allowed protocol
+        let zsParams = addAllowedProtocol(GENOME_ID, [], CONSENSUS_TARGET_RATE);
+        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x45a004b9, zsParams, GENOME_ID);
     });
 
     it("setConsensusTargetRate", async () => {
-        // 3: Set consensus target rate for ZeroSum
+        // 3: Set consensus target rate for Genome
         let params = setConsensusTargetRate(ONE_FUNC_ID, 6000);
         await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x970b6109, params, ONE_FUNC_ID);
 
-        let zsParams = setConsensusTargetRate(ZS_ID, 6000);
-        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x970b6109, zsParams, ZS_ID);
+        let zsParams = setConsensusTargetRate(GENOME_ID, 6000);
+        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x970b6109, zsParams, GENOME_ID);
     });
 
     it("addAllowedProtocolAddress", async () => {
-        // 4th: Add ZS address as allowed protocol
+        // 4th: Add Genome address as allowed protocol
         if (TEST_REMOVE_FUNCS) {
             let addr = anchor.web3.Keypair.generate().publicKey;
             let params = addAllowedProtocolAddress(ONE_FUNC_ID, addr);
@@ -484,9 +484,9 @@ describe("photon", () => {
         }
         let params = addAllowedProtocolAddress(ONE_FUNC_ID, onefunc.programId);
         await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xd296a0ff, params, ONE_FUNC_ID);
-        // Add ZS Protocol
-        let zsParams = addAllowedProtocolAddress(ZS_ID, zerosum.programId);
-        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xd296a0ff, zsParams, ZS_ID);
+        // Add Genome Protocol
+        let zsParams = addAllowedProtocolAddress(GENOME_ID, genome.programId);
+        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xd296a0ff, zsParams, GENOME_ID);
     });
 
     it("addExecutor", async () => {
@@ -506,9 +506,9 @@ describe("photon", () => {
             assert.equal((error as AnchorError).error.errorMessage, errMsg);
         }
 
-        // Add ZS executor
-        let zsParams = addExecutor(ZS_ID, executor.publicKey);
-        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xe0aafb68, zsParams, ZS_ID);
+        // Add Genome executor
+        let zsParams = addExecutor(GENOME_ID, executor.publicKey);
+        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xe0aafb68, zsParams, GENOME_ID);
 
         try {
             let params = addExecutor(ONE_FUNC_ID, executor.publicKey);
@@ -526,7 +526,7 @@ describe("photon", () => {
     });
 
     it("addProposer", async () => {
-        // 5th: Add ZS as a proposer
+        // 5th: Add Genome as a proposer
         if (TEST_REMOVE_FUNCS) {
             let addr = anchor.web3.Keypair.generate().publicKey;
             let params = addExecutor(ONE_FUNC_ID, addr);
@@ -538,9 +538,9 @@ describe("photon", () => {
                 params,
                 ONE_FUNC_ID
             );
-            // Add ZS
-            let zsParams = addExecutor(ZS_ID, addr);
-            await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xce0940a5, zsParams, ZS_ID);
+            // Add GENOME
+            let zsParams = addExecutor(GENOME_ID, addr);
+            await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xce0940a5, zsParams, GENOME_ID);
             // removeAllowedProposerAddress(bytes)
             await executeOperation(
                 GOV_PROTOCOL_ID,
@@ -553,21 +553,21 @@ describe("photon", () => {
         let params = addExecutor(ONE_FUNC_ID, proposer);
         await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xce0940a5, params, ONE_FUNC_ID);
 
-        // Add ZS executor
-        let zsParams = addExecutor(ZS_ID, zsProposer);
-        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xce0940a5, zsParams, ZS_ID);
+        // Add Genome executor
+        let zsParams = addExecutor(GENOME_ID, zsProposer);
+        await executeOperation(GOV_PROTOCOL_ID, program.programId, 0xce0940a5, zsParams, GENOME_ID);
     });
 
     it("approveOperator", async () => {
-        // Finish init ZS contract
+        // Finish init Genome contract
         // Approve executor as operator and set role = Messenger
         console.log("Executor is", zsExecutor, "owner is", owner);
         zsPhotonOperatorInfo = anchor.web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("OPERATOR"), executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
 
-        await zerosum.methods
+        await genome.methods
             .approveOperator({ messenger: {} }) // TODO: suppress warning?
             .accountsStrict({
                 admin: owner.publicKey,
@@ -614,9 +614,9 @@ describe("photon", () => {
                 params,
                 ONE_FUNC_ID
             );
-            // Add ZS transmitter
-            let zsParams = addTransmitter(ZS_ID, chunk);
-            await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x6c5f5666, zsParams, ZS_ID);
+            // Add Genome transmitter
+            let zsParams = addTransmitter(GENOME_ID, chunk);
+            await executeOperation(GOV_PROTOCOL_ID, program.programId, 0x6c5f5666, zsParams, GENOME_ID);
         }
 
         let protocolInfo = await program.account.protocolInfo.fetch(onefuncProtocol);
@@ -698,17 +698,17 @@ describe("photon", () => {
         expect(state.count.toNumber()).eq(3);
     });
 
-    it("execute ZS start_game by code", async () => {
+    it("execute Genome start_game by code", async () => {
         const zsConfig = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CONFIG")],
-            zerosum.programId
+            genome.programId
         )[0];
         // The function signature exactly as in the contract:
         const functionSignature = "startGameOmnichain(uint256,uint256,bytes32[],bool)";
         const gameCounterBytes = new BN(0).toArrayLike(Buffer, "le", 8);
         const game = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("GAME"), gameCounterBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const gameVault = await getOrCreateAssociatedTokenAccount(
             program.provider.connection,
@@ -742,7 +742,7 @@ describe("photon", () => {
                  *          bytes32 to - address on which tokens will be minted
                  *          bytes32 token - address of the token
                  *          uint256 amount - amount of tokens to mint
-                 *          bytes32 provider - address of the ZS mesenger from the source chain for rollback
+                 *          bytes32 provider - address of the Genome mesenger from the source chain for rollback
                  *          uint256 chainId - identificator of the source chain for rollback
                  *          bytes32 target - address of the contract on which a function must be called
                  *          bytes memory data - encoded data to provide in .call()
@@ -760,7 +760,7 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
             { isSigner: false, isWritable: true, pubkey: nglVault },
@@ -805,26 +805,26 @@ describe("photon", () => {
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
-    it("execute ZS register_game_participants by code", async () => {
+    it("execute Genome register_game_participants by code", async () => {
         const zsConfig = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CONFIG")],
-            zerosum.programId
+            genome.programId
         )[0];
         // The function signature exactly as in the contract:
         const functionSignature = "registerGameParticipantsOmnichain(uint256,bytes32[],bool)";
         const gameCounterBytes = new BN(0).toArrayLike(Buffer, "le", 8);
         const game = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("GAME"), gameCounterBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const gameVault = await getOrCreateAssociatedTokenAccount(
             program.provider.connection,
@@ -865,7 +865,7 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
             { isSigner: false, isWritable: true, pubkey: nglVault },
@@ -910,26 +910,26 @@ describe("photon", () => {
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
-    it("execute ZS finish_game by code", async () => {
+    it("execute Genome finish_game by code", async () => {
         const zsConfig = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CONFIG")],
-            zerosum.programId
+            genome.programId
         )[0];
         // The function signature exactly as in the contract:
         const functionSignature = "finishGame(uint256,uint16,bytes32)";
         const gameCounterBytes = new BN(0).toArrayLike(Buffer, "le", 8);
         const game = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("GAME"), gameCounterBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const gameVault = await getOrCreateAssociatedTokenAccount(
             program.provider.connection,
@@ -967,7 +967,7 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
             { isSigner: false, isWritable: true, pubkey: nglVault },
@@ -1025,7 +1025,7 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("FEE_META"), new BN(0).toArrayLike(Buffer, "le", 2)],
-                    zerosum.programId
+                    genome.programId
                 )[0],
             },
             { isSigner: false, isWritable: true, pubkey: game },
@@ -1039,18 +1039,18 @@ describe("photon", () => {
                         utf8.encode("USER"),
                         new PublicKey("HprSAkYDxheSb6CCNhBVJXPAUkGJ1xmGrTnbABvuZZLh").toBuffer(),
                     ],
-                    zerosum.programId
+                    genome.programId
                 )[0],
             },
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
@@ -1058,13 +1058,13 @@ describe("photon", () => {
         const tournamentId = new BN(tournamentIndex).toArrayLike(Buffer, "le", 8);
         const tournament = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TOURNAMENT"), tournamentId],
-            zerosum.programId
+            genome.programId
         )[0];
         const claimableUserInfo = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("USER"), executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
-        const ix = zerosum.methods
+        const ix = genome.methods
             .createTournamentOmnichain(executor.publicKey, {
                 fee: new anchor.BN(0),
                 sponsorPool: new anchor.BN(0),
@@ -1097,7 +1097,7 @@ describe("photon", () => {
         await ix.rpc();
     }
 
-    it("execute ZS create tournament by code", async () => {
+    it("execute Genome create tournament by code", async () => {
         // TODO: Once transaction limit is fixed on Photon's side, remove this if
         if (true) {
             await createTournamentOmnichain(0);
@@ -1106,7 +1106,7 @@ describe("photon", () => {
 
         const zsConfig = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CONFIG")],
-            zerosum.programId
+            genome.programId
         )[0];
         // The function signature exactly as in the contract:
         const functionSignature =
@@ -1114,7 +1114,7 @@ describe("photon", () => {
         const tournamentId = new BN(0).toArrayLike(Buffer, "le", 8);
         const tournament = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TOURNAMENT"), tournamentId],
-            zerosum.programId
+            genome.programId
         )[0];
 
         // Compute the function selector (4-byte hash)
@@ -1162,9 +1162,9 @@ describe("photon", () => {
         );
         const claimableUserInfo = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("USER"), executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
             { isSigner: false, isWritable: true, pubkey: nglVault },
@@ -1209,16 +1209,16 @@ describe("photon", () => {
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
-    it("execute ZS register first team in tournament by code", async () => {
+    it("execute Genome register first team in tournament by code", async () => {
         // The function signature exactly as in the contract:
         const functionSignature = "register(uint256,bytes32,bytes32[],uint8)";
         const tournamendIdBytes = new BN(0).toArrayLike(Buffer, "le", 8);
@@ -1255,14 +1255,14 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const tournament = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TOURNAMENT"), tournamendIdBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const team = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TEAM"), tournamendIdBytes, executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
@@ -1311,7 +1311,7 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("USER"), executor.publicKey.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0],
             },
             {
@@ -1319,7 +1319,7 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("TEAM_PARTICIPANT"), tournamendIdBytes, teammate.publicKey.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0]
             },
             {
@@ -1327,22 +1327,22 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("TEAM_PARTICIPANT"), tournamendIdBytes, captain.publicKey.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0]
             }
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
-    it("execute ZS register second team in tournament by code", async () => {
+    it("execute Genome register second team in tournament by code", async () => {
         // The function signature exactly as in the contract:
         const functionSignature = "register(uint256,bytes32,bytes32[],uint8)";
         const tournamendIdBytes = new BN(0).toArrayLike(Buffer, "le", 8);
@@ -1379,14 +1379,14 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const tournament = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TOURNAMENT"), tournamendIdBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const team = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TEAM"), tournamendIdBytes, captain.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
@@ -1435,7 +1435,7 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("USER"), executor.publicKey.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0],
             },
             {
@@ -1443,7 +1443,7 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("TEAM_PARTICIPANT"), tournamendIdBytes, teammate.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0]
             },
             {
@@ -1451,22 +1451,22 @@ describe("photon", () => {
                 isWritable: true,
                 pubkey: web3.PublicKey.findProgramAddressSync(
                     [zsRoot, utf8.encode("TEAM_PARTICIPANT"), tournamendIdBytes, captain.toBuffer()],
-                    zerosum.programId
+                    genome.programId
                 )[0]
             }
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
-    it("execute ZS make bet in tournament by code", async () => {
+    it("execute Genome make bet in tournament by code", async () => {
         // The function signature exactly as in the contract:
         const functionSignature = "makeBetOmnichain(bytes32,uint256[])";
         const tournamendIdBytes = new BN(0).toArrayLike(Buffer, "le", 8);
@@ -1504,14 +1504,14 @@ describe("photon", () => {
                 ]
             )
         );
-        console.log("ZS program ID", zerosum.programId.toBase58());
+        console.log("Genome program ID", genome.programId.toBase58());
         const tournament = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TOURNAMENT"), tournamendIdBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const tournamentBook = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("BOOK"), tournamendIdBytes],
-            zerosum.programId
+            genome.programId
         )[0];
         const bookVault = (
             await getOrCreateAssociatedTokenAccount(
@@ -1524,7 +1524,7 @@ describe("photon", () => {
         ).address;
         const captainBet = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("CAPTAIN_BET"), tournamendIdBytes, executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
         const gamblerInfo = web3.PublicKey.findProgramAddressSync(
             [
@@ -1534,11 +1534,11 @@ describe("photon", () => {
                 executor.publicKey.toBuffer(),
                 executor.publicKey.toBuffer(),
             ],
-            zerosum.programId
+            genome.programId
         )[0];
         const team = web3.PublicKey.findProgramAddressSync(
             [zsRoot, utf8.encode("TEAM"), tournamendIdBytes, executor.publicKey.toBuffer()],
-            zerosum.programId
+            genome.programId
         )[0];
         const keys = [
             { isSigner: false, isWritable: false, pubkey: zsPhotonOperatorInfo },
@@ -1587,12 +1587,12 @@ describe("photon", () => {
         ];
         // This operation results in the `receive_photon_msg` method invocation with a PhotonMsgWithSelector
         await executeOperation(
-            ZS_ID,
-            zerosum.programId,
+            GENOME_ID,
+            genome.programId,
             0x67b8fb72, // receiveAndCall(bytes) bytes -> startGame(...)
             params,
             null,
-            [{ pubkey: zerosum.programId, isSigner: false, isWritable: false }].concat(keys)
+            [{ pubkey: genome.programId, isSigner: false, isWritable: false }].concat(keys)
         );
     });
 
