@@ -148,16 +148,16 @@ mod test {
     #[test]
     fn test_logs_parsing() {
         static SAMPLE: &[&str] = &[
-            "Program QjB5Zuc3PasXPfdSta54GzKQa5yNiQk9TEmLUJEA2Xk invoke [1]",
+            "Program EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ invoke [1]",
             "Program log: Instruction: ShareMessage",
             "Program log: Share message invoked",
-            "Program Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R invoke [2]",
+            "Program pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ invoke [2]",
             "Program log: Instruction: Propose",
             "Program data: 8vb9LnW1kqUgAAAAb25lZnVuY19fX19fX19fX19fX19fX19fX19fX19fX18IAAAAAAAAAG2BAAAAAAAAAAAAAAAAAAADAAAAAQIDAwAAAAECAwMAAAABAgM=",
-            "Program Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R consumed 16408 of 181429 compute units",
-            "Program Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R success",
-            "Program QjB5Zuc3PasXPfdSta54GzKQa5yNiQk9TEmLUJEA2Xk consumed 35308 of 200000 compute units",
-            "Program QjB5Zuc3PasXPfdSta54GzKQa5yNiQk9TEmLUJEA2Xk success",
+            "Program pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ consumed 16408 of 181429 compute units",
+            "Program pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ success",
+            "Program EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ consumed 35308 of 200000 compute units",
+            "Program EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ success",
         ];
 
         let events: Vec<ProposeEvent> = parse_logs::parse_logs(SAMPLE, &PROGRAM_ID.to_string())

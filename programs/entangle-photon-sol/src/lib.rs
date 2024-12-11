@@ -195,7 +195,7 @@ use protocol_data::{
 };
 use util::EthAddress;
 
-declare_id!("Cc1AtsbqQrt9QiZRrMwzZTS4oMRXRWZrWBQsNNpmrj4R");
+declare_id!("pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ");
 
 #[cfg(not(any(feature = "devnet", feature = "localnet", feature = "mainnet")))]
 compile_error!("Either feature \"devnet\", \"localnet\" or \"mainnet\" must be defined");

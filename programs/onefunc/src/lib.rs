@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use ethabi::ParamType;
 use photon::{cpi::accounts::Propose, photon::ROOT, program::Photon, OpInfo};
 
-declare_id!("QjB5Zuc3PasXPfdSta54GzKQa5yNiQk9TEmLUJEA2Xk");
+declare_id!("EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ");
 
 #[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct PhotonMsgWithSelector {

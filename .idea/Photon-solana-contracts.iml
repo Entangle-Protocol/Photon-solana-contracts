@@ -12,9 +12,9 @@
       <sourceFolder url="file://$MODULE_DIR$/transmitter-module/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/borpa-bridge-extension/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/bridge-extension/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/genome-extension/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/gov-extension/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/onefunc-extension/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/transmitter-protocol-extensions/zs-extension/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-test-listener/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/transmitter-test-publisher/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
