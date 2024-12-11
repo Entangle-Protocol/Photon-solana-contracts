@@ -227,8 +227,7 @@ export async function registerTournamentSinglechain(
   admin: Keypair,
   tournamentIndex: number,
   captain: Keypair,
-  mint: PublicKey,
-  operatorInfo
+  mint: PublicKey
 ) {
   const tournament = getTournamentPDA(program, tournamentIndex);
   const { config } = getGenomeAccounts(program, ROOT);
@@ -267,7 +266,6 @@ export async function registerTournamentSinglechain(
       team,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: token.TOKEN_PROGRAM_ID,
-      operatorInfo,
     })
     .remainingAccounts([
       {
@@ -352,7 +350,6 @@ export async function registerParticipantToTournamentSinglechain(
   teammate: PublicKey,
   adminMint: PublicKey,
   paymentApproach: number = 0,
-  operatorInfo
 ) {
   const tournament = getTournamentPDA(program, tournamentIndex);
 
@@ -388,7 +385,6 @@ export async function registerParticipantToTournamentSinglechain(
       tournamentVault: tournamentVault.address,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: token.TOKEN_PROGRAM_ID,
-      operatorInfo,
     })
     .remainingAccounts([
       {

@@ -297,7 +297,6 @@ describe("Tournament Program Tests", () => {
           tournamentSinglechainIndex,
           teamsWithParticipants[teamIndex][0], // first participant of team
           adminMint, //mintsTokensPDAForParticipants[teamIndex][0]
-          ownerOperator
         );
         for (const [participantIndex, participant] of team.entries()) {
           if (participantIndex > 0) {
@@ -308,8 +307,7 @@ describe("Tournament Program Tests", () => {
               team[0].publicKey,
               participant.publicKey,
               adminMint,
-              0,
-              ownerOperator
+              0
             );
           }
         }

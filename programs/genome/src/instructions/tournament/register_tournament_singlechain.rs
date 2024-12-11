@@ -11,8 +11,6 @@ use anchor_spl::{
 pub struct RegisterTournamentSinglechain<'info> {
     #[account(signer, mut)]
     pub captain: Signer<'info>,
-    #[account()]
-    pub operator_info: Box<Account<'info, OperatorInfo>>,
     #[account(
         mut,
         seeds = [GENOME_ROOT, b"TOURNAMENT", &tournament.id.to_le_bytes().as_ref()],
