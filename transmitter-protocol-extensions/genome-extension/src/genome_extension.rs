@@ -139,7 +139,7 @@ impl GenomeExtension {
     fn from_config() -> Self {
         let settings: GenomeConfig = Config::builder()
             .add_source(config::File::with_name("extensions/genome.toml"))
-            .add_source(config::Environment::with_prefix("ZEROSUM"))
+            .add_source(config::Environment::with_prefix("GENOME"))
             .build()
             .expect("Failed to build config for Genome")
             .try_deserialize()
