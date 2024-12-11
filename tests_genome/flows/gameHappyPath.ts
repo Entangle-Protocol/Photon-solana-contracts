@@ -104,7 +104,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // ------------ Setup messenger operator ----------------------
@@ -119,7 +119,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       messengerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // ------------ Setup developer operator ----------------------
@@ -134,7 +134,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       developerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     //-------------- Setup participant ----------------------
@@ -149,7 +149,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       participantVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // Delegate some tokens to the operator and messenger operator
@@ -173,7 +173,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       otherParticipantVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // Delegate some tokens to the operator and messenger operator
@@ -199,7 +199,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       treasuryVault.address,
-      admin.publicKey,
+      admin,
       1000000000
     );
     //-------------- Setup platform wallet vault ----------------------
@@ -214,7 +214,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       platformWalletVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
 
@@ -233,7 +233,7 @@ describe("zs-single-solana: Game", () => {
         admin,
         mint,
         vault,
-        admin.publicKey,
+        admin,
         1000000000
       );
 

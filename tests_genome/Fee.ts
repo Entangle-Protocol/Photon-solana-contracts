@@ -62,7 +62,7 @@ describe("zs-single-solana: Fees", () => {
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     platformWalletVault = await token.createAccount(

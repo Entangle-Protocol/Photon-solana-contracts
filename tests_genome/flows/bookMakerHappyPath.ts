@@ -135,7 +135,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // ------------ Setup developer operator ----------------------
@@ -150,7 +150,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       developerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     //-------------- Setup gambler ----------------------
@@ -165,7 +165,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       gamblerVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
 
@@ -181,7 +181,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       otherGamblerVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     //-------------- Setup treasury vault ----------------------
@@ -198,7 +198,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       treasuryVault.address,
-      admin.publicKey,
+      admin,
       1000000000
     );
 
@@ -214,7 +214,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       platformWalletVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
 
@@ -233,7 +233,7 @@ describe("zs-single-solana: BookMaker", () => {
         admin,
         mint,
         vault,
-        admin.publicKey,
+        admin,
         1000000000
       );
     }
@@ -250,7 +250,7 @@ describe("zs-single-solana: BookMaker", () => {
       admin,
       mint,
       vault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     for (const team of teamsWithParticipants) {
@@ -273,7 +273,7 @@ describe("zs-single-solana: BookMaker", () => {
           admin,
           mint,
           vault,
-          admin.publicKey,
+          admin,
           1000000000
         );
 

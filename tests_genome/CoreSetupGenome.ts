@@ -69,7 +69,7 @@ describe("zs-single-solana: Setup", () => {
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // ------------ Setup messenger operator ----------------------
@@ -84,7 +84,7 @@ describe("zs-single-solana: Setup", () => {
       admin,
       mint,
       messengerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
   });

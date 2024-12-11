@@ -99,7 +99,7 @@ describe("Tournament Program Tests", () => {
       admin,
       adminMint,
       vault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     for (const team of teamsWithParticipants) {
@@ -122,7 +122,7 @@ describe("Tournament Program Tests", () => {
           admin,
           adminMint,
           vault,
-          admin.publicKey,
+          admin,
           1000000000
         );
 
@@ -156,7 +156,7 @@ describe("Tournament Program Tests", () => {
       admin,
       adminMint,
       platformWalletVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
   });

@@ -16,7 +16,6 @@ import { getFeeMeta } from "../genome_test_setup/feeProvider";
 import { assert } from "chai";
 
 describe("zs-single-solana: Game", () => {
-  console.log("Init lamports 1");
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
 
@@ -51,20 +50,16 @@ describe("zs-single-solana: Game", () => {
   let participantVaults = [];
 
   before(async () => {
-    console.log("Init lamports 2");
     const provider = anchor.getProvider();
-    console.log("Init lamports 3");
     let tx = await provider.connection.requestAirdrop(
       admin.publicKey,
       anchor.web3.LAMPORTS_PER_SOL * 100
     );
-    console.log("Init lamports 4");
     await provider.connection.confirmTransaction(tx);
     tx = await provider.connection.requestAirdrop(
       operator.publicKey,
       anchor.web3.LAMPORTS_PER_SOL * 100
     );
-    console.log("Init lamports 5");
     await provider.connection.confirmTransaction(tx);
     tx = await provider.connection.requestAirdrop(
       messengerOperator.publicKey,
@@ -81,7 +76,6 @@ describe("zs-single-solana: Game", () => {
       anchor.web3.LAMPORTS_PER_SOL * 100
     );
     await provider.connection.confirmTransaction(tx);
-    console.log("Init lamports 6");
     mint = await token.createMint(
       provider.connection,
       admin,
@@ -89,7 +83,6 @@ describe("zs-single-solana: Game", () => {
       null,
       6
     );
-    console.log("Init lamports 7");
     // ------------ Setup operator ----------------------
     operatorVault = await token.createAccount(
       program.provider.connection,
@@ -97,17 +90,15 @@ describe("zs-single-solana: Game", () => {
       mint,
       operator.publicKey
     );
-    console.log("Init lamports 8");
     console.log(admin, mint, operator, operatorVault);
     await token.mintTo(
       provider.connection,
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
-    console.log("Init lamports 9");
     // ------------ Setup messenger operator ----------------------
     messengerOperatorVault = await token.createAccount(
       provider.connection,
@@ -120,7 +111,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       messengerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // ------------ Setup developer operator ----------------------
@@ -135,7 +126,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       developerOperatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     //-------------- Setup participant ----------------------
@@ -150,7 +141,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       participantVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // Delegate some tokens to the operator and messenger operator
@@ -174,7 +165,7 @@ describe("zs-single-solana: Game", () => {
       admin,
       mint,
       otherParticipantVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     // Delegate some tokens to the operator and messenger operator
@@ -201,7 +192,7 @@ describe("zs-single-solana: Game", () => {
         admin,
         mint,
         vault,
-        admin.publicKey,
+        admin,
         1000000000
       );
 

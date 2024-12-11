@@ -10,7 +10,7 @@ import {
   startTournament,
   TournamentParams,
   verifyAndPayoutTeamRegistration,
-} from "../../solana_contracts/genome_test_setup/tournament";
+} from "../genome_test_setup/tournament";
 import { assert } from "chai";
 import { PublicKey } from "@solana/web3.js";
 import * as token from "@solana/spl-token";
@@ -19,8 +19,8 @@ import {
   buildAndSendApproveTransaction,
   getGenomeAccounts,
   init,
-} from "../../solana_contracts/genome_test_setup/genome";
-import { Genome } from "../../solana_contracts/target/types/genome";
+} from "../genome_test_setup/genome";
+import { Genome } from "../target/types/genome";
 
 describe("Tournament Program Tests", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -76,7 +76,7 @@ describe("Tournament Program Tests", () => {
       admin,
       adminMint,
       vault,
-      admin.publicKey,
+      admin,
       1000000000
     );
     for (const team of teamsWithParticipants) {
@@ -99,7 +99,7 @@ describe("Tournament Program Tests", () => {
           admin,
           adminMint,
           vault,
-          admin.publicKey,
+          admin,
           1000000000
         );
 
@@ -279,7 +279,6 @@ describe("Tournament Program Tests", () => {
             tournamentIndex,
             teamsWithParticipants[teamIndex][0], // first participant of team
             adminMint, //mintsTokensPDAForParticipants[teamIndex][0]
-            ownerOperator
           );
 
           for (const [participantIndex, participant] of team.entries()) {
@@ -291,8 +290,7 @@ describe("Tournament Program Tests", () => {
                 team[0].publicKey,
                 participant.publicKey,
                 adminMint,
-                0,
-                ownerOperator
+                0
               );
             }
           }
@@ -309,8 +307,7 @@ describe("Tournament Program Tests", () => {
             fakeAccountsToValidate[0].publicKey,
             fakeAccountsToValidate[0].publicKey,
             adminMint,
-            0,
-            ownerOperator
+            0
           );
           assert.ok(false);
         } catch (_err) {

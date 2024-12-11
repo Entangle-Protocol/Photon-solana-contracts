@@ -57,7 +57,7 @@ describe("zs-single-solana", () => {
       admin,
       mint,
       operatorVault,
-      admin.publicKey,
+      admin,
       1000000000
     );
   });

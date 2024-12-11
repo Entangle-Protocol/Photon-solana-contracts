@@ -1,5 +1,5 @@
 use crate::{
-    error::TournamentError, init_tournament_participant_account, OperatorInfo, ParticipantRegistered, Team, Tournament, TournamentStatus,  GENOME_ROOT
+    error::TournamentError, init_tournament_participant_account, ParticipantRegistered, Team, Tournament, TournamentStatus,  GENOME_ROOT
 };
 use anchor_lang::prelude::*;
 use anchor_spl::{
