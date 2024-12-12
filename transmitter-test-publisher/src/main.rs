@@ -210,7 +210,7 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     ]
                 );
                 OperationData {
-                    protocol_id: gov_protocol_id,
+                    protocol_id: genome_protocol_id,
                     meta: *meta,
                     src_block_number: 1,
                     src_chain_id: 33133,
