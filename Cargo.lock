@@ -5639,6 +5639,7 @@ dependencies = [
  "entangle-photon-sol",
  "env_logger 0.11.2",
  "ethabi",
+ "genome",
  "hex",
  "libsecp256k1 0.7.1",
  "log",

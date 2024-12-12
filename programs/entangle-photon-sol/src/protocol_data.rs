@@ -58,6 +58,9 @@ use sha3::{Digest, Keccak256};
 pub const GOV_PROTOCOL_ID: &Bytes32 =
     b"photon-gov\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
+pub const GENOME_PROTOCOL_ID: &Bytes32 = b"Genome--------------------------";
+
+
 /// Helper to get GOV protocol id
 pub const fn gov_protocol_id() -> &'static Bytes32 {
     GOV_PROTOCOL_ID
