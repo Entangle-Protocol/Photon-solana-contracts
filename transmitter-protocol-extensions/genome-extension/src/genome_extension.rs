@@ -105,12 +105,12 @@ impl ProtocolExtension for GenomeExtension {
                 //finishGameWithPlaces(uint256,uint16,bytes32[],uint16[])
                 [0xc1, 0xbe, 0x2f, 0x7d] => self.get_accounts_finish_game_with_places(params)?,
 
-                //startGameOmnichain(uint256,uint256,bytes32[])
-                [0xce, 0x1d, 0x9a, 0x7a] => self.get_accounts_start_game(params)?,
+                //startGameOmnichain(uint256,uint256,bytes32[],bool)
+                [0xd4, 0xe8, 0x64, 0x2b] => self.get_accounts_create_game(params)?,
                 //createTournament(bytes32,bytes32,(uint256,uint256,uint256,uint8,uint8,uint8,uint16,bytes32,uint8),bytes32[],uint8)
                 [0xb0, 0x9d, 0x2c, 0x2c] => todo!("Create tournament implementation is not yet decided due to tx limit constraints"),
                 //register(uint256,bytes32,bytes32,bytes32[],uint8)
-                [0x7e, 0xf5, 0x21, 0xec] => self.get_accounts_register_tournament(params)?,
+                [0x75, 0xe6,0x3f, 0x50] => self.get_accounts_register_tournament(params)?,
                 //makeBetOmnichain(bytes32,uint256[])
                 [0x5b, 0x69, 0x3a, 0x31] => self.get_accounts_make_bet(params)?,
                 [0x6e, 0x56, 0x23, 0x41] => self.get_accounts_register_game_participants(params)?,
@@ -334,12 +334,13 @@ impl GenomeExtension {
         Ok(accounts)
     }
 
-    fn get_accounts_start_game(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_create_game(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let create_game_params = ethabi::decode(
             &[
                 ParamType::Uint(256),                                   // uint256 uuid
                 ParamType::Uint(256),                                   // uint256 wager
                 ParamType::Array(Box::new(ParamType::FixedBytes(32))),  // bytes32[] calldata participants
+                ParamType::Bool // bool startGame
             ],
             &params,
         ).map_err(|_| ExtensionError::Extension)?;
