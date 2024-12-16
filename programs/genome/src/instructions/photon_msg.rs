@@ -6,7 +6,7 @@ use anchor_spl::{
     token::Token,
     token_interface::{Mint, TokenAccount},
 };
-use ethabi::ethereum_types::{H160, U256};
+use ethabi::ethereum_types::{U256};
 use ethabi::ParamType;
 use ngl_core::{
     cpi::{accounts::MintToken, mint_token},
@@ -23,7 +23,7 @@ use ngl_core::cpi::burn_token;
 use photon::cpi::accounts::Propose;
 use photon::cpi::propose;
 use photon::protocol_data::FunctionSelector;
-use crate::error::OmnichainError::{InvalidParams, };
+use crate::error::OmnichainError::{InvalidParams, InvalidPubkey};
 
 #[derive(Accounts)]
 pub struct PhotonMsg<'info> {
@@ -116,87 +116,74 @@ pub fn handle_photon_msg<'c, 'info>(
     // Our select should always match first the receiveAndCall(bytes) as seen on:
     // https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L83
     match selector {
-        // This match against `receiveAndCall(bytes)`, the proof can be found at
-        // ../utils/evm_keccak_signature.rs
+        // Match against `receiveAndCall(bytes)`
         0x67b8fb72_u32 => {
-            // The params are usually passed similar to:
-            // IProposer(endpoint).propose(
-            //     protocolId,
-            //     destChainId,
-            //     remoteProvider,
-            //     PhotonFunctionSelectorLib.encodeEvmSelector(
-            //         bytes4(keccak256(selector))
-            //     ),
-            //     params
-            // );
-            // https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/common/MessagingUtils.sol#L25-L33
-
-            // Params are as follow:
-            // abi.encode(
-            //     // mint params
-            //     receiver,
-            //     srcToken,
-            //     dstToken,
-            //     amount,
-            //     // rollback params
-            //     abi.encode(originalOwner),
-            //     abi.encode(address(this)),
-            //     uint256(block.chainid),
-            //     // call params
-            //     callParams.target,
-            //     callParams.data
-            // );
-            // https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L253-L265
-
             // A similar decoding to this one can found on the EVM layer:
             // https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L281-L321
+            // TODO: The current rollback implementation needs to be synced with the Solidity contract
+            // To ensure encoding/decoding works across chains
             let params = ethabi::decode(
                 &[
                     // Mint params
                     ParamType::FixedBytes(32), // bytes memory receiver
-                    ParamType::FixedBytes(32), // bytes memory srcToken
                     ParamType::FixedBytes(32), // bytes memory dstToken
                     ParamType::Uint(256),      // uint256 amount
                     // Rollback params
-                    ParamType::FixedBytes(32), // address zsMessenger rollback
-                    ParamType::Uint(256),      // chainId
-                    ParamType::FixedBytes(32), // Target
+                    ParamType::FixedBytes(32), // bytes32 originalOwner
+                    ParamType::FixedBytes(32), // bytes32 originalToken
+                    ParamType::FixedBytes(32), // bytes32 provider
+                    ParamType::Uint(256),      // uint256 chainId
+                    ParamType::FixedBytes(32), // bytes32 targetContract
                     // Call params
                     ParamType::Bytes, // data
                 ],
                 &params,
             )
-                .map_err(|_| OmnichainError::InvalidParams)?;
+                .map_err(|_| InvalidParams)?;
 
-            let src_token = params[2]
+            let dst_token = params[1]
                 .clone()
                 .into_fixed_bytes()
-                .ok_or_else(|| OmnichainError::InvalidPubkey)?;
+                .ok_or_else(|| InvalidParams)?;
+
+            require_keys_eq!(Pubkey::try_from(dst_token.clone()).map_err(|_| InvalidPubkey)?, ctx.accounts.mint.key(), InvalidPubkey);
+
+            let original_owner = params[3]
+                .clone()
+                .into_fixed_bytes()
+                .ok_or_else(|| InvalidPubkey)?;
 
             // Parse the amount
-            let amount = params[3]
+            let amount = params[2]
                 .clone()
                 .into_uint()
-                .ok_or_else(|| OmnichainError::InvalidUserAccount)?
+                .ok_or_else(|| InvalidParams)?
                 .as_u64();
-            // Parse the provider
-            let provider = params[4]
+
+            let src_token = params[4]
                 .clone()
                 .into_fixed_bytes()
-                .ok_or_else(|| OmnichainError::InvalidPubkey)?;
+                .ok_or_else(|| InvalidPubkey)?;
+
+
+            // Parse the provider
+            let provider = params[5]
+                .clone()
+                .into_fixed_bytes()
+                .ok_or_else(|| InvalidPubkey)?;
             // Parse the chain ID
-            let src_chain_id = params[5]
+            let src_chain_id = params[6]
                 .clone()
                 .into_uint()
-                .ok_or(OmnichainError::InvalidParams)?
+                .ok_or(InvalidParams)?
                 .as_u64();
             // Parse the target
-            let target = params[6]
+            let target = params[7]
                 .clone()
                 .into_fixed_bytes()
                 .ok_or_else(|| OmnichainError::InvalidProtocolId)?;
             // Parse the data
-            let data = params[7]
+            let data = params[8]
                 .clone()
                 .into_bytes()
                 .ok_or_else(|| OmnichainError::InvalidMethodId)?;
@@ -223,7 +210,6 @@ pub fn handle_photon_msg<'c, 'info>(
                 mint_token(cpi_ctx, amount)?;
             }
 
-            // Now we call the remaining functions
             if let Err(e) = handle_cpi_call(&ctx, data.clone()) {
                 let accounts = BurnToken {
                     vault_owner: ctx.accounts.executor.to_account_info(),
@@ -255,15 +241,14 @@ pub fn handle_photon_msg<'c, 'info>(
                     U256::from_big_endian(&raw),
                 )]));
                 let params = ethabi::encode(&[
-                    ethabi::Token::FixedBytes(src_token),   // bytes memory srcToken
-                    ethabi::Token::FixedBytes(todo!("Parse original sender")),  // uint256 chainIdTo
+                    ethabi::Token::FixedBytes(src_token),   // bytes32 memory srcToken
+                    ethabi::Token::FixedBytes(original_owner),  // bytes32 originalOwner
                     ethabi::Token::Uint(U256::from(amount)),    // uint256 amount
                 ]);
                 propose(cpi_ctx, GENOME_PROTOCOL_ID.to_vec(), src_chain_id as u128, provider, function_selector, params)?;
                 return Err(e);
             }
             // This reflects the event https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L219
-            // Before was the minted event
             emit!(SuccessfulCall {
                 src_chain_id,
                 provider,

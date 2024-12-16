@@ -749,12 +749,13 @@ describe("photon", () => {
                  *          bytes memory data - encoded data to provide in .call()
                  *       ]
                  */
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     4000,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -858,12 +859,13 @@ describe("photon", () => {
         console.log("Pubkey bytes are", bytes);
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     4000,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -964,12 +966,13 @@ describe("photon", () => {
         console.log("Pubkey bytes are", bytes);
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     0,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -1161,12 +1164,13 @@ describe("photon", () => {
         console.log("Pubkey bytes are", bytes);
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     500,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -1260,12 +1264,13 @@ describe("photon", () => {
         console.log("Pubkey bytes are", bytes);
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     500,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -1388,12 +1393,13 @@ describe("photon", () => {
         console.log("Pubkey bytes are", bytes);
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     500,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),
@@ -1517,12 +1523,13 @@ describe("photon", () => {
         const bytes = Buffer.from(nglVault.toBytes()).toString("hex");
         const params = hexToBytes(
             ethers.utils.defaultAbiCoder.encode(
-                ["bytes32", "bytes32", "bytes32", "uint256", "bytes32", "uint256", "bytes32", "bytes"],
+                ["bytes32", "bytes32", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "bytes32", "bytes"],
                 [
                     "0x" + bytes,
-                    ethers.utils.formatBytes32String(""),
-                    ethers.utils.formatBytes32String(""),
+                    "0x" + nglMint.toBuffer().toString("hex"),
                     100,
+                    ethers.utils.formatBytes32String(""),
+                    ethers.utils.formatBytes32String(""),
                     ethers.utils.formatBytes32String(""),
                     1,
                     ethers.utils.formatBytes32String(""),

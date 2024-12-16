@@ -69,20 +69,21 @@ impl ProtocolExtension for GenomeExtension {
         data: &[u8],
     ) -> Result<Vec<AccountMeta>, ExtensionError> {
         let code = &function_selector[..4];
-        let all_params = &ethabi::decode(
-            // Function selector is 'receiveAndCall(bytes data)', need to decode
-            // 'data' into the params for the actual function call
+        let all_params = ethabi::decode(
+            // TODO: The current rollback implementation needs to be synced with the Solidity contract
+            // To ensure encoding/decoding works across chains
             &[
-                // data Mint params
-                ParamType::FixedBytes(32),     // bytes memory receiver
-                ParamType::FixedBytes(32),     // bytes memory srcToken
-                ParamType::FixedBytes(32),     // bytes memory dstToken
-                ParamType::Uint(256), // uint256 amount
-                // data Rollback params
-                ParamType::FixedBytes(32),   // address provider
-                ParamType::Uint(256), // chain id
-                // data Call params
-                ParamType::FixedBytes(32), // target
+                // Mint params
+                ParamType::FixedBytes(32), // bytes memory receiver
+                ParamType::FixedBytes(32), // bytes memory dstToken
+                ParamType::Uint(256),      // uint256 amount
+                // Rollback params
+                ParamType::FixedBytes(32), // bytes32 originalOwner
+                ParamType::FixedBytes(32), // bytes32 originalToken
+                ParamType::FixedBytes(32), // bytes32 provider
+                ParamType::Uint(256),      // uint256 chainId
+                ParamType::FixedBytes(32), // bytes32 targetContract
+                // Call params
                 ParamType::Bytes, // data
             ],
             &data,
