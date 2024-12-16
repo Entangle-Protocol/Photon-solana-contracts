@@ -6,6 +6,7 @@ use anchor_spl::{
     token::Token,
     token_interface::{Mint, TokenAccount},
 };
+use ethabi::ethereum_types::{H160, U256};
 use ethabi::ParamType;
 use ngl_core::{
     cpi::{accounts::MintToken, mint_token},
@@ -17,7 +18,11 @@ use super::BP_DEC;
 use crate::error::ControlAccessError;
 use photon::{program::Photon, OpInfo};
 use solana_program::{instruction::Instruction, program::invoke};
+use ngl_core::cpi::accounts::BurnToken;
+use ngl_core::cpi::burn_token;
+use photon::cpi::accounts::Propose;
 use photon::cpi::propose;
+use photon::protocol_data::FunctionSelector;
 use crate::error::OmnichainError::{InvalidParams, };
 
 #[derive(Accounts)]
@@ -82,6 +87,10 @@ pub struct PhotonMsg<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+
+    pub protocol_info: AccountInfo<'info>,
+    pub photon_config: AccountInfo<'info>,
+    pub photon_program: Program<'info, Photon>,
 }
 
 /// Handle a photon message
@@ -214,8 +223,42 @@ pub fn handle_photon_msg<'c, 'info>(
             }
 
             // Now we call the remaining functions
-            if let Err(e) = handle_cpi_call(ctx, data.clone()) {
-                // TODO: Implement rollback logic
+            if let Err(e) = handle_cpi_call(&ctx, data.clone()) {
+                let accounts = BurnToken {
+                    vault_owner: ctx.accounts.executor.to_account_info(),
+                    burn_authority: ctx.accounts.token_authority.to_account_info(),
+                    config: ctx.accounts.token_config.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    vault: ctx.accounts.executor_vault.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                };
+                let bump = &[ctx.bumps.token_authority];
+                let seed = &[NGL_ROOT, &b"AUTHORITY"[..], bump][..];
+                let seeds = &[seed];
+                let burn_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.zs_token_program.to_account_info(),
+                    accounts,
+                    seeds,
+                );
+                burn_token(burn_ctx, amount)?;
+                let accounts = Propose {
+                    proposer: ctx.accounts.token_authority.to_account_info(),
+                    config: ctx.accounts.photon_config.to_account_info(),
+                    protocol_info: ctx.accounts.protocol_info.to_account_info(),
+                };
+                let cpi_ctx =
+                    CpiContext::new_with_signer(ctx.accounts.photon_program.to_account_info(), accounts, seeds);
+                // rollback(bytes)
+                let raw = [&0x91bb65f3_u32.to_be_bytes()[..], &[0_u8; 28]].concat();
+                let function_selector = FunctionSelector::ByCode(ethabi::encode(&[ethabi::Token::Uint(
+                    U256::from_big_endian(&raw),
+                )]));
+                let params = ethabi::encode(&[
+                    ethabi::Token::FixedBytes(src_token),   // bytes memory srcToken
+                    ethabi::Token::FixedBytes(todo!("Parse original sender")),  // uint256 chainIdTo
+                    ethabi::Token::Uint(U256::from(amount)),    // uint256 amount
+                ]);
+                propose(cpi_ctx, GENOME_PROTOCOL_ID.to_vec(), src_chain_id as u128, target, function_selector, params)?;
                 return Err(e);
             }
             // This reflects the event https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L219
@@ -234,7 +277,7 @@ pub fn handle_photon_msg<'c, 'info>(
 
 /// Handles the CPI calls from the data we are are getting packed from ABI
 fn handle_cpi_call<'c, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
     data: Vec<u8>,
 ) -> Result<()> {
     let selector = u32::from_be_bytes(
@@ -281,7 +324,7 @@ fn handle_cpi_call<'c, 'info>(
 }
 
 fn bridge_register_participants_omnichain<'info>(
-    ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     let params = ethabi::decode(
@@ -351,7 +394,7 @@ fn bridge_register_participants_omnichain<'info>(
     Ok(())
 }
 
-fn bridge_make_bet<'info>(ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>, params: Vec<u8>) -> Result<()> {
+fn bridge_make_bet<'info>(ctx: &Context<'_, '_, '_, 'info, PhotonMsg<'info>>, params: Vec<u8>) -> Result<()> {
     let params = ethabi::decode(
         &[
             ParamType::FixedBytes(32),                        // player
@@ -423,7 +466,7 @@ fn bridge_make_bet<'info>(ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>, par
 
 /// Executes the finish game
 fn bridge_finish_game<'info>(
-    ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     let params = ethabi::decode(
@@ -501,7 +544,7 @@ fn bridge_finish_game<'info>(
 }
 
 /// Executes the finish game with places
-fn bridge_finish_game_with_places<'info>(ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>, params: Vec<u8>) -> Result<()> {
+fn bridge_finish_game_with_places<'info>(ctx: &Context<'_, '_, '_, 'info, PhotonMsg<'info>>, params: Vec<u8>) -> Result<()> {
     // Decode the params
     // function finishGameWithPlaces(uint256 uuid, uint16 feeType, address[] calldata winners, uint16[] calldata prizeFractions)
     // https://github.com/rather-labs/entangle/blob/master/evm_contracts/core/quickgame/GameProvider.sol#L100
@@ -595,7 +638,7 @@ fn bridge_finish_game_with_places<'info>(ctx: Context<'_, '_, '_, 'info, PhotonM
 
 /// Executes the start game omnichain
 fn bridge_start_game_omnichain<'c, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     // Decode the params
@@ -692,7 +735,7 @@ fn bridge_start_game_omnichain<'c, 'info>(
 
 /// Executes the create tournament
 fn bridge_create_tournament<'c, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, 'c, 'info, PhotonMsg<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     // Decode the params
@@ -888,7 +931,7 @@ fn bridge_create_tournament<'c, 'info>(
 
 /// Executes the register
 fn bridge_register<'info>(
-    ctx: Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
+    ctx: &Context<'_, '_, '_, 'info, PhotonMsg<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     // Decode the params
