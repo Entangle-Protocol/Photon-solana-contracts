@@ -12,7 +12,7 @@ use solana_sdk::{
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use photon::photon::ROOT;
 use transmitter_common::{error::ExtensionError, protocol_extension::ProtocolExtension};
-use genome::GENOME_ROOT;
+use genome::{GENOME_PROTOCOL_ID, GENOME_ROOT};
 
 lazy_static::lazy_static! {
     static ref GENOME_EXTENSION: GenomeExtension = {
@@ -402,6 +402,8 @@ impl GenomeExtension {
             mint,
             &spl_token::id(),
         );
+        let (protocol_info, _) = Pubkey::find_program_address(&[&ROOT, b"PROTOCOL", GENOME_PROTOCOL_ID], &photon::id());
+        let (photon_config, _) = Pubkey::find_program_address(&[&ROOT, b"CONFIG"], &photon::id());
         vec![
             AccountMeta::new_readonly(self.zs_program, false),
             AccountMeta::new(operator_info, false),
@@ -418,6 +420,10 @@ impl GenomeExtension {
             AccountMeta::new_readonly(spl_token::ID, false),
             AccountMeta::new_readonly(associated_token::ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(protocol_info, false),
+            AccountMeta::new_readonly(photon_config, false),
+            AccountMeta::new_readonly(photon::id(), false),
+
         ]
     }
 }
