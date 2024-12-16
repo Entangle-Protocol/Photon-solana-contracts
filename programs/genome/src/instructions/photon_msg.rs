@@ -135,6 +135,7 @@ pub fn handle_photon_msg<'c, 'info>(
             // abi.encode(
             //     // mint params
             //     receiver,
+            //     srcToken,
             //     dstToken,
             //     amount,
             //     // rollback params
@@ -258,7 +259,7 @@ pub fn handle_photon_msg<'c, 'info>(
                     ethabi::Token::FixedBytes(todo!("Parse original sender")),  // uint256 chainIdTo
                     ethabi::Token::Uint(U256::from(amount)),    // uint256 amount
                 ]);
-                propose(cpi_ctx, GENOME_PROTOCOL_ID.to_vec(), src_chain_id as u128, target, function_selector, params)?;
+                propose(cpi_ctx, GENOME_PROTOCOL_ID.to_vec(), src_chain_id as u128, provider, function_selector, params)?;
                 return Err(e);
             }
             // This reflects the event https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L219
