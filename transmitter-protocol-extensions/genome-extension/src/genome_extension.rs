@@ -46,8 +46,6 @@ struct GenomeConfig {
     core_program: Pubkey,
     seed_root: String,
     #[serde(deserialize_with = "deserialize_pubkey")]
-    mint: Pubkey,
-    #[serde(deserialize_with = "deserialize_pubkey")]
     platform_wallet: Pubkey,
 }
 
@@ -56,7 +54,6 @@ struct GenomeExtension {
     zs_program: Pubkey,
     executor: Pubkey,
     seed_root: Vec<u8>,
-    mint: Pubkey,
     zs_token_program: Pubkey,
     platform_wallet: Pubkey,
 }
@@ -72,7 +69,7 @@ impl ProtocolExtension for GenomeExtension {
         data: &[u8],
     ) -> Result<Vec<AccountMeta>, ExtensionError> {
         let code = &function_selector[..4];
-        let params = &ethabi::decode(
+        let all_params = &ethabi::decode(
             // Function selector is 'receiveAndCall(bytes data)', need to decode
             // 'data' into the params for the actual function call
             &[
@@ -88,32 +85,37 @@ impl ProtocolExtension for GenomeExtension {
                 ParamType::Bytes, // data
             ],
             &data,
-        ).map_err(|_| ExtensionError::Extension)?
-            // Last parameter is the actual data, first 4 bytes are the inner function selector
-            .last()
+        ).map_err(|_| ExtensionError::Extension)?;
+
+        let mint = all_params[1].clone().into_fixed_bytes().ok_or(ExtensionError::Extension)?;
+        let mint = Pubkey::try_from(mint).map_err(|_| ExtensionError::Extension)?;
+
+        // Last parameter is the actual data, first 4 bytes are the inner function selector
+        let params = all_params.last()
             .ok_or(ExtensionError::Extension)?
             .clone()
             .into_bytes()
             .ok_or(ExtensionError::Extension)?;
+
         let selector = &params[0..4];
         let params = &params[4..];
         Ok(match code {
             &[0x67, 0xb8, 0xfb, 0x72] => match &selector {
                 //finishGame(uint256,uint16,bytes32)
-                [0x6c, 0x5c, 0x5b, 0x93] => self.get_accounts_finish_game(params)?,
+                [0x6c, 0x5c, 0x5b, 0x93] => self.get_accounts_finish_game(&mint, params)?,
 
                 //finishGameWithPlaces(uint256,uint16,bytes32[],uint16[])
-                [0xc1, 0xbe, 0x2f, 0x7d] => self.get_accounts_finish_game_with_places(params)?,
+                [0xc1, 0xbe, 0x2f, 0x7d] => self.get_accounts_finish_game_with_places(&mint, params)?,
 
                 //startGameOmnichain(uint256,uint256,bytes32[],bool)
-                [0xd4, 0xe8, 0x64, 0x2b] => self.get_accounts_create_game(params)?,
+                [0xd4, 0xe8, 0x64, 0x2b] => self.get_accounts_create_game(&mint, params)?,
                 //createTournament(bytes32,bytes32,(uint256,uint256,uint256,uint8,uint8,uint8,uint16,bytes32,uint8),bytes32[],uint8)
                 [0xb0, 0x9d, 0x2c, 0x2c] => todo!("Create tournament implementation is not yet decided due to tx limit constraints"),
                 //register(uint256,bytes32,bytes32,bytes32[],uint8)
-                [0x75, 0xe6,0x3f, 0x50] => self.get_accounts_register_tournament(params)?,
+                [0x75, 0xe6, 0x3f, 0x50] => self.get_accounts_register_tournament(&mint, params)?,
                 //makeBetOmnichain(bytes32,uint256[])
-                [0x5b, 0x69, 0x3a, 0x31] => self.get_accounts_make_bet(params)?,
-                [0x6e, 0x56, 0x23, 0x41] => self.get_accounts_register_game_participants(params)?,
+                [0x5b, 0x69, 0x3a, 0x31] => self.get_accounts_make_bet(&mint, params)?,
+                [0x6e, 0x56, 0x23, 0x41] => self.get_accounts_register_game_participants(&mint, params)?,
                 _ => return Err(ExtensionError::Extension.into()),
             },
             _ => {
@@ -152,13 +154,12 @@ impl GenomeExtension {
             protocol_id,
             zs_program: settings.zs_program,
             seed_root: settings.seed_root.into_bytes(),
-            mint: settings.mint,
             zs_token_program: settings.core_program,
             platform_wallet: settings.platform_wallet,
         }
     }
 
-    fn get_accounts_make_bet(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_make_bet(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let params = ethabi::decode(
             &[
                 ParamType::FixedBytes(32),                        // player
@@ -189,11 +190,11 @@ impl GenomeExtension {
 
         let tournament = Pubkey::find_program_address(&[&GENOME_ROOT, b"TOURNAMENT", tournament_id.to_le_bytes().as_ref()], &self.zs_program).0;
         let book = Pubkey::find_program_address(&[&GENOME_ROOT, b"BOOK", tournament_id.to_le_bytes().as_ref()], &self.zs_program).0;
-        let book_vault = get_associated_token_address(&book, &self.mint);
+        let book_vault = get_associated_token_address(&book, mint);
         let captain_bet = Pubkey::find_program_address(&[&GENOME_ROOT, b"CAPTAIN_BET", tournament_id.to_le_bytes().as_ref(), captain.as_ref()], &self.zs_program).0;
         let gambler_info = Pubkey::find_program_address(&[&GENOME_ROOT, b"GAMBLER", tournament_id.to_le_bytes().as_ref(), captain.as_ref(), gambler.as_ref()], &self.zs_program).0;
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(tournament, false));
         accounts.push(AccountMeta::new(book, false));
         accounts.push(AccountMeta::new(book_vault, false));
@@ -203,7 +204,7 @@ impl GenomeExtension {
         Ok(accounts)
     }
 
-    fn get_accounts_register_tournament(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_register_tournament(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let params = ethabi::decode(
             &[
                 ParamType::Uint(256),                                   // uint256 uuid
@@ -232,7 +233,7 @@ impl GenomeExtension {
         let team = Pubkey::find_program_address(&[&GENOME_ROOT, b"TEAM", tournament_id.to_le_bytes().as_ref(), captain.as_ref()], &self.zs_program).0;
         let claimable_user_info = Pubkey::find_program_address(&[&GENOME_ROOT, b"USER", self.executor.as_ref()], &self.zs_program).0;
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(tournament, false));
         accounts.push(AccountMeta::new(captain, false));
         accounts.push(AccountMeta::new(team, false));
@@ -241,7 +242,7 @@ impl GenomeExtension {
         Ok(accounts)
     }
 
-    fn get_accounts_finish_game_with_places(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_finish_game_with_places(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let finish_game_params = ethabi::decode(
             &[
                 ParamType::Uint(256),                            // uint256 uuid
@@ -275,12 +276,12 @@ impl GenomeExtension {
         let game_id = finish_game_params[0].clone().into_uint().expect("Failed to parse UUID").as_u64();
 
         let game = Pubkey::find_program_address(&[&GENOME_ROOT, b"GAME", game_id.to_le_bytes().as_ref()], &self.zs_program).0;
-        let game_vault = get_associated_token_address(&game, &self.mint);
+        let game_vault = get_associated_token_address(&game, mint);
 
         let treasury_authority = Pubkey::find_program_address(&[&GENOME_ROOT, b"AUTHORITY"], &self.zs_program).0;
-        let treasury_vault = get_associated_token_address(&treasury_authority, &self.mint);
+        let treasury_vault = get_associated_token_address(&treasury_authority, mint);
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(treasury_vault, false));
         accounts.push(AccountMeta::new(fee_meta, false));
         accounts.push(AccountMeta::new(game, false));
@@ -290,7 +291,7 @@ impl GenomeExtension {
         Ok(accounts)
     }
 
-    fn get_accounts_finish_game(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_finish_game(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let finish_game_params = ethabi::decode(
             &[
                 ParamType::Uint(256),      // uint256 uuid
@@ -317,14 +318,14 @@ impl GenomeExtension {
         let game_id = finish_game_params[0].clone().into_uint().expect("Failed to parse UUID").as_u64();
 
         let game = Pubkey::find_program_address(&[&GENOME_ROOT, b"GAME", game_id.to_le_bytes().as_ref()], &self.zs_program).0;
-        let game_vault = get_associated_token_address(&game, &self.mint);
+        let game_vault = get_associated_token_address(&game, mint);
         // Parse the participants
         let winner = AccountMeta::new(Pubkey::try_from(winner).expect("Failed to parse Pubkey"), false);
 
         let treasury_authority = Pubkey::find_program_address(&[&GENOME_ROOT, b"AUTHORITY"], &self.zs_program).0;
-        let treasury_vault = get_associated_token_address(&treasury_authority, &self.mint);
+        let treasury_vault = get_associated_token_address(&treasury_authority, mint);
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(treasury_vault, false));
         accounts.push(AccountMeta::new(fee_meta, false));
         accounts.push(AccountMeta::new(game, false));
@@ -334,7 +335,7 @@ impl GenomeExtension {
         Ok(accounts)
     }
 
-    fn get_accounts_create_game(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_create_game(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let create_game_params = ethabi::decode(
             &[
                 ParamType::Uint(256),                                   // uint256 uuid
@@ -348,17 +349,17 @@ impl GenomeExtension {
         let game_id = create_game_params[0].clone().into_uint().expect("Failed to parse UUID").as_u64();
 
         let game = Pubkey::find_program_address(&[&GENOME_ROOT, b"GAME", game_id.to_le_bytes().as_ref()], &self.zs_program).0;
-        let game_vault = get_associated_token_address(&game, &self.mint);
+        let game_vault = get_associated_token_address(&game, mint);
 
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(game, false));
         accounts.push(AccountMeta::new(game_vault, false));
 
         Ok(accounts)
     }
 
-    fn get_accounts_register_game_participants(&self, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
+    fn get_accounts_register_game_participants(&self, mint: &Pubkey, params: &[u8]) -> Result<Vec<AccountMeta>, ExtensionError> {
         let create_game_params = ethabi::decode(
             &[
                 ParamType::Uint(256),                                   // uint256 uuid
@@ -371,16 +372,16 @@ impl GenomeExtension {
         let game_id = create_game_params[0].clone().into_uint().expect("Failed to parse UUID").as_u64();
 
         let game = Pubkey::find_program_address(&[&GENOME_ROOT, b"GAME", game_id.to_le_bytes().as_ref()], &self.zs_program).0;
-        let game_vault = get_associated_token_address(&game, &self.mint);
+        let game_vault = get_associated_token_address(&game, mint);
 
-        let mut accounts = self.get_common_accounts();
+        let mut accounts = self.get_common_accounts(mint);
         accounts.push(AccountMeta::new(game, false));
         accounts.push(AccountMeta::new(game_vault, false));
 
         Ok(accounts)
     }
 
-    fn get_common_accounts(&self) -> Vec<AccountMeta> {
+    fn get_common_accounts(&self, mint: &Pubkey) -> Vec<AccountMeta> {
         let (operator_info, _) =
             Pubkey::find_program_address(&[&self.seed_root, b"OPERATOR", &self.executor.as_ref()], &self.zs_program);
 
@@ -397,7 +398,7 @@ impl GenomeExtension {
 
         let vault = get_associated_token_address_with_program_id(
             &self.executor,
-            &self.mint,
+            mint,
             &spl_token::id(),
         );
         vec![
@@ -406,13 +407,13 @@ impl GenomeExtension {
             AccountMeta::new(vault, true),
             AccountMeta::new(zs_config, true),
             AccountMeta::new(token_authority, false),
-            AccountMeta::new(self.mint, false),
+            AccountMeta::new(mint.clone(), false),
             AccountMeta::new_readonly(token_config, false),
             AccountMeta::new_readonly(self.zs_token_program, false),
             AccountMeta::new_readonly(zs_authority, false),
-            AccountMeta::new(get_associated_token_address(&zs_authority, &self.mint), false),
+            AccountMeta::new(get_associated_token_address(&zs_authority, mint), false),
             AccountMeta::new(self.platform_wallet, false),
-            AccountMeta::new(get_associated_token_address(&self.platform_wallet, &self.mint), false),
+            AccountMeta::new(get_associated_token_address(&self.platform_wallet, mint), false),
             AccountMeta::new_readonly(spl_token::ID, false),
             AccountMeta::new_readonly(associated_token::ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
