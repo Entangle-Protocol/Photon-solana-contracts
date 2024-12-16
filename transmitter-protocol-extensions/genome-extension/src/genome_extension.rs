@@ -75,6 +75,7 @@ impl ProtocolExtension for GenomeExtension {
             &[
                 // data Mint params
                 ParamType::FixedBytes(32),     // bytes memory receiver
+                ParamType::FixedBytes(32),     // bytes memory srcToken
                 ParamType::FixedBytes(32),     // bytes memory dstToken
                 ParamType::Uint(256), // uint256 amount
                 // data Rollback params

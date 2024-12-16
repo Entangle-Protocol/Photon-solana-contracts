@@ -17,6 +17,7 @@ use super::BP_DEC;
 use crate::error::ControlAccessError;
 use photon::{program::Photon, OpInfo};
 use solana_program::{instruction::Instruction, program::invoke};
+use photon::cpi::propose;
 use crate::error::OmnichainError::{InvalidParams, };
 
 #[derive(Accounts)]
@@ -143,6 +144,7 @@ pub fn handle_photon_msg<'c, 'info>(
                 &[
                     // Mint params
                     ParamType::FixedBytes(32), // bytes memory receiver
+                    ParamType::FixedBytes(32), // bytes memory srcToken
                     ParamType::FixedBytes(32), // bytes memory dstToken
                     ParamType::Uint(256),      // uint256 amount
                     // Rollback params
@@ -156,30 +158,35 @@ pub fn handle_photon_msg<'c, 'info>(
             )
                 .map_err(|_| OmnichainError::InvalidParams)?;
 
+            let src_token = params[2]
+                .clone()
+                .into_fixed_bytes()
+                .ok_or_else(|| OmnichainError::InvalidPubkey)?;
+
             // Parse the amount
-            let amount = params[2]
+            let amount = params[3]
                 .clone()
                 .into_uint()
                 .ok_or_else(|| OmnichainError::InvalidUserAccount)?
                 .as_u64();
             // Parse the provider
-            let provider = params[3]
+            let provider = params[4]
                 .clone()
                 .into_fixed_bytes()
                 .ok_or_else(|| OmnichainError::InvalidPubkey)?;
             // Parse the chain ID
-            let src_chain_id = params[4]
+            let src_chain_id = params[5]
                 .clone()
                 .into_uint()
                 .ok_or(OmnichainError::InvalidParams)?
                 .as_u64();
             // Parse the target
-            let target = params[5]
+            let target = params[6]
                 .clone()
                 .into_fixed_bytes()
                 .ok_or_else(|| OmnichainError::InvalidProtocolId)?;
             // Parse the data
-            let data = params[6]
+            let data = params[7]
                 .clone()
                 .into_bytes()
                 .ok_or_else(|| OmnichainError::InvalidMethodId)?;
@@ -207,9 +214,10 @@ pub fn handle_photon_msg<'c, 'info>(
             }
 
             // Now we call the remaining functions
-            handle_cpi_call(ctx, data.clone())?;
-            // TODO: Check if we will use the target somehow
-
+            if let Err(e) = handle_cpi_call(ctx, data.clone()) {
+                // TODO: Implement rollback logic
+                return Err(e);
+            }
             // This reflects the event https://github.com/rather-labs/entangle/blob/master/evm_contracts/omnichain/omni-messenger/core/SingleUserMessagging.sol#L219
             // Before was the minted event
             emit!(SuccessfulCall {
