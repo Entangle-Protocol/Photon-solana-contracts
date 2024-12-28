@@ -60,9 +60,6 @@ pub struct Tournament {
     pub finish_metadata: FinishTournamentMetadata,
 }
 
-pub const MAX_TEAMS_USIZE: usize = MAX_TEAMS_SIZE as usize;
-pub const MAX_PARTICIPANT_IN_TEAM_USIZE: usize = MAX_PARTICIPANT_IN_TEAM as usize;
-
 impl Tournament {
     pub const LEN: usize = 8 + 8 + 32 + 8 + 8 + 16 + 1 + 1 + 1 + 1 + 1 + 2 + 1;
 
@@ -136,7 +133,6 @@ impl Team {
     pub fn len(max_players: usize) -> usize {
         Self::LEN
             + (32 * max_players)
-            + (1 * max_players)
             + (1 * max_players)
             + (1 * max_players)
             + (1 * max_players)

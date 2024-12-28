@@ -24,7 +24,7 @@ pub struct CreateTournamentSinglechain<'info> {
     #[account(
         init,
         payer = sponsor,
-        space = Tournament::len(params.max_teams as usize + 1),
+        space = Tournament::len(params.max_teams as usize),
         seeds = [GENOME_ROOT, b"TOURNAMENT", config.tournament_config.tournament_count.to_le_bytes().as_ref()],
         bump
     )]
