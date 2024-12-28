@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    GameStatus, GameType, Role, TournamentStatus, BP_DEC, MAX_PARTICIPANT_IN_TEAM, MAX_TEAMS_SIZE,
+    GameStatus, GameType, Role, TournamentStatus, BP_DEC,
 };
 
 // General
