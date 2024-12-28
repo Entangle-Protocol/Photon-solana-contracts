@@ -9,6 +9,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
+#[instruction(params: TournamentParams)]
 pub struct CreateTournamentSinglechain<'info> {
     #[account(signer, mut)]
     pub sponsor: Signer<'info>,
@@ -21,9 +22,9 @@ pub struct CreateTournamentSinglechain<'info> {
     #[account(seeds = [GENOME_ROOT, b"OPERATOR", sponsor.key().as_ref()], bump)]
     pub operator_info: Box<Account<'info, OperatorInfo>>,
     #[account(
-        init_if_needed,
+        init,
         payer = sponsor,
-        space = Tournament::LEN,
+        space = Tournament::len(params.max_teams as usize + 1),
         seeds = [GENOME_ROOT, b"TOURNAMENT", config.tournament_config.tournament_count.to_le_bytes().as_ref()],
         bump
     )]

@@ -60,78 +60,84 @@ describe("Tournament Program Tests", () => {
   const teamsWithParticipants = [teamA, teamB];
   const numberOfBeneficiaries = 5;
   const beneficiaries = Array.from({ length: numberOfBeneficiaries }, (_, i) =>
-    anchor.web3.Keypair.generate()
+      anchor.web3.Keypair.generate()
   );
   const beneficiariesKeys = beneficiaries.map(
-    (beneficiary) => beneficiary.publicKey
+      (beneficiary) => beneficiary.publicKey
   );
 
   let mintsTokensPDAForParticipants: PublicKey[][] = [];
+
+  const logCost = async (fn) => {
+    const balanceBefore = await program.provider.connection.getBalance(admin.publicKey);
+    await fn();
+    console.log("Cost for operation: ", balanceBefore - await program.provider.connection.getBalance(admin.publicKey));
+  }
 
   before(async () => {
     const provider = anchor.getProvider();
 
     const tx = await provider.connection.requestAirdrop(
-      admin.publicKey,
-      anchor.web3.LAMPORTS_PER_SOL * 100
+        admin.publicKey,
+        anchor.web3.LAMPORTS_PER_SOL * 100
     );
     await provider.connection.requestAirdrop(
-      messenger.publicKey,
-      anchor.web3.LAMPORTS_PER_SOL * 100
+        messenger.publicKey,
+        anchor.web3.LAMPORTS_PER_SOL * 100
     );
     await provider.connection.confirmTransaction(tx);
 
     adminMint = await token.createMint(
-      provider.connection,
-      admin,
-      admin.publicKey,
-      null,
-      6
+        provider.connection,
+        admin,
+        admin.publicKey,
+        null,
+        6
     );
     const vault = await token.createAssociatedTokenAccount(
-      provider.connection,
-      admin,
-      adminMint,
-      admin.publicKey
+        provider.connection,
+        admin,
+        adminMint,
+        admin.publicKey
     );
     await token.mintTo(
-      provider.connection,
-      admin,
-      adminMint,
-      vault,
-      admin,
-      1000000000
+        provider.connection,
+        admin,
+        adminMint,
+        vault,
+        admin,
+        1000000000
     );
     for (const team of teamsWithParticipants) {
       let mintsByParticipant = [];
       for (const participant of team) {
         const vault = await token.createAssociatedTokenAccount(
-          provider.connection,
-          admin,
-          adminMint,
-          participant.publicKey
+            provider.connection,
+            admin,
+            adminMint,
+            participant.publicKey
         );
         mintsByParticipant.push(vault);
 
         await provider.connection.requestAirdrop(
-          participant.publicKey,
-          anchor.web3.LAMPORTS_PER_SOL * 100
+            participant.publicKey,
+            anchor.web3.LAMPORTS_PER_SOL * 100
         );
         await token.mintTo(
-          provider.connection,
-          admin,
-          adminMint,
-          vault,
-          admin,
-          1000000000
+            provider.connection,
+            admin,
+            adminMint,
+            vault,
+            admin,
+            1000000000
         );
 
         await buildAndSendApproveTransaction(
-          provider,
-          vault,
-          admin.publicKey,
-          participant,
-          500000000
+            provider,
+            vault,
+            admin.publicKey,
+            participant,
+            500000000
         );
       }
       mintsTokensPDAForParticipants.push(mintsByParticipant);
@@ -140,24 +146,24 @@ describe("Tournament Program Tests", () => {
     // send airdrop to other accounts
     for (const fakeAccount of fakeAccountsToValidate) {
       const tx = await provider.connection.requestAirdrop(
-        fakeAccount.publicKey,
-        anchor.web3.LAMPORTS_PER_SOL * 100
+          fakeAccount.publicKey,
+          anchor.web3.LAMPORTS_PER_SOL * 100
       );
     }
 
     platformWalletVault = await token.createAssociatedTokenAccount(
-      provider.connection,
-      admin,
-      adminMint,
-      platformWallet.publicKey
+        provider.connection,
+        admin,
+        adminMint,
+        platformWallet.publicKey
     );
     await token.mintTo(
-      provider.connection,
-      admin,
-      adminMint,
-      platformWalletVault,
-      admin,
-      1000000000
+        provider.connection,
+        admin,
+        adminMint,
+        platformWalletVault,
+        admin,
+        1000000000
     );
   });
 
@@ -168,11 +174,11 @@ describe("Tournament Program Tests", () => {
   it("Sets Operator info", async () => {
     const messengerRole = { messenger: {} };
     await approveOperator(
-      program,
-      ROOT,
-      admin,
-      messenger.publicKey,
-      messengerRole
+        program,
+        ROOT,
+        admin,
+        messenger.publicKey,
+        messengerRole
     );
     messengerOperator = getOperatorInfo(program, ROOT, messenger.publicKey);
   });
@@ -181,11 +187,11 @@ describe("Tournament Program Tests", () => {
     const minimalAdmisionFee = 100;
     const minimalSponsorPool = 200;
     await setTournamentParams(
-      program,
-      admin,
-      minimalAdmisionFee,
-      minimalSponsorPool,
-      ownerOperator
+        program,
+        admin,
+        minimalAdmisionFee,
+        minimalSponsorPool,
+        ownerOperator
     );
   });
 
@@ -204,15 +210,15 @@ describe("Tournament Program Tests", () => {
 
       await updateClaimableRewards(program, ROOT, admin, 100000000);
       await createTournamentOmnichain(
-        program,
-        admin,
-        tournamentIndex,
-        tournamentParams,
-        ownerOperator
+          program,
+          admin,
+          tournamentIndex,
+          tournamentParams,
+          ownerOperator
       );
       const tournament = getTournamentPDA(program, tournamentIndex);
       const tournamentAccount = await program.account.tournament.fetch(
-        tournament
+          tournament
       );
       assert.equal(tournamentAccount.id.toString(), tournamentIndex.toString());
     });
@@ -222,12 +228,12 @@ describe("Tournament Program Tests", () => {
         // because will re-register captain
         // first index will always be the captain
         await registerTournamentOmnichain(
-          program,
-          admin,
-          tournamentIndex,
-          team.map((t) => t.publicKey),
-          team[0].publicKey, // first participant of team
-          ownerOperator
+            program,
+            admin,
+            tournamentIndex,
+            team.map((t) => t.publicKey),
+            team[0].publicKey, // first participant of team
+            ownerOperator
         );
       }
     });
@@ -237,17 +243,17 @@ describe("Tournament Program Tests", () => {
 
       for (const team of teamsWithParticipants) {
         await verifyAndPayoutTeamRegistration(
-          program,
-          admin,
-          tournamentIndex,
-          team[0].publicKey
+            program,
+            admin,
+            tournamentIndex,
+            team[0].publicKey
         );
       }
 
       await startTournament(program, admin, tournamentIndex);
 
       const tournamentAccount = await program.account.tournament.fetch(
-        tournament
+          tournament
       );
 
       assert.deepEqual(tournamentAccount.status, { started: {} });
@@ -269,21 +275,26 @@ describe("Tournament Program Tests", () => {
         token: adminMint,
       };
 
+      const balanceBefore = await program.provider.connection.getBalance(admin.publicKey);
+
       await createTournamentSinglechain(
-        program,
-        admin,
-        tournamentSinglechainIndex,
-        tournamentParams,
-        adminMint,
-        ownerOperator
+          program,
+          admin,
+          tournamentSinglechainIndex,
+          tournamentParams,
+          adminMint,
+          ownerOperator
       );
+      const cost = balanceBefore - await program.provider.connection.getBalance(admin.publicKey);
+      console.log(`Tournament creation cost: ${cost / 1e9} SOL`);
+
       const tournament = getTournamentPDA(program, tournamentSinglechainIndex);
       const tournamentAccount = await program.account.tournament.fetch(
-        tournament
+          tournament
       );
       assert.equal(
-        tournamentAccount.id.toString(),
-        tournamentSinglechainIndex.toString()
+          tournamentAccount.id.toString(),
+          tournamentSinglechainIndex.toString()
       );
     });
 
@@ -292,23 +303,26 @@ describe("Tournament Program Tests", () => {
         // because will re-register captain
         // first index will always be the captain
         await registerTournamentSinglechain(
-          program,
-          admin,
-          tournamentSinglechainIndex,
-          teamsWithParticipants[teamIndex][0], // first participant of team
-          adminMint, //mintsTokensPDAForParticipants[teamIndex][0]
+            program,
+            admin,
+            tournamentSinglechainIndex,
+            teamsWithParticipants[teamIndex][0], // first participant of team
+            adminMint, //mintsTokensPDAForParticipants[teamIndex][0]
         );
         for (const [participantIndex, participant] of team.entries()) {
           if (participantIndex > 0) {
+            const balanceBefore = await program.provider.connection.getBalance(admin.publicKey);
             await registerParticipantToTournamentSinglechain(
-              program,
-              admin,
-              tournamentSinglechainIndex,
-              team[0].publicKey,
-              participant.publicKey,
-              adminMint,
-              0
+                program,
+                admin,
+                tournamentSinglechainIndex,
+                team[0].publicKey,
+                participant.publicKey,
+                adminMint,
+                0
             );
+            const cost = balanceBefore - await program.provider.connection.getBalance(admin.publicKey);
+            console.log(`Tournament registration cost: ${cost / 1e9} SOL`);
           }
         }
       }
@@ -319,17 +333,17 @@ describe("Tournament Program Tests", () => {
 
       for (const [teamIndex, team] of teamsWithParticipants.entries()) {
         await verifyAndPayoutTeamRegistration(
-          program,
-          admin,
-          tournamentSinglechainIndex,
-          team[0].publicKey
+            program,
+            admin,
+            tournamentSinglechainIndex,
+            team[0].publicKey
         );
       }
 
       await startTournament(program, admin, tournamentSinglechainIndex);
 
       const tournamentAccount = await program.account.tournament.fetch(
-        tournament
+          tournament
       );
 
       assert.deepEqual(tournamentAccount.status, { started: {} });
@@ -347,63 +361,63 @@ describe("Tournament Program Tests", () => {
       }
 
       await program.methods
-        .setFeeParams(
-          feeType,
-          platformWallet.publicKey,
-          new anchor.BN(baseFee),
-          beneficiariesKeys,
-          fractions,
-          new anchor.BN(baseFee)
-        )
-        .accountsStrict({
-          operator: admin.publicKey,
-          operatorInfo: ownerOperator,
-          feeMeta,
-          config: accounts.config,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([admin])
-        .rpc();
+          .setFeeParams(
+              feeType,
+              platformWallet.publicKey,
+              new anchor.BN(baseFee),
+              beneficiariesKeys,
+              fractions,
+              new anchor.BN(baseFee)
+          )
+          .accountsStrict({
+            operator: admin.publicKey,
+            operatorInfo: ownerOperator,
+            feeMeta,
+            config: accounts.config,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
       const winners = [teamA[0].publicKey];
       const prizes = [100];
       await finishTournament(
-        program,
-        admin,
-        tournamentSinglechainIndex,
-        winners, // captains
-        prizes,
-        tournamentSinglechainIndex,
-        adminMint,
-        platformWallet.publicKey,
-        platformWalletVault
+          program,
+          admin,
+          tournamentSinglechainIndex,
+          winners, // captains
+          prizes,
+          tournamentSinglechainIndex,
+          adminMint,
+          platformWallet.publicKey,
+          platformWalletVault
       );
 
       // teamA was choosen as the winners above
       for (const participants of teamA) {
         await deliverParticipantTokensSinglechain(
-          program,
-          admin,
-          tournamentSinglechainIndex,
-          participants.publicKey,
-          teamA[0].publicKey,
-          adminMint,
-          adminMint
+            program,
+            admin,
+            tournamentSinglechainIndex,
+            participants.publicKey,
+            teamA[0].publicKey,
+            adminMint,
+            adminMint
         );
       }
 
       const b4 = await program.account.tournament.fetch(tournament);
       await deliverFinishOrganizerTokensSinglechain(
-        program,
-        admin,
-        tournamentSinglechainIndex,
-        admin.publicKey,
-        teamA[0].publicKey,
-        adminMint,
-        adminMint
+          program,
+          admin,
+          tournamentSinglechainIndex,
+          admin.publicKey,
+          teamA[0].publicKey,
+          adminMint,
+          adminMint
       );
 
       const tournamentAccount = await program.account.tournament.fetch(
-        tournament
+          tournament
       );
 
       assert.deepEqual(tournamentAccount.status, { finished: {} });

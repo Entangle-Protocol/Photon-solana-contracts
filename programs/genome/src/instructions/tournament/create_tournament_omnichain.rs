@@ -4,6 +4,7 @@ use crate::{
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
+#[instruction(params: TournamentParams)]
 pub struct CreateTournamentOmnichain<'info> {
     #[account(signer, mut)]
     pub sponsor: Signer<'info>,
@@ -27,7 +28,7 @@ pub struct CreateTournamentOmnichain<'info> {
     #[account(
         init_if_needed,
         payer = sponsor,
-        space = Tournament::LEN,
+        space = Tournament::len(params.max_teams as usize),
         seeds = [GENOME_ROOT, b"TOURNAMENT", &config.tournament_config.tournament_count.to_le_bytes().as_ref()],
         bump
     )]

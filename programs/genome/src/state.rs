@@ -50,7 +50,6 @@ pub struct Tournament {
     pub captains: Vec<Pubkey>,
     pub team_validated_start_game: Vec<bool>,
     pub teams_cancelation_refunded: Vec<bool>,
-    pub participants: Vec<Pubkey>,
     pub status: TournamentStatus,
     pub tournament_type: u8,
     pub min_teams: u8,
@@ -65,7 +64,11 @@ pub const MAX_TEAMS_USIZE: usize = MAX_TEAMS_SIZE as usize;
 pub const MAX_PARTICIPANT_IN_TEAM_USIZE: usize = MAX_PARTICIPANT_IN_TEAM as usize;
 
 impl Tournament {
-    pub const LEN: usize = 8 + 8 + 32 + 8 + 8 + 16 + (32*MAX_TEAMS_USIZE) + (1*MAX_TEAMS_USIZE) + (1*MAX_TEAMS_USIZE) + 1 + 1 + 1 + 1 + 1 + 2 + 1 + FinishTournamentMetadata::LEN;
+    pub const LEN: usize = 8 + 8 + 32 + 8 + 8 + 16 + 1 + 1 + 1 + 1 + 1 + 2 + 1;
+
+    pub fn len(max_teams: usize) -> usize {
+        Self::LEN + (32 * max_teams) + (1 * max_teams) + (1 * max_teams) + FinishTournamentMetadata::len(max_teams)
+    }
 
     pub fn create_tournament(
         &mut self,
@@ -102,12 +105,16 @@ pub struct FinishTournamentMetadata {
 
 impl FinishTournamentMetadata {
     pub const LEN: usize = 8
-        + (32 * MAX_TEAMS_USIZE)
-        + (1 * MAX_TEAMS_USIZE)
-        + (2 * MAX_TEAMS_USIZE)
         + 1
         + 8
         + 8;
+
+    fn len(max_teams: usize) -> usize {
+        Self::LEN
+            + (32 * max_teams)
+            + (1 * max_teams)
+            + (2 * max_teams)
+    }
 }
 
 #[account]
@@ -124,11 +131,16 @@ pub struct Team {
 impl Team {
     pub const LEN: usize = 8
         + 32
-        + (32 * MAX_PARTICIPANT_IN_TEAM_USIZE)
-        + (1 * MAX_PARTICIPANT_IN_TEAM_USIZE)
-        + (1 * MAX_PARTICIPANT_IN_TEAM_USIZE)
-        + (1 * MAX_PARTICIPANT_IN_TEAM_USIZE)
         + 1;
+
+    pub fn len(max_players: usize) -> usize {
+        Self::LEN
+            + (32 * max_players)
+            + (1 * max_players)
+            + (1 * max_players)
+            + (1 * max_players)
+            + (1 * max_players)
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -214,7 +226,7 @@ pub struct Game {
     pub status: GameStatus,
     pub id: u64,
     pub used_fractions: u64,
-    pub total_fractions: u64
+    pub total_fractions: u64,
 }
 
 impl Game {

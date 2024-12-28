@@ -22,7 +22,7 @@ pub struct RegisterTournamentOmnichain<'info> {
         payer = payer,
         seeds = [GENOME_ROOT, b"TEAM", &tournament.id.to_le_bytes().as_ref(), captain.key().as_ref()],
         bump,
-        space = Team::LEN,
+        space = Team::len(tournament.players_in_team as usize + 1),
     )]
     pub team: Box<Account<'info, Team>>,
     #[account(
