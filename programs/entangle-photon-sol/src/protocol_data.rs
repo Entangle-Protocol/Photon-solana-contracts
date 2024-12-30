@@ -58,6 +58,9 @@ use sha3::{Digest, Keccak256};
 pub const GOV_PROTOCOL_ID: &Bytes32 =
     b"photon-gov\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
+pub const GENOME_PROTOCOL_ID: &Bytes32 = b"Genome--------------------------";
+
+
 /// Helper to get GOV protocol id
 pub const fn gov_protocol_id() -> &'static Bytes32 {
     GOV_PROTOCOL_ID
@@ -140,7 +143,7 @@ impl TryFrom<&[u8]> for FunctionSelector {
 #[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug, Default)]
 pub struct OperationData {
     pub protocol_id: Vec<u8>, // [u8; 32] is zeroed out due to bug
-    pub meta: Meta,
+    pub meta: [u8; 32],
     pub src_chain_id: u128,
     pub src_block_number: u64,
     pub src_op_tx_id: Vec<u8>,

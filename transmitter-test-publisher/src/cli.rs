@@ -9,6 +9,7 @@ pub(crate) enum Operation {
     IncrementOwned(u64),
     CodeBased(Vec<u8>),
     AddProtocol,
+    StartGameOmnichain
 }
 
 #[derive(Clone)]
@@ -58,6 +59,10 @@ pub(crate) enum Command {
         #[arg(long, short, help = "Config path")]
         config: String,
     },
+    StartGameOmnichain {
+        #[arg(long, short, help = "Config path")]
+        config: String,
+    }
 }
 
 #[derive(Parser)]
@@ -87,6 +92,8 @@ impl Cli {
                 publish(config, &Operation::CodeBased(code.0.clone()), 1).await
             }
             Command::AddProtocol { config } => publish(config, &Operation::AddProtocol, 1).await,
+            Command::StartGameOmnichain { config } => publish(config, &Operation::AddProtocol, 1).await,
+
         }
     }
 }

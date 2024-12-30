@@ -256,6 +256,7 @@ dependencies = [
  "anchor-derive-accounts",
  "anchor-derive-serde",
  "anchor-derive-space",
+ "anchor-syn",
  "arrayref",
  "base64 0.13.1",
  "bincode",
@@ -273,6 +274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c4fd6e43b2ca6220d2ef1641539e678bfc31b6cc393cf892b373b5997b6a39a"
 dependencies = [
  "anchor-lang",
+ "mpl-token-metadata",
  "solana-program",
  "spl-associated-token-account 2.3.0",
  "spl-token 4.0.0",
@@ -2050,6 +2052,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "genome"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "entangle-photon-sol",
+ "ethabi",
+ "hex-literal",
+ "ngl-core",
+ "solana-program",
+]
+
+[[package]]
 name = "gethostname"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2220,6 +2235,12 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "hex-literal"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
 
 [[package]]
 name = "histogram"
@@ -2889,6 +2910,29 @@ dependencies = [
  "typed-builder",
  "uuid",
  "webpki-roots 0.25.4",
+]
+
+[[package]]
+name = "mpl-token-metadata"
+version = "3.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba8ee05284d79b367ae8966d558e1a305a781fc80c9df51f37775169117ba64f"
+dependencies = [
+ "borsh 0.10.3",
+ "num-derive 0.3.3",
+ "num-traits",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "ngl-core"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "solana-program",
+ "spl-token-2022 1.0.0",
 ]
 
 [[package]]
@@ -5595,6 +5639,7 @@ dependencies = [
  "entangle-photon-sol",
  "env_logger 0.11.2",
  "ethabi",
+ "genome",
  "hex",
  "libsecp256k1 0.7.1",
  "log",
@@ -6611,6 +6656,28 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.49",
+]
+
+[[package]]
+name = "zs-extension"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "config",
+ "entangle-photon-sol",
+ "env_logger 0.11.2",
+ "ethabi",
+ "genome",
+ "hex",
+ "lazy_static",
+ "log",
+ "serde",
+ "solana-sdk",
+ "spl-associated-token-account 1.1.3",
+ "spl-token 2.0.8",
+ "spl-token-2022 1.0.0",
+ "transmitter-common",
 ]
 
 [[package]]

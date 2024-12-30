@@ -8,6 +8,8 @@ default = []
 [programs.localnet]
 photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
 onefunc = "EjpcUpcuJV2Mq9vjELMZHhgpvJ4ggoWtUYCTFqw6D9CZ"
+ngl_core = "FmHwfH7HvAoD7HNvwX71ffUF3G2ejJoPDcZr4kBu5Y2a"
+genome = "E81J4bjf8vHpioEGn75ysw895khGs5uaK3hDxPCe2z55"
 
 [programs.mainnet]
 photon = "pccm961CjaR7T7Hcht9omrXQb9w54ntJo95FFT7N9AJ"
@@ -25,5 +27,16 @@ propose = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'propose' tests/ph
 byname = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'executeOperation by name' tests/photon.ts"
 bycode = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 -g 'executeOperation by code' tests/photon.ts"
 
+genome-game = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/Game.ts"
+genome-tournament = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/Tournament.ts"
+genome-gameHappyPath = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/flows/gameHappyPath.ts"
+genome-tournamentHappyPath = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/flows/tournamentHappyPath.ts"
+genome-fee = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/Fee.ts"
+genome-bookMakerHappyPath = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/flows/bookMakerHappyPath.ts"
+genome-treasury = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests_genome/Treasury.ts"
+
+
 [test]
 startup_wait = 10000
+shutdown_wait = 2000
+upgradeable = false

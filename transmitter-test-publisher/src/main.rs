@@ -6,18 +6,20 @@ extern crate onefunc;
 extern crate photon;
 
 use config::{Config, File};
-use ethabi::{ethereum_types, Address, Token, Uint};
+use ethabi::{ethereum_types, Address, Param, Token, Uint};
 use libsecp256k1::sign;
 use log::{error, info};
 use rand::{distributions::Alphanumeric, random, Rng, RngCore};
 use serde::Deserialize;
 use std::{env, time::Duration};
+use ethabi::ethereum_types::U256;
+use ethabi::ParamType::FixedBytes;
 use thiserror::Error;
 
 use transmitter_common::data::{Meta, OperationData, ProtocolId};
 
 use cli::Operation;
-use photon::protocol_data::GOV_PROTOCOL_ID;
+use photon::protocol_data::{GENOME_PROTOCOL_ID, GOV_PROTOCOL_ID};
 use rabbitmq_publisher::{RabbitmqConfig, RabbitmqPublisher};
 use util::predefined_signers;
 
@@ -52,6 +54,8 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
 
     let protocol_id = ProtocolId(*onefunc::onefunc::PROTOCOL_ID);
     let gov_protocol_id = ProtocolId(*GOV_PROTOCOL_ID);
+
+    let genome_protocol_id = ProtocolId(*GENOME_PROTOCOL_ID);
 
     let dst_chain_id = photon::photon::SOLANA_CHAIN_ID;
     let protocol_address: Vec<u8> = onefunc::ID.to_bytes().to_vec();
@@ -171,6 +175,51 @@ pub(crate) async fn publish(config: &str, operation: &Operation, times: u64) {
                     src_op_tx_id: tx_id.to_vec(),
                     function_selector: vec![
                         0, 32, 0x45, 0xa0, 0x04, 0xb9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ],
+                    params,
+                    reserved: vec![],
+                }
+            },
+            Operation::StartGameOmnichain => {
+                let inner_function = ethabi::encode(
+                    &[
+                        Token::Uint(U256([0, 0, 0, 0])), // uuid
+                        Token::Uint(U256([0, 0, 0, 500])), // wager per participant
+                        Token::Array(vec![ // participants
+                            Token::FixedBytes(vec![0; 32]),
+                            Token::FixedBytes(vec![1; 32]),
+                            Token::FixedBytes(vec![2; 32]),
+                            Token::FixedBytes(vec![4; 32])
+                        ]),
+                        Token::Bool(true), // start game immediately
+                    ]
+                );
+                let params = ethabi::encode(
+                    &[
+                        // Mint params
+                        Token::FixedBytes(vec![0; 32]), // bytes memory receiver
+                        Token::FixedBytes(vec![0; 32]), // bytes memory dstToken
+                        Token::Uint(U256([0, 0, 0, 2000])),      // uint256 amount
+                        // Rollback params
+                        Token::FixedBytes(vec![0; 32]), // address zsMessenger rollback
+                        Token::Uint(U256([0, 0, 0, 2000])),      // chainId
+                        Token::FixedBytes(vec![0; 32]), // Target
+                        // Call params
+                        Token::Bytes(inner_function), // data
+                    ]
+                );
+                OperationData {
+                    protocol_id: genome_protocol_id,
+                    meta: *meta,
+                    src_block_number: 1,
+                    src_chain_id: 33133,
+                    dest_chain_id: dst_chain_id,
+                    nonce,
+                    protocol_addr: photon::ID.to_bytes().to_vec(),
+                    src_op_tx_id: tx_id.to_vec(),
+                    function_selector: vec![
+                        0, 32, 0x67, 0xb8, 0xfb, 0x72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     ],
                     params,
