@@ -24,7 +24,7 @@ jobs:
         run: cargo clippy --all-targets -- -Dwarnings
 
   tests:
-    needs: versioning
+    needs: clippy
     runs-on: ubuntu-latest
     container: rust:1.78.0
     steps:
@@ -33,7 +33,7 @@ jobs:
         run: cargo test --workspace --exclude entangle-photon-sol -- --skip test_send
 
   build_module:
-    needs: versioning
+    needs: tests
     runs-on: ubuntu-latest
     container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
@@ -49,7 +49,7 @@ jobs:
           docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
 
   build_solana:
-    needs: versioning
+    needs: build_module
     runs-on: ubuntu-latest
     container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
