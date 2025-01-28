@@ -42,11 +42,9 @@ jobs:
         env:
           GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
         run: |
-          echo "$GCLOUD_SERVICE_KEY" | gcloud auth activate-service-account --key-file=-
+          echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcloud-service-key.json
+          gcloud auth activate-service-account --key-file=gcloud-service-key.json
           gcloud auth configure-docker
-          docker build -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest -f ./docker/Dockerfile_module .
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }}
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
 
   build_solana:
     needs: build_module
@@ -58,7 +56,8 @@ jobs:
         env:
           GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
         run: |
-          echo "$GCLOUD_SERVICE_KEY" | gcloud auth activate-service-account --key-file=-
+          echo "$GCLOUD_SERVICE_KEY" | base64 --decode > gcloud-service-key.json
+          gcloud auth activate-service-account --key-file=gcloud-service-key.json
           gcloud auth configure-docker
           docker build -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest -f ./docker/Dockerfile_module .
           docker push gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }}
