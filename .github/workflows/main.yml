@@ -58,7 +58,6 @@ jobs:
   build_module:
     needs: tests
     runs-on: ubuntu-latest
-    container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
       - uses: actions/checkout@v3
       - uses: google-github-actions/auth@v2
@@ -66,16 +65,23 @@ jobs:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
       - name: Configure Docker
         run: gcloud auth configure-docker
+      - name: Login to Docker Registry
+        run: echo "${{ secrets.GCLOUD_SERVICE_KEY }}" | docker login -u _json_key --password-stdin https://gcr.io
       - name: Build and Push Docker Image
-        run: |
-          docker build -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest -f ./docker/Dockerfile_module .
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }}
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/Dockerfile_module
+          push: true
+          tags: |
+            gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }}
+            gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
+          cache-from: type=registry,ref=gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
+          cache-to: type=inline
 
   build_solana:
-    needs: build_module
+    needs: tests
     runs-on: ubuntu-latest
-    container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
       - uses: actions/checkout@v3
       - uses: google-github-actions/auth@v2
@@ -83,8 +89,16 @@ jobs:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
       - name: Configure Docker
         run: gcloud auth configure-docker
+      - name: Login to Docker Registry
+        run: echo "${{ secrets.GCLOUD_SERVICE_KEY }}" | docker login -u _json_key --password-stdin https://gcr.io
       - name: Build and Push Docker Image
-        run: |
-          docker build -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest -f ./docker/Dockerfile_solana .
-          docker push gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }}
-          docker push gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/Dockerfile_solana
+          push: true
+          tags: |
+            gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }}
+            gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest
+          cache-from: type=registry,ref=gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest
+          cache-to: type=inline
