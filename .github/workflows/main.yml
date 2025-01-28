@@ -70,7 +70,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./docker/Dockerfile_solana
+          file: ./docker/Dockerfile_module
           push: true
           tags: |
             gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }}
