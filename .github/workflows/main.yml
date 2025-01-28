@@ -8,6 +8,21 @@ jobs:
     container: rust:1.78.0
     steps:
       - uses: actions/checkout@v3
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Cargo build output
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}
       - name: Setup Rust
         run: |
           rustup default 1.78.0
@@ -21,39 +36,72 @@ jobs:
     container: rust:1.78.0
     steps:
       - uses: actions/checkout@v3
+      - name: Cache Cargo test output
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}
       - name: Run Tests
         run: cargo test --workspace --exclude entangle-photon-sol -- --skip test_send
 
   build_module:
     needs: tests
     runs-on: ubuntu-latest
-    container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
       - uses: actions/checkout@v3
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
-      - name: Configure Docker
-        run: gcloud auth configure-docker
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-${{ needs.setup.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
       - name: Build and Push Docker Image
-        run: |
-          docker build -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest -f ./docker/Dockerfile_module .
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.${{ github.run_id }}
-          docker push gcr.io/poetic-nova-407814/photon-module:${{ github.ref_name }}.latest
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./docker/Dockerfile_module
+          push: true
+          tags: |
+            gcr.io/poetic-nova-407814/photon-module:${{ needs.setup.outputs.version }}
+            gcr.io/poetic-nova-407814/photon-module:latest
+          build-args: |
+            VERSION=${{ needs.setup.outputs.version }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
 
   build_solana:
     needs: build_module
     runs-on: ubuntu-latest
-    container: gcr.io/google.com/cloudsdktool/google-cloud-cli:latest
     steps:
       - uses: actions/checkout@v3
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
-      - name: Configure Docker
-        run: gcloud auth configure-docker
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-${{ needs.setup.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
       - name: Build and Push Docker Image
-        run: |
-          docker build -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }} -t gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest -f ./docker/Dockerfile_solana .
-          docker push gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.${{ github.run_id }}
-          docker push gcr.io/poetic-nova-407814/photon-solana:${{ github.ref_name }}.latest
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./docker/Dockerfile_solana
+          push: true
+          tags: |
+            gcr.io/poetic-nova-407814/photon-solana:${{ needs.setup.outputs.version }}
+            gcr.io/poetic-nova-407814/photon-solana:latest
+          build-args: |
+            VERSION=${{ needs.setup.outputs.version }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
