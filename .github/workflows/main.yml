@@ -3,7 +3,18 @@ name: CI Workflow
 on: [push, pull_request]
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set Version
+        id: set_version
+        run: echo "::set-output name=version::${{ github.ref_name }}.${{ github.run_id }}"
+
   clippy:
+    needs: setup
     runs-on: ubuntu-latest
     container: rust:1.78.0
     steps:
